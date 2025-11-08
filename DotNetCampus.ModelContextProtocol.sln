@@ -5,7 +5,7 @@ VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DotNetCampus.ModelContextProtocol", "src\DotNetCampus.ModelContextProtocol\DotNetCampus.ModelContextProtocol.csproj", "{B433131D-FCD6-4729-A0BA-DE5F3DBE875F}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "2.tests", "2.tests", "{0AB3BF05-4346-4AA6-1389-037BE0695223}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "3.tests", "3.tests", "{0AB3BF05-4346-4AA6-1389-037BE0695223}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DotNetCampus.ModelContextProtocol.Tests", "tests\DotNetCampus.ModelContextProtocol.Tests\DotNetCampus.ModelContextProtocol.Tests.csproj", "{F42EB6D5-A014-40D1-B0D3-B4700C574B23}"
 EndProject
@@ -24,6 +24,10 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "1.build", "1.build", "{68A2
 		Directory.Packages.props = Directory.Packages.props
 		build\Version.props = build\Version.props
 	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "2.samples", "2.samples", "{F04A0D77-F872-48D9-818B-18C0AAAC466F}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DotNetCampus.SampleMcpServer", "samples\DotNetCampus.SampleMcpServer\DotNetCampus.SampleMcpServer.csproj", "{F37E2CC6-EAA1-4572-B472-16D62ACBDAC3}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -59,11 +63,24 @@ Global
 		{F42EB6D5-A014-40D1-B0D3-B4700C574B23}.Release|x64.Build.0 = Release|Any CPU
 		{F42EB6D5-A014-40D1-B0D3-B4700C574B23}.Release|x86.ActiveCfg = Release|Any CPU
 		{F42EB6D5-A014-40D1-B0D3-B4700C574B23}.Release|x86.Build.0 = Release|Any CPU
+		{F37E2CC6-EAA1-4572-B472-16D62ACBDAC3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F37E2CC6-EAA1-4572-B472-16D62ACBDAC3}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F37E2CC6-EAA1-4572-B472-16D62ACBDAC3}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{F37E2CC6-EAA1-4572-B472-16D62ACBDAC3}.Debug|x64.Build.0 = Debug|Any CPU
+		{F37E2CC6-EAA1-4572-B472-16D62ACBDAC3}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{F37E2CC6-EAA1-4572-B472-16D62ACBDAC3}.Debug|x86.Build.0 = Debug|Any CPU
+		{F37E2CC6-EAA1-4572-B472-16D62ACBDAC3}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F37E2CC6-EAA1-4572-B472-16D62ACBDAC3}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F37E2CC6-EAA1-4572-B472-16D62ACBDAC3}.Release|x64.ActiveCfg = Release|Any CPU
+		{F37E2CC6-EAA1-4572-B472-16D62ACBDAC3}.Release|x64.Build.0 = Release|Any CPU
+		{F37E2CC6-EAA1-4572-B472-16D62ACBDAC3}.Release|x86.ActiveCfg = Release|Any CPU
+		{F37E2CC6-EAA1-4572-B472-16D62ACBDAC3}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{F42EB6D5-A014-40D1-B0D3-B4700C574B23} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
+		{F37E2CC6-EAA1-4572-B472-16D62ACBDAC3} = {F04A0D77-F872-48D9-818B-18C0AAAC466F}
 	EndGlobalSection
 EndGlobal
