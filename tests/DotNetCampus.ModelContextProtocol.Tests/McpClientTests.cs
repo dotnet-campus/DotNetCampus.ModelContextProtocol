@@ -1,4 +1,6 @@
-﻿namespace DotNetCampus.ModelContextProtocol.Tests;
+﻿using DotNetCampus.ModelContextProtocol.Clients;
+
+namespace DotNetCampus.ModelContextProtocol.Tests;
 
 [TestClass]
 public sealed class McpClientTests
