@@ -11,7 +11,6 @@ A lightweight, zero-dependency yet full-featured MCP protocol implementation bui
 - 📦 Zero external dependencies
 - 🔌 Easy to integrate
 - 🎯 Full MCP protocol support
-- ✨ Modern .NET implementation
 
 ## Getting Started
 
@@ -69,4 +68,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## About dotnet-campus
 
-dotnet-campus（.NET 职业技术学院）is dedicated to building high-quality .NET libraries and tools for the community.
+dotnet-campus（.NET 职业技术学院）
