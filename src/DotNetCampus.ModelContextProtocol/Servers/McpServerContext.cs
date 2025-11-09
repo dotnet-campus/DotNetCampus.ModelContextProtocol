@@ -10,4 +10,6 @@ public record McpServerContext
     }
 
     internal ILogger Logger { get; init; }
+
+    public McpServerHandlers Handlers { get; init; } = new();
 }

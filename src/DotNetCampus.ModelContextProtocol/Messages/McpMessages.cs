@@ -6,22 +6,22 @@ public record ClientCapabilities
 {
     [JsonPropertyName("roots")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public RootsCapability? Roots { get; init; }
+    public RootsCapability? Roots { get; set; }
 
     [JsonPropertyName("sampling")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public object? Sampling { get; init; }
+    public object? Sampling { get; set; }
 
     [JsonPropertyName("experimental")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public Dictionary<string, object>? Experimental { get; init; }
+    public Dictionary<string, object>? Experimental { get; set; }
 }
 
 public record RootsCapability
 {
     [JsonPropertyName("listChanged")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public bool? ListChanged { get; init; }
+    public bool? ListChanged { get; set; }
 }
 
 /// <summary>

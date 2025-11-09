@@ -5,6 +5,7 @@ using System.Text;
 using System.Text.Json;
 using DotNetCampus.Logging;
 using DotNetCampus.ModelContextProtocol.Core;
+using DotNetCampus.ModelContextProtocol.Protocol;
 
 namespace DotNetCampus.ModelContextProtocol.Servers;
 
@@ -13,7 +14,6 @@ public class HttpServerTransport
     private readonly McpServerContext _context;
     private readonly HttpListener _listener = new();
     private readonly ConcurrentDictionary<string, HttpSession> _sseSessions = [];
-    private Func<JsonDocument, Task<JsonDocument>>? _messageHandler;
 
     public HttpServerTransport(McpServerContext context, HttpServerTransportOptions options)
     {
@@ -40,7 +40,6 @@ public class HttpServerTransport
 
     public async Task StartAsync(Func<JsonDocument, Task<JsonDocument>> handler)
     {
-        _messageHandler = handler;
         _listener.Start();
 
         Log.Info($"[McpServer][Http] listening on {string.Join(", ", _listener.Prefixes)}");
@@ -103,9 +102,27 @@ public class HttpServerTransport
             {
                 if (endpoint == MessagePath)
                 {
+                    var query = ctx.Request.QueryString;
+                    var sessionId = query["sessionId"];
+                    if (string.IsNullOrEmpty(sessionId) || !_sseSessions.TryGetValue(sessionId, out var session))
+                    {
+                        ctx.Response.StatusCode = 400;
+                        ctx.Response.Close();
+                        return;
+                    }
+
                     using var reader = new StreamReader(ctx.Request.InputStream, Encoding.UTF8);
                     var body = await reader.ReadToEndAsync();
-                    ctx.Response.StatusCode = 500;
+                    var request = JsonSerializer.Deserialize(body, McpServerRequestJsonContext.Default.JsonRpcRequest);
+                    if (request is null)
+                    {
+                        ctx.Response.StatusCode = 400;
+                        ctx.Response.Close();
+                        return;
+                    }
+
+                    await _context.Handlers.HandleRequest(request, session.Writer, CancellationToken.None);
+                    ctx.Response.StatusCode = 200;
                     ctx.Response.Close();
                 }
                 else

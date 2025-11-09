@@ -10,6 +10,7 @@
   <ItemGroup>
     <PackageReference Include="DotNetCampus.LatestCSharpFeatures" />
     <PackageReference Include="DotNetCampus.Logger" PrivateAssets="all" ExcludeAssets="compile;runtime" />
+    <PackageReference Include="System.Text.Json" Condition="!$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net8.0'))" />
   </ItemGroup>
 
   <ItemGroup>
