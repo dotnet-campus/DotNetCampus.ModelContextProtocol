@@ -3,9 +3,14 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>net9.0</TargetFramework>
-    <PublishAot>true</PublishAot>
+    <PublishAot>false</PublishAot>
     <InvariantGlobalization>true</InvariantGlobalization>
   </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="DotNetCampus.LatestCSharpFeatures" />
+    <PackageReference Include="DotNetCampus.Logger" />
+  </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\DotNetCampus.ModelContextProtocol\DotNetCampus.ModelContextProtocol.csproj" />
