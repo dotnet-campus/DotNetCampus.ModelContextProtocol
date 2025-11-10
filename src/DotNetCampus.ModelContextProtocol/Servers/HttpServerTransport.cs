@@ -78,16 +78,18 @@ public class HttpServerTransport
             // 按照 MCP 协议规范实现：
             // https://modelcontextprotocol.io/specification/2025-06-18/basic/transports
 
-            // 服务端使用 SSE（Server-Sent Events）将消息推送给客户端。
+            // GET 请求处理
             if (ctx.Request.HttpMethod == "GET")
             {
                 if (endpoint == EndPoint)
                 {
-                    await HandleConnectionAsync(ctx, false);
+                    // 新协议 (2025-06-18): Streamable HTTP - 不发送 endpoint 事件
+                    await HandleConnectionAsync(ctx, sendEndpointEvent: false);
                 }
                 else if (endpoint == SsePath)
                 {
-                    await HandleConnectionAsync(ctx, true);
+                    // 旧协议 (2024-11-05): HTTP+SSE - 必须发送 endpoint 事件
+                    await HandleConnectionAsync(ctx, sendEndpointEvent: true);
                 }
                 else
                 {
@@ -97,12 +99,18 @@ public class HttpServerTransport
                 return;
             }
 
-            // 客户端的每次请求都发送一个新的 POST 请求到 MCP endpoint。
+            // 客户端的每次请求都发送一个新的 POST 请求。
             if (ctx.Request.HttpMethod == "POST")
             {
                 if (endpoint == EndPoint)
                 {
+                    // 新协议 (2025-06-18): POST 到 /mcp 处理 JSON-RPC 消息
                     await HandlePostRequestAsync(ctx);
+                }
+                else if (endpoint == MessagePath)
+                {
+                    // 旧协议 (2024-11-05): POST 到 /mcp/messages?sessionId=xxx 处理消息
+                    await HandleMessageRequestAsync(ctx);
                 }
                 else
                 {
@@ -131,7 +139,7 @@ public class HttpServerTransport
         }
     }
 
-    private async Task HandleConnectionAsync(HttpListenerContext context, bool isSse)
+    private async Task HandleConnectionAsync(HttpListenerContext context, bool sendEndpointEvent)
     {
         var sessionId = SessionId.MakeNew().Id;
 
@@ -144,7 +152,7 @@ public class HttpServerTransport
         var writer = new StreamWriter(context.Response.OutputStream, Encoding.UTF8);
         writer.AutoFlush = true;
 
-        var session = new HttpSession(writer, isSse, new CancellationTokenSource());
+        var session = new HttpSession(writer, sendEndpointEvent, new CancellationTokenSource());
         var isAdded = _sseSessions.TryAdd(sessionId, session);
         if (!isAdded)
         {
@@ -154,8 +162,20 @@ public class HttpServerTransport
 
         try
         {
-            // 新协议(2025-06-18): GET 请求建立 SSE 连接,用于服务器主动推送消息。
-            // 不需要发送 endpoint 事件(那是旧协议的特征)。
+            if (sendEndpointEvent)
+            {
+                // 旧协议 (2024-11-05): 发送 endpoint 事件，提示客户端后续发送消息的端点。
+                // 参考: https://modelcontextprotocol.io/specification/2024-11-05/basic/transports#http-with-sse
+                await writer.WriteAsync($"id:{sessionId}\n");
+                await writer.WriteAsync($"event:endpoint\n");
+                await writer.WriteAsync($"data:{EndPoint}/messages?sessionId={sessionId}\n\n");
+            }
+            else
+            {
+                // 新协议 (2025-06-18): GET 请求建立 SSE 连接，用于服务器主动推送消息。
+                // 不需要发送 endpoint 事件。
+                // 参考: https://modelcontextprotocol.io/specification/2025-06-18/basic/transports#listening-for-messages-from-the-server
+            }
             
             // 保持连接直到客户端断开。
             await Task.Delay(Timeout.Infinite, session.CancellationTokenSource.Token);
