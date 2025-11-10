@@ -77,15 +77,17 @@ public class HttpServerTransport
                 return;
             }
 
+            var method = ctx.Request.HttpMethod;
+
             // 新协议 (2025-03-26+): Streamable HTTP
             // 参考: https://modelcontextprotocol.io/specification/2025-03-26/basic/transports
-            if (ctx.Request.HttpMethod == "GET" && endpoint == EndPoint)
+            if (method == "GET" && endpoint.Equals(EndPoint, StringComparison.OrdinalIgnoreCase))
             {
                 await HandleSseConnectionAsync(ctx);
                 return;
             }
 
-            if (ctx.Request.HttpMethod == "POST" && endpoint == EndPoint)
+            if (method == "POST" && endpoint.Equals(EndPoint, StringComparison.OrdinalIgnoreCase))
             {
                 await HandleJsonRpcRequestAsync(ctx);
                 return;
@@ -93,19 +95,19 @@ public class HttpServerTransport
 
             // 旧协议 (2024-11-05): HTTP+SSE 兼容
             // 参考: https://modelcontextprotocol.io/specification/2024-11-05/basic/transports#http-with-sse
-            if (ctx.Request.HttpMethod == "GET" && endpoint == LegacySsePath)
+            if (method == "GET" && endpoint.Equals(LegacySsePath, StringComparison.OrdinalIgnoreCase))
             {
                 await HandleLegacySseConnectionAsync(ctx);
                 return;
             }
 
-            if (ctx.Request.HttpMethod == "POST" && endpoint == LegacyMessagePath)
+            if (method == "POST" && endpoint.Equals(LegacyMessagePath, StringComparison.OrdinalIgnoreCase))
             {
                 await HandleLegacyMessageRequestAsync(ctx);
                 return;
             }
 
-            Log.Warn($"[McpServer][Http] No handler found for {ctx.Request.HttpMethod} {endpoint}");
+            Log.Warn($"[McpServer][Http] No handler found for {method} {endpoint}");
             RespondWithError(ctx, HttpStatusCode.NotFound);
         }
         catch (Exception ex)
