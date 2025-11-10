@@ -36,6 +36,24 @@ internal static class McpServerHandlingExtensions
         },
     };
 
+    public static async ValueTask<JsonRpcResponse> WriteErrorResponseAsync(this Stream stream,
+        int errorCode, string message, CancellationToken cancellationToken = default)
+    {
+        var errorResponse = new JsonRpcResponse
+        {
+            Error = new JsonRpcError
+            {
+                Code = errorCode,
+                Message = message,
+            },
+        };
+
+        await JsonSerializer.SerializeAsync(stream, errorResponse,
+            McpServerResponseJsonContext.Default.JsonRpcResponse, cancellationToken);
+
+        return errorResponse;
+    }
+
     private static async Task<JsonRpcResponse> HandleRequestAsync<TParams, TResult>(
         this JsonRpcRequest request,
         McpRequestHandler<TParams, TResult> handler,

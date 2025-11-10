@@ -20,7 +20,7 @@ internal class Program
             .Build()
             .IntoGlobalStaticLog();
 
-        Console.WriteLine("Starting Sample MCP Server...");
+        Log.Info($"[App] Starting Sample MCP Server...");
 
         var httpTransport = McpServer.CreateHttpServerTransport("http://127.0.0.1:5943/");
 

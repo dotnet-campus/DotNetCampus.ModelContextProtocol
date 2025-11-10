@@ -180,7 +180,9 @@ public class HttpServerTransport
         var sessionId = query["sessionId"];
         if (string.IsNullOrEmpty(sessionId) || !_sseSessions.TryGetValue(sessionId, out var session))
         {
-            ctx.Response.StatusCode = (int)HttpStatusCode.BadRequest;
+            const int errorCode = (int)HttpStatusCode.BadRequest;
+            await ctx.Response.OutputStream.WriteErrorResponseAsync(errorCode, $"No session found for ID '{sessionId}'");
+            ctx.Response.StatusCode = errorCode;
             ctx.Response.Close();
             return;
         }
