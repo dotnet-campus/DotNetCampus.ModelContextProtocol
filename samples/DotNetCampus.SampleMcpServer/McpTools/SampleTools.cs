@@ -6,7 +6,7 @@ namespace DotNetCampus.SampleMcpServer.McpTools;
 public class SampleTools
 {
     /// <summary>
-    /// 用于给 AI 调试使用的工具，原样返回一些信息
+    /// [ForAI] 用于给 AI 调试使用的工具，原样返回一些信息
     /// </summary>
     /// <param name="text">要原样返回的字符串</param>
     /// <param name="options">如何返回字符串</param>
