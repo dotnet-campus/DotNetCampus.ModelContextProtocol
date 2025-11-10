@@ -36,12 +36,12 @@ public class HttpServerTransport
     /// <summary>
     /// SSE endpoint - 用于旧协议 HTTP+SSE (2024-11-05) 兼容
     /// </summary>
-    private string LegacySsePath => Path.Join(EndPoint, "sse");
+    private string LegacySsePath => $"{EndPoint}/sse";
 
     /// <summary>
     /// Message endpoint - 用于旧协议 HTTP+SSE (2024-11-05) 兼容
     /// </summary>
-    private string LegacyMessagePath => Path.Join(EndPoint, "messages");
+    private string LegacyMessagePath => $"{EndPoint}/messages";
 
     public async Task StartAsync()
     {
@@ -64,6 +64,8 @@ public class HttpServerTransport
             RespondWithError(ctx, HttpStatusCode.NotFound);
             return;
         }
+
+        Log.Debug($"[McpServer][Http] {ctx.Request.HttpMethod} {endpoint}");
 
         try
         {
@@ -103,6 +105,7 @@ public class HttpServerTransport
                 return;
             }
 
+            Log.Warn($"[McpServer][Http] No handler found for {ctx.Request.HttpMethod} {endpoint}");
             RespondWithError(ctx, HttpStatusCode.NotFound);
         }
         catch (Exception ex)
@@ -305,8 +308,8 @@ public class HttpServerTransport
 
             var response = await _context.Handlers.HandleRequestAsync(request, CancellationToken.None);
 
-            // 通过 SSE 返回响应
-            await session.Writer.WriteAsync($"event:message\n");
+            // 通过 SSE 返回响应（SSE 格式需要特定的文本格式）
+            await session.Writer.WriteAsync("event:message\n");
             var responseText = JsonSerializer.Serialize(response, McpServerResponseJsonContext.Default.JsonRpcResponse);
             await session.Writer.WriteAsync($"data:{responseText}\n\n");
 
@@ -346,9 +349,7 @@ public class HttpServerTransport
 
     private static async Task<JsonRpcRequest?> ReadJsonRpcRequestAsync(Stream inputStream)
     {
-        using var reader = new StreamReader(inputStream, Encoding.UTF8);
-        var body = await reader.ReadToEndAsync();
-        return JsonSerializer.Deserialize(body, McpServerRequestJsonContext.Default.JsonRpcRequest);
+        return await JsonSerializer.DeserializeAsync(inputStream, McpServerRequestJsonContext.Default.JsonRpcRequest);
     }
 
     private static async Task RespondWithJson(HttpListenerContext ctx, JsonRpcResponse response)
@@ -356,9 +357,7 @@ public class HttpServerTransport
         ctx.Response.ContentType = "application/json";
         ctx.Response.StatusCode = (int)HttpStatusCode.OK;
 
-        var responseText = JsonSerializer.Serialize(response, McpServerResponseJsonContext.Default.JsonRpcResponse);
-        var responseBytes = Encoding.UTF8.GetBytes(responseText);
-        await ctx.Response.OutputStream.WriteAsync(responseBytes);
+        await JsonSerializer.SerializeAsync(ctx.Response.OutputStream, response, McpServerResponseJsonContext.Default.JsonRpcResponse);
         ctx.Response.Close();
     }
 
