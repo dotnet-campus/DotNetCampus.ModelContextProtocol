@@ -1,21 +1,26 @@
-﻿global using DotNetCampus.ModelContextProtocol.Properties;
-
-namespace DotNetCampus.ModelContextProtocol.Properties;
-
-#if NET7_0_OR_GREATER
+﻿#if NET7_0_OR_GREATER
 #else
-internal sealed class UnreachableException : Exception
+namespace System.Diagnostics
 {
-    public UnreachableException()
+    internal sealed class UnreachableException : Exception
     {
-    }
+        public UnreachableException()
+        {
+        }
 
-    public UnreachableException(string? message) : base(message)
-    {
-    }
+        public UnreachableException(string? message) : base(message)
+        {
+        }
 
-    public UnreachableException(string? message, Exception? innerException) : base(message, innerException)
-    {
+        public UnreachableException(string? message, Exception? innerException) : base(message, innerException)
+        {
+        }
     }
+}
+
+namespace System.Diagnostics.CodeAnalysis
+{
+    [AttributeUsage(AttributeTargets.Parameter | AttributeTargets.Field | AttributeTargets.Property, AllowMultiple = false, Inherited = false)]
+    internal sealed class StringSyntaxAttribute(string syntax) : Attribute;
 }
 #endif

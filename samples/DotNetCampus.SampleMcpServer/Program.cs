@@ -1,8 +1,8 @@
-﻿using System.Text.Json;
-using DotNetCampus.Logging;
+﻿using DotNetCampus.Logging;
 using DotNetCampus.Logging.Attributes;
 using DotNetCampus.Logging.Writers;
 using DotNetCampus.ModelContextProtocol.Servers;
+using DotNetCampus.SampleMcpServer.McpTools;
 
 namespace DotNetCampus.SampleMcpServer;
 
@@ -22,9 +22,14 @@ internal class Program
 
         Log.Info($"[App] Starting Sample MCP Server...");
 
-        var httpTransport = McpServer.CreateHttpServerTransport("http://127.0.0.1:5943/");
+        var mcpServer = new McpServerBuilder()
+            .WithTools(t => t
+                .WithJsonSerializer(McpToolJsonContext.Default))
+            .WithHttp(5943, "mcp")
+            .WithStdio()
+            .Build();
 
-        await httpTransport.StartAsync();
+        await mcpServer.RunAsync();
     }
 }
 

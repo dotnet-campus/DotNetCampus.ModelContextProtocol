@@ -6,7 +6,6 @@ using System.Text.Json;
 using DotNetCampus.Logging;
 using DotNetCampus.ModelContextProtocol.Core;
 using DotNetCampus.ModelContextProtocol.Messages;
-using DotNetCampus.ModelContextProtocol.Protocol;
 
 namespace DotNetCampus.ModelContextProtocol.Servers;
 
@@ -43,7 +42,7 @@ public class HttpServerTransport
     /// </summary>
     private string LegacyMessagePath => $"{EndPoint}/messages";
 
-    public async Task StartAsync()
+    public async Task StartAsync(CancellationToken cancellationToken = default)
     {
         _listener.Start();
 

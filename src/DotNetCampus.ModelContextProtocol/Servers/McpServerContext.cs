@@ -6,14 +6,14 @@ namespace DotNetCampus.ModelContextProtocol.Servers;
 
 public record McpServerContext
 {
-    internal McpServerContext(ILogger logger)
-    {
-        Logger = logger;
-    }
-
-    internal ILogger Logger { get; init; }
-
     public McpServerHandlers Handlers { get; init; } = new();
+
+    [NotNull]
+    internal ILogger? Logger
+    {
+        get => field ??= Log.Current;
+        init;
+    }
 
     [NotNull]
     public IMcpServerToolJsonSerializer? JsonSerializer
