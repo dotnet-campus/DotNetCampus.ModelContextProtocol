@@ -5,15 +5,20 @@ using System.Text;
 using System.Text.Json;
 using DotNetCampus.Logging;
 using DotNetCampus.ModelContextProtocol.Core;
+using DotNetCampus.ModelContextProtocol.Messages;
 using DotNetCampus.ModelContextProtocol.Protocol;
 
 namespace DotNetCampus.ModelContextProtocol.Servers;
 
+/// <summary>
+/// MCP HTTP 传输层实现
+/// 支持新协议 Streamable HTTP (2025-03-26+) 和旧协议 HTTP+SSE (2024-11-05) 的兼容
+/// </summary>
 public class HttpServerTransport
 {
     private readonly McpServerContext _context;
     private readonly HttpListener _listener = new();
-    private readonly ConcurrentDictionary<string, HttpSession> _sseSessions = [];
+    private readonly ConcurrentDictionary<string, SseSession> _sseSessions = [];
 
     public HttpServerTransport(McpServerContext context, HttpServerTransportOptions options)
     {
@@ -23,20 +28,20 @@ public class HttpServerTransport
 
     private ILogger Log => _context.Logger;
 
-    public string EndPoint
-    {
-        get => field;
-        init
-        {
-            field = value;
-            SsePath = Path.Join(value, "sse");
-            MessagePath = Path.Join(value, "messages");
-        }
-    } = "/mcp";
+    /// <summary>
+    /// MCP endpoint - 用于新协议 Streamable HTTP (2025-03-26+)
+    /// </summary>
+    public string EndPoint { get; init; } = "/mcp";
 
-    private string SsePath { get; init; } = "/mcp/sse";
+    /// <summary>
+    /// SSE endpoint - 用于旧协议 HTTP+SSE (2024-11-05) 兼容
+    /// </summary>
+    private string LegacySsePath => Path.Join(EndPoint, "sse");
 
-    private string MessagePath { get; init; } = "/mcp/messages";
+    /// <summary>
+    /// Message endpoint - 用于旧协议 HTTP+SSE (2024-11-05) 兼容
+    /// </summary>
+    private string LegacyMessagePath => Path.Join(EndPoint, "messages");
 
     public async Task StartAsync()
     {
@@ -56,175 +61,129 @@ public class HttpServerTransport
         var endpoint = ctx.Request.Url?.AbsolutePath;
         if (endpoint is null)
         {
-            ctx.Response.StatusCode = (int)HttpStatusCode.NotFound;
-            ctx.Response.Close();
+            RespondWithError(ctx, HttpStatusCode.NotFound);
             return;
         }
 
         try
         {
-            ctx.Response.Headers.Add("Access-Control-Allow-Origin", "*");
-            ctx.Response.Headers.Add("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-            ctx.Response.Headers.Add("Access-Control-Allow-Headers", "Content-Type");
+            SetCorsHeaders(ctx.Response);
 
-            // 处理预检请求。
             if (ctx.Request.HttpMethod == "OPTIONS")
             {
-                ctx.Response.StatusCode = (int)HttpStatusCode.OK;
-                ctx.Response.Close();
+                RespondWithSuccess(ctx, HttpStatusCode.OK);
                 return;
             }
 
-            // 按照 MCP 协议规范实现：
-            // https://modelcontextprotocol.io/specification/2025-06-18/basic/transports
-
-            // GET 请求处理
-            if (ctx.Request.HttpMethod == "GET")
+            // 新协议 (2025-03-26+): Streamable HTTP
+            // 参考: https://modelcontextprotocol.io/specification/2025-03-26/basic/transports
+            if (ctx.Request.HttpMethod == "GET" && endpoint == EndPoint)
             {
-                if (endpoint == EndPoint)
-                {
-                    // 新协议 (2025-06-18): Streamable HTTP - 不发送 endpoint 事件
-                    await HandleConnectionAsync(ctx, sendEndpointEvent: false);
-                }
-                else if (endpoint == SsePath)
-                {
-                    // 旧协议 (2024-11-05): HTTP+SSE - 必须发送 endpoint 事件
-                    await HandleConnectionAsync(ctx, sendEndpointEvent: true);
-                }
-                else
-                {
-                    ctx.Response.StatusCode = (int)HttpStatusCode.NotFound;
-                    ctx.Response.Close();
-                }
+                await HandleSseConnectionAsync(ctx);
                 return;
             }
 
-            // 客户端的每次请求都发送一个新的 POST 请求。
-            if (ctx.Request.HttpMethod == "POST")
+            if (ctx.Request.HttpMethod == "POST" && endpoint == EndPoint)
             {
-                if (endpoint == EndPoint)
-                {
-                    // 新协议 (2025-06-18): POST 到 /mcp 处理 JSON-RPC 消息
-                    await HandlePostRequestAsync(ctx);
-                }
-                else if (endpoint == MessagePath)
-                {
-                    // 旧协议 (2024-11-05): POST 到 /mcp/messages?sessionId=xxx 处理消息
-                    await HandleMessageRequestAsync(ctx);
-                }
-                else
-                {
-                    ctx.Response.StatusCode = (int)HttpStatusCode.NotFound;
-                    ctx.Response.Close();
-                }
+                await HandleJsonRpcRequestAsync(ctx);
                 return;
             }
 
-            // 按照 MCP 协议规范，不支持其他 HTTP 方法。
-            ctx.Response.StatusCode = (int)HttpStatusCode.MethodNotAllowed;
-            ctx.Response.Close();
+            // 旧协议 (2024-11-05): HTTP+SSE 兼容
+            // 参考: https://modelcontextprotocol.io/specification/2024-11-05/basic/transports#http-with-sse
+            if (ctx.Request.HttpMethod == "GET" && endpoint == LegacySsePath)
+            {
+                await HandleLegacySseConnectionAsync(ctx);
+                return;
+            }
+
+            if (ctx.Request.HttpMethod == "POST" && endpoint == LegacyMessagePath)
+            {
+                await HandleLegacyMessageRequestAsync(ctx);
+                return;
+            }
+
+            RespondWithError(ctx, HttpStatusCode.NotFound);
         }
         catch (Exception ex)
         {
-            Log.Error($"[McpServer][Http] Error handling request", ex);
-            try
-            {
-                ctx.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
-                ctx.Response.Close();
-            }
-            catch
-            {
-                // 在处理异常时如果仍然异常，则忽略。
-            }
+            Log.Error($"[McpServer][Http] Error handling request to {endpoint}", ex);
+            RespondWithError(ctx, HttpStatusCode.InternalServerError);
         }
     }
 
-    private async Task HandleConnectionAsync(HttpListenerContext context, bool sendEndpointEvent)
+    #region 新协议实现 (Streamable HTTP - 2025-03-26+)
+
+    /// <summary>
+    /// 处理 SSE 连接 (新协议)
+    /// 参考: https://modelcontextprotocol.io/specification/2025-03-26/basic/transports#listening-for-messages-from-the-server
+    /// </summary>
+    private async Task HandleSseConnectionAsync(HttpListenerContext context)
     {
         var sessionId = SessionId.MakeNew().Id;
 
-        context.Response.ContentType = "text/event-stream";
-        context.Response.Headers.Add("Cache-Control", "no-cache,no-store");
-        context.Response.Headers.Add("Content-Encoding", "identity");
-        context.Response.Headers.Add("Connection", "keep-alive");
-        context.Response.StatusCode = (int)HttpStatusCode.OK;
+        SetSseResponseHeaders(context.Response);
 
-        var writer = new StreamWriter(context.Response.OutputStream, Encoding.UTF8);
-        writer.AutoFlush = true;
+        var writer = new StreamWriter(context.Response.OutputStream, Encoding.UTF8) { AutoFlush = true };
+        var session = new SseSession(writer, new CancellationTokenSource());
 
-        var session = new HttpSession(writer, sendEndpointEvent, new CancellationTokenSource());
-        var isAdded = _sseSessions.TryAdd(sessionId, session);
-        if (!isAdded)
+        if (!_sseSessions.TryAdd(sessionId, session))
         {
-            throw new UnreachableException($"Unreachable given good entropy! Session with ID '{sessionId}' has already been created.");
+            throw new UnreachableException($"Session ID collision: '{sessionId}'");
         }
-        Log.Info($"[McpServer][Http] SSE client connected: {sessionId}");
+
+        Log.Info($"[McpServer][Http] SSE connection established: {sessionId}");
 
         try
         {
-            if (sendEndpointEvent)
-            {
-                // 旧协议 (2024-11-05): 发送 endpoint 事件，提示客户端后续发送消息的端点。
-                // 参考: https://modelcontextprotocol.io/specification/2024-11-05/basic/transports#http-with-sse
-                await writer.WriteAsync($"id:{sessionId}\n");
-                await writer.WriteAsync($"event:endpoint\n");
-                await writer.WriteAsync($"data:{EndPoint}/messages?sessionId={sessionId}\n\n");
-            }
-            else
-            {
-                // 新协议 (2025-06-18): GET 请求建立 SSE 连接，用于服务器主动推送消息。
-                // 不需要发送 endpoint 事件。
-                // 参考: https://modelcontextprotocol.io/specification/2025-06-18/basic/transports#listening-for-messages-from-the-server
-            }
-            
-            // 保持连接直到客户端断开。
-            await Task.Delay(Timeout.Infinite, session.CancellationTokenSource.Token);
+            // 新协议不发送 endpoint 事件，直接保持连接用于服务器推送
+            await Task.Delay(Timeout.Infinite, session.CancellationToken.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            // 正常关闭
         }
         catch (Exception ex)
         {
-            Log.Warn($"[McpServer][Http] SSE connection error for {sessionId}", ex);
+            Log.Warn($"[McpServer][Http] SSE connection error: {sessionId}", ex);
         }
         finally
         {
             _sseSessions.TryRemove(sessionId, out _);
-            Log.Info($"[McpServer][Http] SSE client disconnected: {sessionId}");
-            writer.Close();
+            Log.Info($"[McpServer][Http] SSE connection closed: {sessionId}");
+            await writer.DisposeAsync();
         }
     }
 
-    private async Task HandlePostRequestAsync(HttpListenerContext ctx)
+    /// <summary>
+    /// 处理 JSON-RPC 请求 (新协议)
+    /// 参考: https://modelcontextprotocol.io/specification/2025-03-26/basic/transports#sending-messages-to-the-server
+    /// </summary>
+    private async Task HandleJsonRpcRequestAsync(HttpListenerContext ctx)
     {
-        // 新协议(2025-06-18): POST 到 MCP endpoint 处理 JSON-RPC 消息
-        // 检查是否有 session ID (除了 initialize 请求外都需要)
         var sessionId = ctx.Request.Headers["Mcp-Session-Id"];
 
         try
         {
-            using var reader = new StreamReader(ctx.Request.InputStream, Encoding.UTF8);
-            var body = await reader.ReadToEndAsync();
-            var request = JsonSerializer.Deserialize(body, McpServerRequestJsonContext.Default.JsonRpcRequest);
+            var request = await ReadJsonRpcRequestAsync(ctx.Request.InputStream);
             if (request is null)
             {
-                ctx.Response.StatusCode = (int)HttpStatusCode.BadRequest;
-                ctx.Response.Close();
+                RespondWithError(ctx, HttpStatusCode.BadRequest, "Invalid JSON-RPC request");
                 return;
             }
 
-            // 如果不是 initialize 请求,需要验证 session ID
+            // 验证 Session (initialize 请求除外)
             if (request.Method != "initialize")
             {
                 if (string.IsNullOrEmpty(sessionId))
                 {
-                    ctx.Response.StatusCode = (int)HttpStatusCode.BadRequest;
-                    ctx.Response.Close();
+                    RespondWithError(ctx, HttpStatusCode.BadRequest, "Missing Mcp-Session-Id header");
                     return;
                 }
-                
-                // 验证 session 是否存在
+
                 if (!_sseSessions.ContainsKey(sessionId))
                 {
-                    ctx.Response.StatusCode = (int)HttpStatusCode.NotFound;
-                    ctx.Response.Close();
+                    RespondWithError(ctx, HttpStatusCode.NotFound, $"Session not found: {sessionId}");
                     return;
                 }
             }
@@ -232,87 +191,197 @@ public class HttpServerTransport
             // 处理请求
             var response = await _context.Handlers.HandleRequestAsync(request, CancellationToken.None);
 
-            // 如果是 initialize 请求,创建新 session 并返回 session ID
+            // Initialize 请求：创建新会话
             if (request.Method == "initialize")
             {
                 sessionId = SessionId.MakeNew().Id;
                 ctx.Response.Headers.Add("Mcp-Session-Id", sessionId);
-                
-                // 创建一个空的 session 占位(实际的 SSE 连接可能稍后建立)
-                var dummySession = new HttpSession(null!, false, new CancellationTokenSource());
-                _sseSessions.TryAdd(sessionId, dummySession);
-                
-                Log.Info($"[McpServer][Http] New session created: {sessionId}");
+
+                // 创建占位 session (实际 SSE 连接可能稍后建立)
+                var placeholderSession = new SseSession(null!, new CancellationTokenSource());
+                _sseSessions.TryAdd(sessionId, placeholderSession);
+
+                Log.Info($"[McpServer][Http] Session created: {sessionId}");
             }
 
             // 返回 JSON 响应
-            ctx.Response.ContentType = "application/json";
-            ctx.Response.StatusCode = (int)HttpStatusCode.OK;
-            
-            var responseText = JsonSerializer.Serialize(response, McpServerResponseJsonContext.Default.JsonRpcResponse);
-            var responseBytes = Encoding.UTF8.GetBytes(responseText);
-            await ctx.Response.OutputStream.WriteAsync(responseBytes);
+            await RespondWithJson(ctx, response);
+        }
+        catch (JsonException ex)
+        {
+            Log.Error($"[McpServer][Http] JSON parsing error", ex);
+            RespondWithError(ctx, HttpStatusCode.BadRequest, "Invalid JSON");
         }
         catch (Exception ex)
         {
-            Log.Error($"[McpServer][Http] Error handling POST request", ex);
-            ctx.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
-        }
-        finally
-        {
-            ctx.Response.Close();
+            Log.Error($"[McpServer][Http] Request handling error", ex);
+            RespondWithError(ctx, HttpStatusCode.InternalServerError);
         }
     }
 
-    private async Task HandleMessageRequestAsync(HttpListenerContext ctx)
+    #endregion
+
+    #region 旧协议兼容 (HTTP+SSE - 2024-11-05)
+
+    /// <summary>
+    /// 处理旧协议的 SSE 连接
+    /// 参考: https://modelcontextprotocol.io/specification/2024-11-05/basic/transports#http-with-sse
+    /// </summary>
+    private async Task HandleLegacySseConnectionAsync(HttpListenerContext context)
     {
-        // 旧协议兼容性: 支持通过 query string 传递 sessionId 到 /mcp/messages
-        var query = ctx.Request.QueryString;
-        var sessionId = query["sessionId"];
-        if (string.IsNullOrEmpty(sessionId) || !_sseSessions.TryGetValue(sessionId, out var session))
+        var sessionId = SessionId.MakeNew().Id;
+
+        SetSseResponseHeaders(context.Response);
+
+        var writer = new StreamWriter(context.Response.OutputStream, Encoding.UTF8) { AutoFlush = true };
+        var session = new SseSession(writer, new CancellationTokenSource());
+
+        if (!_sseSessions.TryAdd(sessionId, session))
         {
-            const int errorCode = (int)HttpStatusCode.BadRequest;
-            await ctx.Response.OutputStream.WriteErrorResponseAsync(errorCode, $"No session found for ID '{sessionId}'");
-            ctx.Response.StatusCode = errorCode;
-            ctx.Response.Close();
+            throw new UnreachableException($"Session ID collision: '{sessionId}'");
+        }
+
+        Log.Info($"[McpServer][Http][Legacy] SSE connection established: {sessionId}");
+
+        try
+        {
+            // 旧协议要求：发送 endpoint 事件告知客户端消息发送地址
+            await writer.WriteAsync($"id:{sessionId}\n");
+            await writer.WriteAsync($"event:endpoint\n");
+            await writer.WriteAsync($"data:{LegacyMessagePath}?sessionId={sessionId}\n\n");
+
+            await Task.Delay(Timeout.Infinite, session.CancellationToken.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            // 正常关闭
+        }
+        catch (Exception ex)
+        {
+            Log.Warn($"[McpServer][Http][Legacy] SSE connection error: {sessionId}", ex);
+        }
+        finally
+        {
+            _sseSessions.TryRemove(sessionId, out _);
+            Log.Info($"[McpServer][Http][Legacy] SSE connection closed: {sessionId}");
+            await writer.DisposeAsync();
+        }
+    }
+
+    /// <summary>
+    /// 处理旧协议的消息请求 (通过 query string 传递 sessionId)
+    /// 参考: https://modelcontextprotocol.io/specification/2024-11-05/basic/transports#http-with-sse
+    /// </summary>
+    private async Task HandleLegacyMessageRequestAsync(HttpListenerContext ctx)
+    {
+        var sessionId = ctx.Request.QueryString["sessionId"];
+
+        if (string.IsNullOrEmpty(sessionId))
+        {
+            RespondWithError(ctx, HttpStatusCode.BadRequest, "Missing sessionId parameter");
+            return;
+        }
+
+        if (!_sseSessions.TryGetValue(sessionId, out var session))
+        {
+            RespondWithError(ctx, HttpStatusCode.BadRequest, $"Session not found: {sessionId}");
             return;
         }
 
         if (session.Writer is null)
         {
-            const int errorCode = (int)HttpStatusCode.BadRequest;
-            await ctx.Response.OutputStream.WriteErrorResponseAsync(errorCode, $"Session '{sessionId}' has no active SSE connection");
-            ctx.Response.StatusCode = errorCode;
-            ctx.Response.Close();
+            RespondWithError(ctx, HttpStatusCode.BadRequest, $"Session has no active SSE connection: {sessionId}");
             return;
         }
 
         try
         {
-            using var reader = new StreamReader(ctx.Request.InputStream, Encoding.UTF8);
-            var body = await reader.ReadToEndAsync();
-            var request = JsonSerializer.Deserialize(body, McpServerRequestJsonContext.Default.JsonRpcRequest);
+            var request = await ReadJsonRpcRequestAsync(ctx.Request.InputStream);
             if (request is null)
             {
-                ctx.Response.StatusCode = (int)HttpStatusCode.BadRequest;
+                RespondWithError(ctx, HttpStatusCode.BadRequest, "Invalid JSON-RPC request");
                 return;
             }
+
             var response = await _context.Handlers.HandleRequestAsync(request, CancellationToken.None);
-            await session.Writer.WriteAsync($"event: message\n");
+
+            // 通过 SSE 返回响应
+            await session.Writer.WriteAsync($"event:message\n");
             var responseText = JsonSerializer.Serialize(response, McpServerResponseJsonContext.Default.JsonRpcResponse);
-            await session.Writer.WriteAsync($"data: {responseText}\n\n");
-            ctx.Response.StatusCode = (int)HttpStatusCode.OK;
+            await session.Writer.WriteAsync($"data:{responseText}\n\n");
+
+            RespondWithSuccess(ctx, HttpStatusCode.OK);
+        }
+        catch (JsonException ex)
+        {
+            Log.Error($"[McpServer][Http][Legacy] JSON parsing error for session {sessionId}", ex);
+            RespondWithError(ctx, HttpStatusCode.BadRequest, "Invalid JSON");
         }
         catch (Exception ex)
         {
-            Log.Error($"[McpServer][Http] Error handling message for session {sessionId}", ex);
-            ctx.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
-        }
-        finally
-        {
-            ctx.Response.Close();
+            Log.Error($"[McpServer][Http][Legacy] Request handling error for session {sessionId}", ex);
+            RespondWithError(ctx, HttpStatusCode.InternalServerError);
         }
     }
 
-    private readonly record struct HttpSession(StreamWriter? Writer, bool IsSse, CancellationTokenSource CancellationTokenSource);
+    #endregion
+
+    #region 辅助方法
+
+    private static void SetCorsHeaders(HttpListenerResponse response)
+    {
+        response.Headers.Add("Access-Control-Allow-Origin", "*");
+        response.Headers.Add("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+        response.Headers.Add("Access-Control-Allow-Headers", "Content-Type, Mcp-Session-Id");
+    }
+
+    private static void SetSseResponseHeaders(HttpListenerResponse response)
+    {
+        response.ContentType = "text/event-stream";
+        response.Headers.Add("Cache-Control", "no-cache,no-store");
+        response.Headers.Add("Content-Encoding", "identity");
+        response.Headers.Add("Connection", "keep-alive");
+        response.StatusCode = (int)HttpStatusCode.OK;
+    }
+
+    private static async Task<JsonRpcRequest?> ReadJsonRpcRequestAsync(Stream inputStream)
+    {
+        using var reader = new StreamReader(inputStream, Encoding.UTF8);
+        var body = await reader.ReadToEndAsync();
+        return JsonSerializer.Deserialize(body, McpServerRequestJsonContext.Default.JsonRpcRequest);
+    }
+
+    private static async Task RespondWithJson(HttpListenerContext ctx, JsonRpcResponse response)
+    {
+        ctx.Response.ContentType = "application/json";
+        ctx.Response.StatusCode = (int)HttpStatusCode.OK;
+
+        var responseText = JsonSerializer.Serialize(response, McpServerResponseJsonContext.Default.JsonRpcResponse);
+        var responseBytes = Encoding.UTF8.GetBytes(responseText);
+        await ctx.Response.OutputStream.WriteAsync(responseBytes);
+        ctx.Response.Close();
+    }
+
+    private static void RespondWithSuccess(HttpListenerContext ctx, HttpStatusCode statusCode)
+    {
+        ctx.Response.StatusCode = (int)statusCode;
+        ctx.Response.Close();
+    }
+
+    private static void RespondWithError(HttpListenerContext ctx, HttpStatusCode statusCode, string? message = null)
+    {
+        ctx.Response.StatusCode = (int)statusCode;
+
+        if (!string.IsNullOrEmpty(message))
+        {
+            var errorBytes = Encoding.UTF8.GetBytes(message);
+            ctx.Response.OutputStream.Write(errorBytes, 0, errorBytes.Length);
+        }
+
+        ctx.Response.Close();
+    }
+
+    #endregion
+
+    private readonly record struct SseSession(StreamWriter? Writer, CancellationTokenSource CancellationToken);
 }
