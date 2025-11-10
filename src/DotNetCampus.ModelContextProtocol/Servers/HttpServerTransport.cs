@@ -196,18 +196,7 @@ public class HttpServerTransport
                 ctx.Response.StatusCode = (int)HttpStatusCode.BadRequest;
                 return;
             }
-            var response = request switch
-            {
-                null => new JsonRpcResponse
-                {
-                    Error = new JsonRpcError
-                    {
-                        Code = (int)HttpStatusCode.BadRequest,
-                        Message = "Invalid Json-RPC message.",
-                    },
-                },
-                _ => await _context.Handlers.HandleRequest(request, CancellationToken.None),
-            };
+            var response = await _context.Handlers.HandleRequestAsync(request, CancellationToken.None);
             await session.Writer.WriteAsync($"event: message\n");
             var responseText = JsonSerializer.Serialize(response, McpServerResponseJsonContext.Default.JsonRpcResponse);
             await session.Writer.WriteAsync($"data: {responseText}\n\n");

@@ -1,13 +1,9 @@
 using System.Diagnostics.CodeAnalysis;
-using System.Text.Json;
+using DotNetCampus.ModelContextProtocol.Core;
 using DotNetCampus.ModelContextProtocol.Messages;
 using DotNetCampus.ModelContextProtocol.Protocol;
 
 namespace DotNetCampus.ModelContextProtocol.Servers;
-
-public delegate ValueTask McpRequestHandler<TParams>(
-    RequestContext<TParams> request,
-    CancellationToken cancellationToken);
 
 public delegate ValueTask<TResult> McpRequestHandler<TParams, TResult>(
     RequestContext<TParams> request,
@@ -25,7 +21,7 @@ public record McpServerHandlers
     }
 
     [NotNull]
-    public McpRequestHandler<PingRequestParams>? PingHandler
+    public McpRequestHandler<PingRequestParams, NullResult>? PingHandler
     {
         get => field ?? _default.Ping;
         set;
@@ -59,32 +55,4 @@ public record McpServerHandlers
     // public McpRequestHandler<SetLevelRequestParams, EmptyResult>? SetLoggingLevelHandler { get; set; }
 
     public IEnumerable<KeyValuePair<string, Func<JsonRpcNotification, CancellationToken, ValueTask>>>? NotificationHandlers { get; set; }
-
-    public async Task<JsonRpcResponse> HandleRequest(JsonRpcRequest request, CancellationToken cancellationToken = default)
-    {
-        if (request.Method == "initialize")
-        {
-            if (request.Params is not JsonElement paramsElement)
-            {
-                throw new NotSupportedException($"暂未支持无参数的 {request.Method} 请求");
-            }
-
-            var initializeRequestParams = paramsElement.Deserialize(McpServerRequestJsonContext.Default.InitializeRequestParams);
-            var requestContext = new RequestContext<InitializeRequestParams>(initializeRequestParams);
-            var result = await InitializeHandler(requestContext, cancellationToken);
-            return new JsonRpcResponse
-            {
-                Id = request.Id,
-                Result = JsonSerializer.SerializeToElement(result, McpServerResponseJsonContext.Default.InitializeResult),
-            };
-        }
-        return new JsonRpcResponse
-        {
-            Error = new JsonRpcError
-            {
-                Code = 400,
-                Message = $"不支持的请求方法：{request.Method}",
-            },
-        };
-    }
 }

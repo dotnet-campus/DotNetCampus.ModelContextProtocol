@@ -1,4 +1,5 @@
-﻿using DotNetCampus.ModelContextProtocol.Messages;
+﻿using DotNetCampus.ModelContextProtocol.Core;
+using DotNetCampus.ModelContextProtocol.Messages;
 using DotNetCampus.ModelContextProtocol.Protocol;
 
 namespace DotNetCampus.ModelContextProtocol.Servers;
@@ -22,7 +23,8 @@ public class DefaultMcpServerHandlers
         return new ListToolsResult();
     }
 
-    public async ValueTask Ping(RequestContext<PingRequestParams> request, CancellationToken cancellationToken)
+    public async ValueTask<NullResult> Ping(RequestContext<PingRequestParams> request, CancellationToken cancellationToken)
     {
+        return default;
     }
 }
