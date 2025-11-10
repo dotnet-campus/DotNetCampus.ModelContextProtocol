@@ -93,6 +93,12 @@ public class HttpServerTransport
                 return;
             }
 
+            if (method == "DELETE" && endpoint.Equals(EndPoint, StringComparison.OrdinalIgnoreCase))
+            {
+                await HandleDeleteSessionAsync(ctx);
+                return;
+            }
+
             // 旧协议 (2024-11-05): HTTP+SSE 兼容
             // 参考: https://modelcontextprotocol.io/specification/2024-11-05/basic/transports#http-with-sse
             if (method == "GET" && endpoint.Equals(LegacySsePath, StringComparison.OrdinalIgnoreCase))
@@ -224,6 +230,43 @@ public class HttpServerTransport
         }
     }
 
+    /// <summary>
+    /// 处理会话终止请求 (新协议)
+    /// 参考: https://modelcontextprotocol.io/specification/2025-03-26/basic/transports#session-management
+    /// </summary>
+    private async Task HandleDeleteSessionAsync(HttpListenerContext ctx)
+    {
+        var sessionId = ctx.Request.Headers["Mcp-Session-Id"];
+
+        if (string.IsNullOrEmpty(sessionId))
+        {
+            RespondWithError(ctx, HttpStatusCode.BadRequest, "Missing Mcp-Session-Id header");
+            return;
+        }
+
+        if (!_sseSessions.TryRemove(sessionId, out var session))
+        {
+            // 会话不存在，但这不算错误 - 可能已经被清理了
+            Log.Info($"[McpServer][Http] DELETE request for non-existent session: {sessionId}");
+            RespondWithSuccess(ctx, HttpStatusCode.OK);
+            return;
+        }
+
+        // 取消 SSE 连接（如果存在）
+        try
+        {
+            session.CancellationToken.Cancel();
+            session.CancellationToken.Dispose();
+        }
+        catch (Exception ex)
+        {
+            Log.Warn($"[McpServer][Http] Error cancelling session {sessionId}", ex);
+        }
+
+        Log.Info($"[McpServer][Http] Session terminated: {sessionId}");
+        RespondWithSuccess(ctx, HttpStatusCode.OK);
+    }
+
     #endregion
 
     #region 旧协议兼容 (HTTP+SSE - 2024-11-05)
@@ -336,7 +379,7 @@ public class HttpServerTransport
     private static void SetCorsHeaders(HttpListenerResponse response)
     {
         response.Headers.Add("Access-Control-Allow-Origin", "*");
-        response.Headers.Add("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+        response.Headers.Add("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS");
         response.Headers.Add("Access-Control-Allow-Headers", "Content-Type, Mcp-Session-Id");
     }
 
