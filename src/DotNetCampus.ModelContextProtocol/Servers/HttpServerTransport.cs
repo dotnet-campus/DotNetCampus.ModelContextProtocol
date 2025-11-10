@@ -5,7 +5,6 @@ using System.Text;
 using System.Text.Json;
 using DotNetCampus.Logging;
 using DotNetCampus.ModelContextProtocol.Core;
-using DotNetCampus.ModelContextProtocol.Messages;
 using DotNetCampus.ModelContextProtocol.Protocol;
 
 namespace DotNetCampus.ModelContextProtocol.Servers;
@@ -39,7 +38,7 @@ public class HttpServerTransport
 
     private string MessagePath { get; init; } = "/mcp/messages";
 
-    public async Task StartAsync(Func<JsonDocument, Task<JsonDocument>> handler)
+    public async Task StartAsync()
     {
         _listener.Start();
 
