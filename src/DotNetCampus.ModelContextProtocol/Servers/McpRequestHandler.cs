@@ -5,6 +5,10 @@ using DotNetCampus.ModelContextProtocol.Protocol;
 
 namespace DotNetCampus.ModelContextProtocol.Servers;
 
+public delegate ValueTask McpRequestHandler<TParams>(
+    RequestContext<TParams> request,
+    CancellationToken cancellationToken);
+
 public delegate ValueTask<TResult> McpRequestHandler<TParams, TResult>(
     RequestContext<TParams> request,
     CancellationToken cancellationToken);
@@ -17,6 +21,13 @@ public record McpServerHandlers
     public McpRequestHandler<InitializeRequestParams, InitializeResult>? InitializeHandler
     {
         get => field ?? _default.Initialize;
+        set;
+    }
+
+    [NotNull]
+    public McpRequestHandler<PingRequestParams>? PingHandler
+    {
+        get => field ?? _default.Ping;
         set;
     }
 
@@ -49,7 +60,7 @@ public record McpServerHandlers
 
     public IEnumerable<KeyValuePair<string, Func<JsonRpcNotification, CancellationToken, ValueTask>>>? NotificationHandlers { get; set; }
 
-    public async Task HandleRequest(JsonRpcRequest request, StreamWriter writer, CancellationToken cancellationToken = default)
+    public async Task<JsonRpcResponse> HandleRequest(JsonRpcRequest request, CancellationToken cancellationToken = default)
     {
         if (request.Method == "initialize")
         {
@@ -61,14 +72,19 @@ public record McpServerHandlers
             var initializeRequestParams = paramsElement.Deserialize(McpServerRequestJsonContext.Default.InitializeRequestParams);
             var requestContext = new RequestContext<InitializeRequestParams>(initializeRequestParams);
             var result = await InitializeHandler(requestContext, cancellationToken);
-            var response = new JsonRpcResponse
+            return new JsonRpcResponse
             {
                 Id = request.Id,
                 Result = JsonSerializer.SerializeToElement(result, McpServerResponseJsonContext.Default.InitializeResult),
             };
-            await writer.WriteAsync($"event: message\n");
-            var responseText = JsonSerializer.Serialize(response, McpServerResponseJsonContext.Default.JsonRpcResponse);
-            await writer.WriteAsync($"data: {responseText}\n\n");
         }
+        return new JsonRpcResponse
+        {
+            Error = new JsonRpcError
+            {
+                Code = 400,
+                Message = $"不支持的请求方法：{request.Method}",
+            },
+        };
     }
 }

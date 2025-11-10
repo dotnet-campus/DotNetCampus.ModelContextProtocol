@@ -5,6 +5,7 @@ using System.Text;
 using System.Text.Json;
 using DotNetCampus.Logging;
 using DotNetCampus.ModelContextProtocol.Core;
+using DotNetCampus.ModelContextProtocol.Messages;
 using DotNetCampus.ModelContextProtocol.Protocol;
 
 namespace DotNetCampus.ModelContextProtocol.Servers;
@@ -29,8 +30,8 @@ public class HttpServerTransport
         init
         {
             field = value;
-            SsePath = System.IO.Path.Join(value, "sse");
-            MessagePath = System.IO.Path.Join(value, "messages");
+            SsePath = Path.Join(value, "sse");
+            MessagePath = Path.Join(value, "messages");
         }
     } = "/mcp";
 
@@ -56,7 +57,7 @@ public class HttpServerTransport
         var endpoint = ctx.Request.Url?.AbsolutePath;
         if (endpoint is null)
         {
-            ctx.Response.StatusCode = 404;
+            ctx.Response.StatusCode = (int)HttpStatusCode.NotFound;
             ctx.Response.Close();
             return;
         }
@@ -70,7 +71,7 @@ public class HttpServerTransport
             // 处理预检请求。
             if (ctx.Request.HttpMethod == "OPTIONS")
             {
-                ctx.Response.StatusCode = 200;
+                ctx.Response.StatusCode = (int)HttpStatusCode.OK;
                 ctx.Response.Close();
                 return;
             }
@@ -91,7 +92,7 @@ public class HttpServerTransport
                 }
                 else
                 {
-                    ctx.Response.StatusCode = 404;
+                    ctx.Response.StatusCode = (int)HttpStatusCode.NotFound;
                     ctx.Response.Close();
                 }
                 return;
@@ -102,39 +103,18 @@ public class HttpServerTransport
             {
                 if (endpoint == MessagePath)
                 {
-                    var query = ctx.Request.QueryString;
-                    var sessionId = query["sessionId"];
-                    if (string.IsNullOrEmpty(sessionId) || !_sseSessions.TryGetValue(sessionId, out var session))
-                    {
-                        ctx.Response.StatusCode = 400;
-                        ctx.Response.Close();
-                        return;
-                    }
-
-                    using var reader = new StreamReader(ctx.Request.InputStream, Encoding.UTF8);
-                    var body = await reader.ReadToEndAsync();
-                    var request = JsonSerializer.Deserialize(body, McpServerRequestJsonContext.Default.JsonRpcRequest);
-                    if (request is null)
-                    {
-                        ctx.Response.StatusCode = 400;
-                        ctx.Response.Close();
-                        return;
-                    }
-
-                    await _context.Handlers.HandleRequest(request, session.Writer, CancellationToken.None);
-                    ctx.Response.StatusCode = 200;
-                    ctx.Response.Close();
+                    await HandleMessageRequestAsync(ctx);
                 }
                 else
                 {
-                    ctx.Response.StatusCode = 404;
+                    ctx.Response.StatusCode = (int)HttpStatusCode.NotFound;
                     ctx.Response.Close();
                 }
                 return;
             }
 
             // 按照 MCP 协议规范，不支持其他 HTTP 方法。
-            ctx.Response.StatusCode = 405;
+            ctx.Response.StatusCode = (int)HttpStatusCode.MethodNotAllowed;
             ctx.Response.Close();
         }
         catch (Exception ex)
@@ -142,7 +122,7 @@ public class HttpServerTransport
             Log.Error($"[McpServer][Http] Error handling request", ex);
             try
             {
-                ctx.Response.StatusCode = 500;
+                ctx.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
                 ctx.Response.Close();
             }
             catch
@@ -160,7 +140,7 @@ public class HttpServerTransport
         context.Response.Headers.Add("Cache-Control", "no-cache,no-store");
         context.Response.Headers.Add("Content-Encoding", "identity");
         context.Response.Headers.Add("Connection", "keep-alive");
-        context.Response.StatusCode = 200;
+        context.Response.StatusCode = (int)HttpStatusCode.OK;
 
         var writer = new StreamWriter(context.Response.OutputStream, Encoding.UTF8);
         writer.AutoFlush = true;
@@ -192,6 +172,55 @@ public class HttpServerTransport
             _sseSessions.TryRemove(sessionId, out _);
             Log.Info($"[McpServer][Http] SSE client disconnected: {sessionId}");
             writer.Close();
+        }
+    }
+
+    private async Task HandleMessageRequestAsync(HttpListenerContext ctx)
+    {
+        var query = ctx.Request.QueryString;
+        var sessionId = query["sessionId"];
+        if (string.IsNullOrEmpty(sessionId) || !_sseSessions.TryGetValue(sessionId, out var session))
+        {
+            ctx.Response.StatusCode = (int)HttpStatusCode.BadRequest;
+            ctx.Response.Close();
+            return;
+        }
+
+        try
+        {
+            using var reader = new StreamReader(ctx.Request.InputStream, Encoding.UTF8);
+            var body = await reader.ReadToEndAsync();
+            var request = JsonSerializer.Deserialize(body, McpServerRequestJsonContext.Default.JsonRpcRequest);
+            if (request is null)
+            {
+                ctx.Response.StatusCode = (int)HttpStatusCode.BadRequest;
+                return;
+            }
+            var response = request switch
+            {
+                null => new JsonRpcResponse
+                {
+                    Error = new JsonRpcError
+                    {
+                        Code = (int)HttpStatusCode.BadRequest,
+                        Message = "Invalid Json-RPC message.",
+                    },
+                },
+                _ => await _context.Handlers.HandleRequest(request, CancellationToken.None),
+            };
+            await session.Writer.WriteAsync($"event: message\n");
+            var responseText = JsonSerializer.Serialize(response, McpServerResponseJsonContext.Default.JsonRpcResponse);
+            await session.Writer.WriteAsync($"data: {responseText}\n\n");
+            ctx.Response.StatusCode = (int)HttpStatusCode.OK;
+        }
+        catch (Exception ex)
+        {
+            Log.Error($"[McpServer][Http] Error handling message for session {sessionId}", ex);
+            ctx.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
+        }
+        finally
+        {
+            ctx.Response.Close();
         }
     }
 

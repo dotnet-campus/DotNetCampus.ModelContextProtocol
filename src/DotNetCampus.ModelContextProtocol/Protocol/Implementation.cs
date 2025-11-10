@@ -2,7 +2,7 @@ using System.Text.Json.Serialization;
 
 namespace DotNetCampus.ModelContextProtocol.Protocol;
 
-public sealed record ClientInfo
+public sealed record Implementation
 {
     [JsonPropertyName("name")]
     public required string Name { get; set; }

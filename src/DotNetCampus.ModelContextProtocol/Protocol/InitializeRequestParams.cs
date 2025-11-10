@@ -12,5 +12,9 @@ public sealed record InitializeRequestParams : RequestParams
     public required ClientCapabilities Capabilities { get; set; }
 
     [JsonPropertyName("clientInfo")]
-    public required ClientInfo ClientInfo { get; set; }
+    public required Implementation ClientInfo { get; set; }
+}
+
+public sealed record PingRequestParams : RequestParams
+{
 }
