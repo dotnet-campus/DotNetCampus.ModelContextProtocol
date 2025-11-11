@@ -2,7 +2,6 @@ using DotNetCampus.ModelContextProtocol.CodeAnalysis;
 using DotNetCampus.ModelContextProtocol.CompilerServices;
 using DotNetCampus.ModelContextProtocol.Utils;
 using Microsoft.CodeAnalysis;
-using System.Xml.Linq;
 
 namespace DotNetCampus.ModelContextProtocol.Generators.Models;
 
@@ -44,40 +43,12 @@ public record McpServerToolGeneratingModel
             Name = attribute.NamedArguments.GetValueOrDefault<string>(nameof(McpServerToolAttribute.Name))
                    ?? NamingHelper.MakeSnakeCase(methodSymbol.Name, true, true),
             Title = attribute.NamedArguments.GetValueOrDefault<string>(nameof(McpServerToolAttribute.Title)),
-            Description = ExtractMethodSummary(methodSymbol),
+            Description = methodSymbol.GetSummaryFromSymbol(),
             Parameters = methodSymbol.Parameters
                 .Where(p => !IsCancellationTokenParameter(p))
                 .Select(p => ToolParameterModel.Parse(p, methodSymbol))
                 .ToList(),
         };
-    }
-
-    /// <summary>
-    /// 从方法的 XML 文档注释中提取 summary 描述。
-    /// </summary>
-    private static string? ExtractMethodSummary(IMethodSymbol methodSymbol)
-    {
-        var xmlComment = methodSymbol.GetDocumentationCommentXml(cancellationToken: CancellationToken.None);
-        if (string.IsNullOrWhiteSpace(xmlComment))
-        {
-            return null;
-        }
-
-        try
-        {
-            var doc = XDocument.Parse(xmlComment);
-            var summaryElement = doc.Descendants("summary").FirstOrDefault();
-            if (summaryElement == null)
-            {
-                return null;
-            }
-
-            return summaryElement.Value.Trim();
-        }
-        catch
-        {
-            return null;
-        }
     }
 
     /// <summary>

@@ -1,5 +1,5 @@
 using Microsoft.CodeAnalysis;
-using System.Xml.Linq;
+using DotNetCampus.ModelContextProtocol.Utils;
 
 namespace DotNetCampus.ModelContextProtocol.Generators.Models;
 
@@ -35,7 +35,7 @@ public record SchemaMemberDescriptor(
     public static SchemaMemberDescriptor FromProperty(IPropertySymbol property)
     {
         var jsonName = Utils.NamingHelper.MakeKebabCase(property.Name, true, true);
-        var description = GetPropertyDescription(property);
+        var description = property.GetSummaryFromSymbol();
         var isRequired = !IsNullableType(property.Type);
 
         return new SchemaMemberDescriptor(jsonName, property.Type, description, isRequired);
@@ -47,7 +47,7 @@ public record SchemaMemberDescriptor(
     public static SchemaMemberDescriptor FromConstructorParameter(IParameterSymbol parameter)
     {
         var jsonName = Utils.NamingHelper.MakeKebabCase(parameter.Name, true, true);
-        var description = GetParameterDescription(parameter);
+        var description = parameter.GetParameterDescription();
         var isRequired = !IsNullableType(parameter.Type) && !parameter.HasExplicitDefaultValue;
 
         return new SchemaMemberDescriptor(jsonName, parameter.Type, description, isRequired);
@@ -221,79 +221,6 @@ public record SchemaMemberDescriptor(
     }
 
     /// <summary>
-    /// 获取属性的描述（从 XML 文档注释）。
-    /// </summary>
-    private static string? GetPropertyDescription(IPropertySymbol property)
-    {
-        var xmlComment = property.GetDocumentationCommentXml();
-        if (string.IsNullOrWhiteSpace(xmlComment))
-        {
-            return null;
-        }
-
-        return ExtractSummaryFromXml(xmlComment!);
-    }
-
-    /// <summary>
-    /// 获取参数的描述（从 XML 文档注释）。
-    /// </summary>
-    private static string? GetParameterDescription(IParameterSymbol parameter)
-    {
-        // 从包含方法/构造函数获取 XML 注释
-        var containingSymbol = parameter.ContainingSymbol;
-        var xmlComment = containingSymbol?.GetDocumentationCommentXml();
-        if (string.IsNullOrWhiteSpace(xmlComment))
-        {
-            return null;
-        }
-
-        // 查找对应的 <param name="xxx"> 标签
-        var paramTag = $"<param name=\"{parameter.Name}\">";
-        var paramStart = xmlComment!.IndexOf(paramTag);
-        if (paramStart >= 0)
-        {
-            var contentStart = paramStart + paramTag.Length;
-            var paramEnd = xmlComment.IndexOf("</param>", contentStart);
-            if (paramEnd > contentStart)
-            {
-                var description = xmlComment.Substring(contentStart, paramEnd - contentStart).Trim();
-                return EscapeForJsonString(description);
-            }
-        }
-
-        return null;
-    }
-
-    /// <summary>
-    /// 从 XML 注释中提取 summary 内容。
-    /// </summary>
-    private static string? ExtractSummaryFromXml(string xmlComment)
-    {
-        var summaryStart = xmlComment.IndexOf("<summary>");
-        var summaryEnd = xmlComment.IndexOf("</summary>");
-        if (summaryStart >= 0 && summaryEnd > summaryStart)
-        {
-            var summary = xmlComment.Substring(summaryStart + 9, summaryEnd - summaryStart - 9).Trim();
-            return EscapeForJsonString(summary);
-        }
-
-        return null;
-    }
-
-    /// <summary>
-    /// 转义 JSON 字符串中的特殊字符。
-    /// </summary>
-    private static string EscapeForJsonString(string text)
-    {
-        return text
-            .Replace("\\", "\\\\")
-            .Replace("\"", "\\\"")
-            .Replace("\n", "\\n")
-            .Replace("\r", "\\r")
-            .Replace("\t", "\\t");
-    }
-
-    /// <summary>
     /// 判断类型是否为枚举类型。
     /// </summary>
     public static bool IsEnumType(ITypeSymbol typeSymbol)
@@ -330,27 +257,7 @@ public record SchemaMemberDescriptor(
     /// </summary>
     private static string? GetEnumMemberDescription(IFieldSymbol field)
     {
-        var xmlComment = field.GetDocumentationCommentXml();
-        if (string.IsNullOrWhiteSpace(xmlComment))
-        {
-            return null;
-        }
-
-        try
-        {
-            var doc = XDocument.Parse(xmlComment);
-            var summaryElement = doc.Descendants("summary").FirstOrDefault();
-            if (summaryElement == null)
-            {
-                return null;
-            }
-
-            return summaryElement.Value.Trim();
-        }
-        catch
-        {
-            return null;
-        }
+        return field.GetSummaryFromSymbol();
     }
 }
 

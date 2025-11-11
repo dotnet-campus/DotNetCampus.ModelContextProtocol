@@ -1,4 +1,3 @@
-using System.Xml.Linq;
 using DotNetCampus.ModelContextProtocol.Utils;
 using Microsoft.CodeAnalysis;
 
@@ -57,34 +56,7 @@ public record ToolParameterModel
             Type = parameter.Type,
             TypeName = parameter.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
             IsRequired = !parameter.HasExplicitDefaultValue,
-            Description = ExtractParameterDescription(parameter, method),
+            Description = parameter.GetParameterDescription(),
         };
-    }
-
-    private static string? ExtractParameterDescription(IParameterSymbol parameter, IMethodSymbol method)
-    {
-        var xmlComment = method.GetDocumentationCommentXml(cancellationToken: CancellationToken.None);
-        if (string.IsNullOrWhiteSpace(xmlComment))
-        {
-            return null;
-        }
-
-        try
-        {
-            var doc = XDocument.Parse(xmlComment);
-            var paramElement = doc.Descendants("param")
-                .FirstOrDefault(e => e.Attribute("name")?.Value == parameter.Name);
-
-            if (paramElement == null)
-            {
-                return null;
-            }
-
-            return paramElement.Value.Trim();
-        }
-        catch
-        {
-            return null;
-        }
     }
 }

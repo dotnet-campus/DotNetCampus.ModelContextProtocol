@@ -159,7 +159,7 @@ file static class Extensions
         var (coreType, isNullable) = SchemaMemberDescriptor.UnwrapNullableType(member.Type);
         var jsonSchemaType = SchemaMemberDescriptor.GetJsonSchemaType(coreType);
         var rawTypeExpr = GenerateRawTypeExpression(jsonSchemaType, isNullable);
-        var descriptionExpr = member.Description != null ? $"\"{member.Description}\"" : "null";
+        var descriptionExpr = member.Description != null ? $"\"{EscapeForCSharpString(member.Description)}\"" : "null";
 
         // 处理枚举类型
         if (SchemaMemberDescriptor.IsEnumType(coreType))
@@ -309,6 +309,19 @@ file static class Extensions
             .Replace("\"", "\\\"")
             .Replace("\n", "\\n")
             .Replace("\r", "\\r")
+            .Replace("\t", "\\t");
+    }
+
+    /// <summary>
+    /// 转义 C# 字符串字面量中的特殊字符。
+    /// </summary>
+    private static string EscapeForCSharpString(string text)
+    {
+        return text
+            .Replace("\\", "\\\\")
+            .Replace("\"", "\\\"")
+            .Replace("\r", "\\r")
+            .Replace("\n", "\\n")
             .Replace("\t", "\\t");
     }
 
