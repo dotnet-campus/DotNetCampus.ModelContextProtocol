@@ -10,7 +10,16 @@ namespace DotNetCampus.SampleMcpServer.Generated;
 
 public class McpServerToolBridge_SampleTools_EchoInfo : IGeneratedMcpServerToolBridge
 {
-    private readonly SampleTools _target;
+    private readonly Func<SampleTools> _targetGetter;
+
+    public string ToolName { get; } = "echo-info";
+
+    private SampleTools Target => _targetGetter();
+
+    public Tool GetToolDefinition() => new()
+    {
+        Title = "",
+    };
 
     public ValueTask<CallToolResult> CallTool(JsonElement jsonArguments, JsonSerializerContext jsonSerializerContext)
     {
@@ -34,7 +43,7 @@ public class McpServerToolBridge_SampleTools_EchoInfo : IGeneratedMcpServerToolB
             ? isErrorProperty.Deserialize(
                 (JsonTypeInfo<bool>)jsonSerializerContext.GetTypeInfo(typeof(bool))!)
             : false;
-        var result = _target.EchoInfo(
+        var result = Target.EchoInfo(
             text!,
             options,
             count,

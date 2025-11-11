@@ -10,6 +10,17 @@ namespace DotNetCampus.ModelContextProtocol.CompilerServices;
 public interface IGeneratedMcpServerToolBridge
 {
     /// <summary>
+    /// 获取工具在 MCP 协议中的名称。
+    /// </summary>
+    public string ToolName { get; }
+
+    /// <summary>
+    /// 获取工具的定义信息，这些信息将被 AI 查看，以了解工具的功能和使用方法。
+    /// </summary>
+    /// <returns>工具的定义信息。</returns>
+    Tool GetToolDefinition();
+
+    /// <summary>
     /// 调用 MCP 服务器工具的方法。
     /// </summary>
     /// <param name="jsonArguments">来自 MCP 协议中 tools/call 请求中 arguments 字段的 JSON 元素。</param>

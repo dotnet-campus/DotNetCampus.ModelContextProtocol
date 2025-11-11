@@ -1,5 +1,6 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Text.Json.Serialization;
+using DotNetCampus.ModelContextProtocol.CompilerServices;
 using DotNetCampus.ModelContextProtocol.Core;
 
 namespace DotNetCampus.ModelContextProtocol.Servers;
@@ -103,4 +104,32 @@ public class McpServerToolsBuilder(McpServerContext? originalContext)
     {
         return WithJsonSerializer(new McpServerToolJsonSerializer(generatedJsonSerializerContext));
     }
+
+    public void WithTool<TMcpServerToolType>(Func<TMcpServerToolType> toolFactory, McpServerToolCreationMode creationMode = McpServerToolCreationMode.Singleton)
+        where TMcpServerToolType : class
+    {
+        throw new NotImplementedException();
+    }
+
+    public void WithTool<TMcpServerToolType>(Func<IGeneratedMcpServerToolBridge> toolBridgeFactory)
+        where TMcpServerToolType : class
+    {
+        throw new NotImplementedException();
+    }
+}
+
+/// <summary>
+/// MCP 服务器工具的创建模式。
+/// </summary>
+public enum McpServerToolCreationMode
+{
+    /// <summary>
+    /// 工具只调用创建委托一次，并在整个 <see cref="McpServer"/> 生命周期内重用该实例。
+    /// </summary>
+    Singleton,
+
+    /// <summary>
+    /// 每次调用工具时，都会调用创建委托，根据委托内的实现决定是复用还是新建实例。
+    /// </summary>
+    Transient,
 }

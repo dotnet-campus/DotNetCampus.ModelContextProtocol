@@ -25,7 +25,7 @@ internal class Program
         var mcpServer = new McpServerBuilder()
             .WithTools(t => t
                 .WithJsonSerializer(McpToolJsonContext.Default)
-                // .WithTool<SampleTools>()
+                .WithTool(() => new SampleTools())
             )
             .WithHttp(5943, "mcp")
             .WithStdio()
