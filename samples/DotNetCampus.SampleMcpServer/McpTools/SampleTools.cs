@@ -15,7 +15,7 @@ public class SampleTools
     /// <param name="isError">如果希望工具直接报告错误，则传入 true</param>
     /// <returns></returns>
     [McpServerTool(ReadOnly = true)]
-    public CallToolResult EchoInfo(
+    public CallToolResult Echo(
         string text,
         EchoOptions options,
         int count = 1,
@@ -23,6 +23,37 @@ public class SampleTools
         bool isError = false)
     {
         return text;
+    }
+
+    /// <summary>
+    /// [ForAI] 等待一小段时间（不太精确，AI 感觉需要的时候可以使用）
+    /// </summary>
+    /// <param name="minutes">等待的分钟数</param>
+    /// <param name="seconds">等待的秒数</param>
+    /// <param name="milliseconds">等待的毫秒数</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns></returns>
+    [McpServerTool]
+    public async Task<string> Delay(
+        int minutes = 0,
+        int seconds = 0,
+        int milliseconds = 0,
+        CancellationToken cancellationToken = default)
+    {
+        var totalMilliseconds = (minutes * 60 + seconds) * 1000 + milliseconds;
+        if (totalMilliseconds <= 0)
+        {
+            return "No delay requested.";
+        }
+        try
+        {
+            await Task.Delay(totalMilliseconds, cancellationToken);
+            return "Delay completed.";
+        }
+        catch (OperationCanceledException)
+        {
+            return "Delay was canceled.";
+        }
     }
 }
 
