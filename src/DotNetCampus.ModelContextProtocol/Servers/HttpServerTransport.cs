@@ -23,6 +23,7 @@ public class HttpServerTransport
     {
         _context = context;
         _listener.Prefixes.Add(options.BaseUrl);
+        EndPoint = options.Endpoint.StartsWith('/') ? options.Endpoint : "/" + options.Endpoint;
     }
 
     private ILogger Log => _context.Logger;
@@ -30,7 +31,7 @@ public class HttpServerTransport
     /// <summary>
     /// MCP endpoint - 用于新协议 Streamable HTTP (2025-03-26+)
     /// </summary>
-    public string EndPoint { get; init; } = "/mcp";
+    public string EndPoint { get; init; }
 
     /// <summary>
     /// SSE endpoint - 用于旧协议 HTTP+SSE (2024-11-05) 兼容

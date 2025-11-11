@@ -51,12 +51,12 @@ public class McpServerBuilder
         {
             null => new HttpServerTransportOptions
             {
-                BaseUrl = $"http://localhost:{port}",
+                BaseUrl = $"http://localhost:{port}/",
                 Endpoint = endpoint,
             },
             var o => new HttpServerTransportOptions
             {
-                BaseUrl = $"http://localhost:{port}",
+                BaseUrl = $"http://localhost:{port}/",
                 Endpoint = endpoint,
             },
         };
