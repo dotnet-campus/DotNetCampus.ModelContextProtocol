@@ -38,4 +38,6 @@
     <PackageProjectUrl>https://github.com/dotnet-campus/DotNetCampus.ModelContextProtocol</PackageProjectUrl>
   </PropertyGroup>
 
+  <Import Project="$(MSBuildThisFileDirectory)src\DotNetCampus.ModelContextProtocol\Package\build\Package.props" />
+
 </Project>
