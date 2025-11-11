@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace DotNetCampus.ModelContextProtocol.Protocol;
 
 public abstract record PaginatedResult : Result
@@ -6,5 +8,7 @@ public abstract record PaginatedResult : Result
     {
     }
 
+    [JsonPropertyName("nextCursor")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? NextCursor { get; set; }
 }

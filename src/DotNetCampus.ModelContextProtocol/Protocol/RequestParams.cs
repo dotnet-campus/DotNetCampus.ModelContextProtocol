@@ -10,5 +10,6 @@ public abstract record RequestParams
     }
 
     [JsonPropertyName("_meta")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public JsonObject? Meta { get; set; }
 }

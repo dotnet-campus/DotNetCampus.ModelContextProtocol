@@ -9,5 +9,6 @@ public abstract record PaginatedRequestParams : RequestParams
     }
 
     [JsonPropertyName("cursor")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? Cursor { get; set; }
 }
