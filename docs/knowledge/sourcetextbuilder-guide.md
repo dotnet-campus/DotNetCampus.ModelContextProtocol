@@ -131,6 +131,41 @@ m.AddBracketScope("return new()", "{", "};", b => b
 // };
 ```
 
+### 控制流（条件分支）
+
+#### Condition / Otherwise（链式条件判断）
+```csharp
+builder
+    .Condition(condition, x => x
+        // 异步分支：await 并转换
+        .AddRawStatements(
+            $"var result = await {methodCall}.ConfigureAwait(false);",
+            $"return ({callToolResult})result;"
+        ))
+    .Otherwise(x => x
+        // 同步分支：直接转换并返回
+        .AddRawStatements(
+            $"var result = {methodCall};",
+            $"return {valueTask}.FromResult(({callToolResult})result);"
+        ));
+
+// 生成代码根据条件选择分支（只有一个分支会被生成）
+```
+
+**API 签名**：
+```csharp
+// 开始条件链
+builder
+    .Condition(bool condition, Action<TBuilder> action)
+    .Otherwise(Action<TBuilder> action)
+    .EndCondition();  // 可选：显式结束条件链
+```
+
+**注意事项**：
+- `Condition` 和 `Otherwise` 在**源生成时**判断，而不是在运行时
+- 只有一个分支会被生成到最终代码中
+- 可以链式调用多个 `Condition`，类似于 if-else if-else
+
 ### 文档注释
 
 #### WithSummaryComment
@@ -340,3 +375,113 @@ file static class Extensions
 - [DotNetCampus.CodeAnalysisUtils GitHub](https://github.com/dotnet-campus/DotNetCampus.CodeAnalysisUtils)
 - [项目开发指南](../.github/copilot-instructions.md)
 - [McpServerToolGenerator 实现](../../src/DotNetCampus.ModelContextProtocol.Analyzer/Generators/McpServerToolGenerator.cs)
+
+---
+
+## 📋 附录：实战优化案例总结
+
+### 案例：处理异步方法和 CancellationToken
+
+**问题场景**：
+1. 接口方法需要添加 `CancellationToken` 参数
+2. 目标方法可能是异步的（返回 `Task`/`ValueTask`）
+3. 返回值需要隐式转换为 `CallToolResult`
+
+**优化前的代码**（复杂且难以维护）：
+```csharp
+// ❌ 使用 if 语句，破坏链式调用
+if (model.GetIsAsync())
+{
+    m.AddRawStatements(
+        $"var result = await {methodCall}.ConfigureAwait(false);",
+        $"return ({callToolResult})result;"
+    );
+}
+else
+{
+    m.AddRawStatements(
+        $"var result = {methodCall};",
+        $"return {valueTask}.FromResult(({callToolResult})result);"
+    );
+}
+```
+
+**优化后的代码**（使用 Condition/Otherwise）：
+```csharp
+// ✅ 完全链式调用，清晰简洁
+builder
+    .Condition(model.GetIsAsync(), async => async
+        .AddRawStatements(
+            $"var result = await {methodCall}.ConfigureAwait(false);",
+            $"return ({callToolResult})result;"
+        ))
+    .Otherwise(sync => sync
+        .AddRawStatements(
+            $"var result = {methodCall};",
+            $"return {valueTask}.FromResult(({callToolResult})result);"
+        ));
+```
+
+### 核心优化原则
+
+1. **源生成器代码优先可读性**
+   - 源生成器代码需要被其他开发者阅读和维护
+   - 链式调用提高可读性，减少缩进层次
+
+2. **生成的代码优先性能**
+   - 使用 `ConfigureAwait(false)` 避免上下文切换
+   - 使用 `ValueTask` 减少异步分配
+   - 直接类型转换而非装箱
+
+3. **优先使用链式调用**
+   - 使用 `Condition/Otherwise` 代替 if-else
+   - 使用 `AddRawStatements(IEnumerable)` 代替循环
+   - 使用 LINQ `Select` 进行数据转换
+
+4. **难以链式化时抽取扩展方法**
+   - 将复杂逻辑封装为扩展方法
+   - 保持主流程的链式调用风格
+   - 使用 `file static class` 限制作用域
+
+### 关键技巧
+
+#### 1. 过滤特殊参数
+```csharp
+// 过滤掉 CancellationToken，因为从外部传入
+var methodParameters = model.Method.Parameters
+    .Where(p => !IsCancellationTokenParameter(p))
+    .ToArray();
+```
+
+#### 2. 元组辅助数据转换
+```csharp
+// 使用元组将多个属性组合，便于后续 Select
+.Select(p => (Parameter: p, Name: p.Name, Type: p.Type,
+    JsonName: NamingHelper.MakeKebabCase(p.Name, true, true), 
+    HasDefault: p.HasExplicitDefaultValue))
+.Select(p => $"var {p.Name} = ...{p.JsonName}...{p.HasDefault}...")
+```
+
+#### 3. 多行字符串模板
+```csharp
+// 使用原始字符串字面量（C# 11+）保持格式
+var signature = $"""
+    public {(model.GetIsAsync() ? "async " : "")}{valueTask}<{callToolResult}> CallTool(
+        {jsonElement} jsonArguments,
+        {jsonSerializerContext} jsonSerializerContext,
+        {cancellationToken} cancellationToken)
+    """;
+```
+
+#### 4. 条件表达式
+```csharp
+// 在字符串插值中使用三元表达式
+$"public {(model.GetIsAsync() ? "async " : "")}{valueTask}<{callToolResult}> CallTool(...)"
+
+// 在 Select 中使用三元表达式处理默认值
+: {(p.HasDefault ? FormatDefaultValue(p.Parameter) : $"throw new {exception}(\"{p.JsonName}\")")};
+```
+
+### 完整示例
+
+参见 [`McpServerToolGenerator.cs`](../../src/DotNetCampus.ModelContextProtocol.Analyzer/Generators/McpServerToolGenerator.cs) 中的完整实现。
