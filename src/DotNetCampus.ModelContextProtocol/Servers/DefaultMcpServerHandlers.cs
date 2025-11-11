@@ -45,7 +45,7 @@ public class DefaultMcpServerHandlers(McpServer server)
         };
     }
 
-    public async ValueTask<NullResult> Ping(RequestContext<PingRequestParams> request, CancellationToken cancellationToken)
+    public async ValueTask<EmptyResult> Ping(RequestContext<PingRequestParams> request, CancellationToken cancellationToken)
     {
         return default;
     }

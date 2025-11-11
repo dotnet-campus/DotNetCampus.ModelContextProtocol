@@ -26,7 +26,7 @@ internal static class McpServerHandlingExtensions
             McpServerRequestJsonContext.Default.InitializeRequestParams, McpServerResponseJsonContext.Default.InitializeResult,
             cancellationToken),
         "ping" => await request.HandleRequestAsync(handlers.PingHandler,
-            McpServerRequestJsonContext.Default.PingRequestParams, McpServerResponseJsonContext.Default.NullResult,
+            McpServerRequestJsonContext.Default.PingRequestParams, McpServerResponseJsonContext.Default.EmptyResult,
             cancellationToken),
         _ => new JsonRpcResponse
         {
@@ -73,9 +73,11 @@ internal static class McpServerHandlingExtensions
 
         return result switch
         {
-            null or NullResult => new JsonRpcResponse
+            null or EmptyResult => new JsonRpcResponse
             {
                 Id = request.Id,
+                // JSON-RPC 2.0 规范要求成功响应必须包含 result 字段，即使为空对象
+                Result = EmptyResult.JsonElement,
             },
             _ => new JsonRpcResponse
             {

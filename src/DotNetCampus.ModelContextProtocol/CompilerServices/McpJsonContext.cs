@@ -80,5 +80,5 @@ internal partial class McpServerRequestJsonContext : JsonSerializerContext;
 [JsonSerializable(typeof(JsonRpcResponse))]
 [JsonSerializable(typeof(InitializeResult))]
 [JsonSerializable(typeof(InputSchemaJsonObject))]
-[JsonSerializable(typeof(NullResult))]
+[JsonSerializable(typeof(EmptyResult))]
 internal partial class McpServerResponseJsonContext : JsonSerializerContext;

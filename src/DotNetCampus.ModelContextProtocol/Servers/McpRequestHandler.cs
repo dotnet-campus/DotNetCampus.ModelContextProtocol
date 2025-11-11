@@ -21,7 +21,7 @@ public class McpServerHandlers(McpServer server)
     }
 
     [NotNull]
-    public McpRequestHandler<PingRequestParams, NullResult>? PingHandler
+    public McpRequestHandler<PingRequestParams, EmptyResult>? PingHandler
     {
         get => field ?? _default.Ping;
         set;
