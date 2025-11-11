@@ -16,6 +16,7 @@ public class McpServerToolBridge_SampleTools_EchoInfo : IGeneratedMcpServerToolB
 
     private SampleTools Target => _targetGetter();
 
+    /// <inheritdoc />
     public Tool GetToolDefinition() => new()
     {
         Title = "",
