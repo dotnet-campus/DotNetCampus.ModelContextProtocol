@@ -33,6 +33,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "2.docs", "2.docs", "{458BB0
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "docs", "docs\Documents.csproj", "{AD8AA6E1-2503-4D70-935D-1ECC5CF1B745}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DotNetCampus.ModelContextProtocol.Analyzer", "src\DotNetCampus.ModelContextProtocol.Analyzer\DotNetCampus.ModelContextProtocol.Analyzer.csproj", "{550E0E0F-9313-48F2-A29E-F5A3D6AA3869}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -91,6 +93,18 @@ Global
 		{AD8AA6E1-2503-4D70-935D-1ECC5CF1B745}.Release|x64.Build.0 = Release|Any CPU
 		{AD8AA6E1-2503-4D70-935D-1ECC5CF1B745}.Release|x86.ActiveCfg = Release|Any CPU
 		{AD8AA6E1-2503-4D70-935D-1ECC5CF1B745}.Release|x86.Build.0 = Release|Any CPU
+		{550E0E0F-9313-48F2-A29E-F5A3D6AA3869}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{550E0E0F-9313-48F2-A29E-F5A3D6AA3869}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{550E0E0F-9313-48F2-A29E-F5A3D6AA3869}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{550E0E0F-9313-48F2-A29E-F5A3D6AA3869}.Debug|x64.Build.0 = Debug|Any CPU
+		{550E0E0F-9313-48F2-A29E-F5A3D6AA3869}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{550E0E0F-9313-48F2-A29E-F5A3D6AA3869}.Debug|x86.Build.0 = Debug|Any CPU
+		{550E0E0F-9313-48F2-A29E-F5A3D6AA3869}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{550E0E0F-9313-48F2-A29E-F5A3D6AA3869}.Release|Any CPU.Build.0 = Release|Any CPU
+		{550E0E0F-9313-48F2-A29E-F5A3D6AA3869}.Release|x64.ActiveCfg = Release|Any CPU
+		{550E0E0F-9313-48F2-A29E-F5A3D6AA3869}.Release|x64.Build.0 = Release|Any CPU
+		{550E0E0F-9313-48F2-A29E-F5A3D6AA3869}.Release|x86.ActiveCfg = Release|Any CPU
+		{550E0E0F-9313-48F2-A29E-F5A3D6AA3869}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
