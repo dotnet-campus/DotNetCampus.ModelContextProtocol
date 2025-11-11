@@ -74,6 +74,7 @@ internal partial class McpServerToolJsonContext : JsonSerializerContext;
 [JsonSerializable(typeof(JsonRpcRequest))]
 [JsonSerializable(typeof(InitializeRequestParams))]
 [JsonSerializable(typeof(PingRequestParams))]
+[JsonSerializable(typeof(ListToolsRequestParams))]
 internal partial class McpServerRequestJsonContext : JsonSerializerContext;
 
 [JsonSerializable(typeof(JsonElement))]
@@ -81,4 +82,5 @@ internal partial class McpServerRequestJsonContext : JsonSerializerContext;
 [JsonSerializable(typeof(InitializeResult))]
 [JsonSerializable(typeof(InputSchemaJsonObject))]
 [JsonSerializable(typeof(EmptyResult))]
+[JsonSerializable(typeof(ListToolsResult))]
 internal partial class McpServerResponseJsonContext : JsonSerializerContext;

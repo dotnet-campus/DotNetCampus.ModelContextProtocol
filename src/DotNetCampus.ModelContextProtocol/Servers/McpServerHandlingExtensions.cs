@@ -29,6 +29,9 @@ internal static class McpServerHandlingExtensions
         "ping" => await request.HandleRequestAsync(handlers.PingHandler,
             McpServerRequestJsonContext.Default.PingRequestParams, McpServerResponseJsonContext.Default.EmptyResult,
             cancellationToken),
+        "tools/list" => await request.HandleRequestAsync(handlers.ListToolsHandler,
+            McpServerRequestJsonContext.Default.ListToolsRequestParams, McpServerResponseJsonContext.Default.ListToolsResult,
+            cancellationToken),
         _ => new JsonRpcResponse
         {
             Id = request.Id,
