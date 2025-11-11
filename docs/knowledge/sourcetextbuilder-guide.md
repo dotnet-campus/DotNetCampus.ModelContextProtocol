@@ -2,89 +2,115 @@
 
 > 本文档介绍 `DotNetCampus.CodeAnalysisUtils` 库中的 `SourceTextBuilder` API 的使用方法。
 
-## 📌 核心概念
+## 概述
 
-`SourceTextBuilder` 是一个用于**链式生成源代码文本**的构建器，专为 Roslyn 源生成器设计。它提供了流畅的 API 来生成格式良好、缩进正确的 C# 代码。
+`SourceTextBuilder` 是专为 Roslyn 源生成器设计的**链式代码生成构建器**，用于生成格式良好、缩进正确的 C# 代码。
 
-### 设计理念
+**核心特性**：
+- **链式调用**：流畅的 API 设计，所有方法返回 builder 自身
+- **自动缩进**：自动处理代码缩进和格式化
+- **类型安全**：通过接口约束确保 API 调用的上下文正确性
+- **高性能**：零中间分配，直接写入 `IndentedStringBuilder`
 
-- ✅ **链式调用**：所有方法返回 builder 自身，支持流畅的链式调用
-- ✅ **自动缩进**：自动处理代码缩进，无需手动管理
-- ✅ **类型安全**：通过接口约束确保只能在合适的上下文中调用特定方法
-- ✅ **零分配**：直接写入 `IndentedStringBuilder`，避免中间字符串分配
-
-## 🔧 核心接口层次
+## 接口层次结构
 
 ```
-ISourceTextBuilder                  // 所有构建器的基础接口
-├─ IAllowNestedSourceTextBuilder   // 支持嵌套源代码
-│  ├─ IAllowScopedNamespace        // 允许添加命名空间
-│  ├─ IAllowTypeDeclaration        // 允许添加类型声明
-│  ├─ IAllowMemberDeclaration      // 允许添加成员声明
-│  └─ IAllowStatements             // 允许添加语句
-├─ IAllowDocumentationComment      // 允许添加文档注释
-├─ IAllowAttributes                // 允许添加特性
-└─ IAllowTypeConstraints           // 允许添加泛型约束
+ISourceTextBuilder                  // 基础接口
+├─ IAllowNestedSourceTextBuilder  // 嵌套源代码
+│  ├─ IAllowScopedNamespace      // 命名空间
+│  ├─ IAllowTypeDeclaration      // 类型声明（class/interface/struct 等）
+│  ├─ IAllowMemberDeclaration    // 成员声明（方法/属性/字段等）
+│  └─ IAllowStatements           // 语句块
+├─ IAllowDocumentationComment     // 文档注释
+├─ IAllowAttributes               // 特性标注
+└─ IAllowTypeConstraints          // 泛型约束
 ```
 
-## 🚀 基本用法
+## API 速查表
 
-### 1. 创建 SourceTextBuilder
+### 初始化与配置
+
+| API                                 | 说明                          | 默认值   |
+| ----------------------------------- | ----------------------------- | -------- |
+| `new SourceTextBuilder(namespace)`  | 创建构建器                    | -        |
+| `UseFileScopedNamespace`            | 使用文件作用域命名空间        | `true`   |
+| `SimplifyTypeNamesByUsingNamespace` | 简化类型名（通过 using 语句） | `false`  |
+| `ShouldPrependGlobal`               | 是否添加 `global::` 前缀      | `true`   |
+| `Indentation`                       | 缩进字符                      | `"    "` |
+| `NewLine`                           | 换行符                        | `"\n"`   |
+
+### 引用管理
+
+| API                                    | 说明                |
+| -------------------------------------- | ------------------- |
+| `Using(string namespace)`              | 添加 using 命名空间 |
+| `UsingStatic(string type)`             | 添加 using static   |
+| `UsingTypeAlias(string alias, string)` | 添加类型别名        |
+
+### 类型声明
+
+| API                       | 适用接口               | 说明          |
+| ------------------------- | ---------------------- | ------------- |
+| `AddTypeDeclaration(...)` | IAllowTypeDeclaration  | 添加类型声明  |
+| `AddBaseTypes(...)`       | TypeDeclarationBuilder | 添加基类/接口 |
+
+### 成员声明
+
+| API                         | 适用接口                | 说明           |
+| --------------------------- | ----------------------- | -------------- |
+| `AddMethodDeclaration(...)` | IAllowMemberDeclaration | 添加方法       |
+| `AddRawText(string)`        | 所有 Builder            | 添加原始文本行 |
+| `AddRawMembers(...)`        | IAllowMemberDeclaration | 批量添加成员   |
+
+### 语句生成
+
+| API                       | 适用接口         | 说明           |
+| ------------------------- | ---------------- | -------------- |
+| `AddRawStatement(string)` | IAllowStatements | 添加单条语句   |
+| `AddRawStatements(...)`   | IAllowStatements | 批量添加语句   |
+| `AddBracketScope(...)`    | IAllowStatements | 添加括号作用域 |
+
+### 条件生成
+
+| API                       | 说明                     |
+| ------------------------- | ------------------------ |
+| `Condition(bool, Action)` | 条件分支（源生成时判断） |
+| `Otherwise(Action)`       | else 分支                |
+| `EndCondition()`          | 结束条件链（可选）       |
+
+### 文档注释
+
+| API                                | 说明                 |
+| ---------------------------------- | -------------------- |
+| `WithSummaryComment(string)`       | 添加 summary 注释    |
+| `WithRawDocumentationComment(...)` | 添加原始文档注释     |
+| `DocumentationCommentBuilder`      | 完整的文档注释构建器 |
+
+## 快速开始
+
+### 基本用法
 
 ```csharp
 using var builder = new SourceTextBuilder("MyNamespace")
 {
-    UseFileScopedNamespace = true,     // 使用文件作用域命名空间（默认 true）
-    SimplifyTypeNamesByUsingNamespace = false,  // 是否简化类型名（默认 false）
-    ShouldPrependGlobal = true,        // 是否添加 global:: 前缀（默认 true）
-    Indentation = "    ",              // 缩进字符（默认 4 空格）
-    NewLine = "\n"                     // 换行符（默认 \n）
+    UseFileScopedNamespace = true,
+    ShouldPrependGlobal = true
 };
 
-// 生成代码
-string code = builder.ToString();
-```
-
-### 2. 添加 Using 引用
-
-```csharp
 builder
     .Using("System")
     .Using("System.Text.Json")
-    .UsingStatic("System.Math")
-    .UsingTypeAlias("JObject", "System.Text.Json.JsonObject");
+    .AddTypeDeclaration("public sealed class MyClass", t => t
+        .WithSummaryComment("这是一个示例类")
+        .AddBaseTypes("IDisposable")
+        .AddRawText("private int _value;")
+    );
+
+string code = builder.ToString();
 ```
 
-### 3. 添加类型声明
+### 添加方法
 
-```csharp
-builder.AddTypeDeclaration("public sealed class MyClass", t => t
-    .WithSummaryComment("这是一个示例类")
-    .AddBaseTypes("IDisposable", "IEquatable<MyClass>")
-    .AddRawText("private int _value;")
-);
-```
-
-## 📝 常用 API 详解
-
-### 类型声明相关
-
-#### AddTypeDeclaration
-```csharp
-builder.AddTypeDeclaration("public class MyClass", t => t
-    .WithSummaryComment("类的说明")
-    .AddBaseTypes("BaseClass", "IInterface")
-    .AddRawText("private int _field;")
-    .AddMethodDeclaration("public void MyMethod()", m => m
-        .WithRawDocumentationComment("/// <inheritdoc />")
-        .AddRawStatement("Console.WriteLine(\"Hello\");")
-    )
-);
-```
-
-### 方法声明相关
-
-#### AddMethodDeclaration
 ```csharp
 t.AddMethodDeclaration("public int Calculate(int x, int y)", m => m
     .WithSummaryComment("计算两个数的和")
@@ -95,32 +121,50 @@ t.AddMethodDeclaration("public int Calculate(int x, int y)", m => m
 );
 ```
 
-#### AddRawStatements (批量添加)
+### 批量添加语句
+
 ```csharp
-// 方式 1: 传入多个字符串参数
+// 使用 params 参数
 m.AddRawStatements(
     "var x = 1;",
     "var y = 2;",
     "return x + y;"
 );
 
-// 方式 2: 传入 IEnumerable<string>
+// 使用 IEnumerable
 m.AddRawStatements(parameters.Select(p => $"var {p.Name} = default;"));
 
-// 方式 3: 使用 LINQ 链式生成
+// 使用 LINQ 链式转换
 m.AddRawStatements(model.Parameters
     .Select(p => (Name: p.Name, Type: p.Type, JsonName: ToKebabCase(p.Name)))
     .Select(p => $"var {p.Name} = ParseJson(\"{p.JsonName}\", typeof({p.Type}));")
 );
 ```
 
-### 代码块作用域
+### 条件分支生成
 
-#### AddBracketScope
+```csharp
+builder
+    .Condition(isAsync, async => async
+        .AddRawStatements(
+            $"var result = await {methodCall}.ConfigureAwait(false);",
+            $"return result;"
+        ))
+    .Otherwise(sync => sync
+        .AddRawStatements(
+            $"var result = {methodCall};",
+            $"return ValueTask.FromResult(result);"
+        ));
+```
+
+**重要**：`Condition` 在**源生成时**执行判断，只有一个分支会被生成到最终代码中。
+
+### 添加括号作用域
+
 ```csharp
 m.AddBracketScope("return new()", "{", "};", b => b
-    .AddPropertyAssignment("Name", "value1")
-    .AddPropertyAssignment("Title", "value2")
+    .AddRawText("Name = \"value1\",")
+    .AddRawText("Title = \"value2\",")
 );
 
 // 生成：
@@ -131,172 +175,99 @@ m.AddBracketScope("return new()", "{", "};", b => b
 // };
 ```
 
-### 控制流（条件分支）
-
-#### Condition / Otherwise（链式条件判断）
-```csharp
-builder
-    .Condition(condition, x => x
-        // 异步分支：await 并转换
-        .AddRawStatements(
-            $"var result = await {methodCall}.ConfigureAwait(false);",
-            $"return ({callToolResult})result;"
-        ))
-    .Otherwise(x => x
-        // 同步分支：直接转换并返回
-        .AddRawStatements(
-            $"var result = {methodCall};",
-            $"return {valueTask}.FromResult(({callToolResult})result);"
-        ));
-
-// 生成代码根据条件选择分支（只有一个分支会被生成）
-```
-
-**API 签名**：
-```csharp
-// 开始条件链
-builder
-    .Condition(bool condition, Action<TBuilder> action)
-    .Otherwise(Action<TBuilder> action)
-    .EndCondition();  // 可选：显式结束条件链
-```
-
-**注意事项**：
-- `Condition` 和 `Otherwise` 在**源生成时**判断，而不是在运行时
-- 只有一个分支会被生成到最终代码中
-- 可以链式调用多个 `Condition`，类似于 if-else if-else
-
 ### 文档注释
 
-#### WithSummaryComment
 ```csharp
-t.WithSummaryComment("这是一个类的说明");
-// 生成: /// <summary>这是一个类的说明</summary>
-```
+// 简单注释
+t.WithSummaryComment("类的说明");
 
-#### WithRawDocumentationComment
-```csharp
+// 继承文档
 m.WithRawDocumentationComment("/// <inheritdoc />");
-// 可以带或不带 /// 前缀，都会正确处理
-```
 
-#### 完整的文档注释
-```csharp
-// 通过 DocumentationCommentBuilder 添加复杂注释
+// 完整注释
 builder.DocumentationCommentBuilder
     .Summary("方法说明")
     .AddParam("param1", "参数1说明")
     .AddParam("param2", "参数2说明")
     .Returns("返回值说明")
-    .Remarks("备注信息")
-    .AddRawText("/// <example>示例代码</example>");
+    .Remarks("备注信息");
 ```
 
-### 添加原始文本
+## 最佳实践
 
-#### AddRawText (单行)
+### 1. 使用 using 语句管理生命周期
+
 ```csharp
-t.AddRawText("private int _value;");
-t.AddRawText("public string Name { get; set; }");
+using var builder = new SourceTextBuilder("MyNamespace");
+// builder 会在作用域结束时自动释放
 ```
 
-#### AddRawMembers (批量成员)
+### 2. 优先使用链式调用
+
 ```csharp
-t.AddRawMembers(
-    "private int _x;",
-    "private int _y;",
-    "public int Sum => _x + _y;"
-);
+// ✅ 推荐：完整链式调用
+builder
+    .Using("System")
+    .AddTypeDeclaration("public class MyClass", t => t
+        .AddMethodDeclaration("public void Method()", m => m
+            .AddRawStatement("Console.WriteLine();")
+        )
+    );
 ```
 
-## 🎯 实际应用示例
-
-### 示例 1: 生成 MCP 服务器工具桥接类
+### 3. 使用批量 API 而非循环
 
 ```csharp
-private string GenerateMcpServerToolBridgeCode(McpServerToolGeneratingModel model)
-{
-    var targetFactory = $"global::System.Func<{model.ContainingType.ToUsingString()}>";
-    
-    var builder = new SourceTextBuilder(model.Namespace)
-        .Using("System.Text.Json")
-        .AddTypeDeclaration($"public sealed class {model.GetBridgeTypeName()}({targetFactory} targetFactory)", t => t
-            .AddBaseTypes("global::DotNetCampus.ModelContextProtocol.CompilerServices.IGeneratedMcpServerToolBridge")
-            .WithSummaryComment($"为 <see cref=\"{model.ContainingType.ToUsingString()}.{model.Method.Name}\"/> 方法生成的 MCP 服务器工具桥接类。")
-            .AddRawText($"private readonly {targetFactory} _targetFactory = targetFactory;")
-            .AddRawText($"private {model.ContainingType.ToUsingString()} Target => _targetFactory();")
-            .AddRawText($"public string ToolName {{ get; }} = \"{model.Name}\";")
-            .AddGetToolDefinitionMethod(model)
-            .AddCallToolMethod(model)
-        );
-    
-    return builder.ToString();
-}
-```
-
-### 示例 2: 生成方法体（链式 LINQ）
-
-```csharp
-m.AddRawStatements(model.Parameters
-    .Select(p => (
-        Parameter: p,
-        Name: p.Name,
-        Type: p.Type,
-        JsonName: NamingHelper.MakeKebabCase(p.Name, true, true),
-        HasDefault: p.HasExplicitDefaultValue
-    ))
-    .Select(p => $"""
-        var {p.Name} = jsonArguments.TryGetProperty("{p.JsonName}", out var {p.Name}Property)
-            ? {p.Name}Property.Deserialize((JsonTypeInfo<{p.Type.ToUsingString()}>)context.GetTypeInfo(typeof({p.Type}))!)
-            : {(p.HasDefault ? FormatDefaultValue(p.Parameter) : $"throw new MissingRequiredArgumentException(\"{p.JsonName}\")")};
-        """
-    )
-);
-```
-
-## ⚡ 性能优化建议
-
-### 1. 使用批量 API
-```csharp
-// ❌ 不推荐：多次调用
+// ❌ 不推荐
 foreach (var param in parameters)
 {
     m.AddRawStatement($"var {param} = default;");
 }
 
-// ✅ 推荐：批量调用
+// ✅ 推荐
 m.AddRawStatements(parameters.Select(p => $"var {p} = default;"));
 ```
 
-### 2. 使用 LINQ 链式生成
+### 4. 使用 LINQ 进行数据转换
+
 ```csharp
-// ✅ 优雅且高效
+// ✅ 使用元组辅助数据转换
 m.AddRawStatements(model.Parameters
-    .Where(p => !p.HasExplicitDefaultValue)
+    .Select(p => (
+        Name: p.Name,
+        Type: p.Type,
+        JsonName: NamingHelper.MakeKebabCase(p.Name),
+        HasDefault: p.HasExplicitDefaultValue
+    ))
     .Select(p => GenerateParameterCode(p))
 );
 ```
 
-### 3. 避免中间字符串拼接
+### 5. 使用插值字符串而非拼接
+
 ```csharp
-// ❌ 不推荐：多次字符串拼接
+// ❌ 不推荐：字符串拼接
 var code = "var x = ";
 code += value.ToString();
 code += ";";
 m.AddRawStatement(code);
 
-// ✅ 推荐：使用插值字符串
+// ✅ 推荐：插值字符串
 m.AddRawStatement($"var x = {value};");
+
+// ✅ 推荐：多行字符串（C# 11+）
+var signature = $"""
+    public async ValueTask<Result> Method(
+        {param1},
+        {param2})
+    """;
 ```
 
-## 🔍 扩展方法编写指南
-
-### 创建自定义扩展方法
+### 6. 封装复杂逻辑为扩展方法
 
 ```csharp
 file static class Extensions
 {
-    // 为 IAllowMemberDeclaration 添加扩展
     public static IAllowMemberDeclaration AddPropertyAssignment(
         this ISourceTextBuilder builder, 
         string propertyName, 
@@ -308,180 +279,156 @@ file static class Extensions
         }},");
         return builder;
     }
-    
-    // 为特定模型添加扩展
-    public static IAllowMemberDeclaration AddCallToolMethod(
+}
+```
+
+### 7. 使用 Condition/Otherwise 替代 if-else
+
+```csharp
+// ❌ 破坏链式调用
+if (condition)
+{
+    builder.AddRawStatement("...");
+}
+else
+{
+    builder.AddRawStatement("...");
+}
+
+// ✅ 保持链式调用
+builder
+    .Condition(condition, x => x.AddRawStatement("..."))
+    .Otherwise(x => x.AddRawStatement("..."));
+```
+
+## 性能优化
+
+### 避免重复字符串分配
+
+```csharp
+// ✅ 流式序列化，零中间分配
+builder.ToString();  // 直接从 IndentedStringBuilder 获取
+```
+
+### 批量操作优于单次操作
+
+```csharp
+// ✅ 一次调用处理多个语句
+m.AddRawStatements(
+    "statement1;",
+    "statement2;",
+    "statement3;"
+);
+
+// ✅ 使用 IEnumerable 延迟计算
+m.AddRawStatements(items
+    .Where(predicate)
+    .Select(transform)
+);
+```
+
+## 扩展开发
+
+### 创建自定义扩展方法
+
+扩展方法应遵循以下原则：
+1. 返回接口类型（如 `IAllowMemberDeclaration`）以保持链式调用
+2. 使用 `file static class` 限制作用域
+3. 参数化配置，提高复用性
+
+```csharp
+file static class Extensions
+{
+    /// <summary>
+    /// 为类型添加标准的工具方法
+    /// </summary>
+    public static IAllowMemberDeclaration AddToolMethod(
         this IAllowMemberDeclaration builder, 
-        McpServerToolGeneratingModel model)
+        ToolModel model)
     {
-        return builder.AddMethodDeclaration("public ValueTask<CallToolResult> CallTool(...)", m => m
-            .WithRawDocumentationComment("/// <inheritdoc />")
-            .AddRawStatements(GenerateStatements(model))
+        return builder.AddMethodDeclaration(
+            $"public ValueTask<Result> {model.Name}(...)", 
+            m => m
+                .WithRawDocumentationComment("/// <inheritdoc />")
+                .AddRawStatements(GenerateMethodBody(model))
         );
+    }
+
+    private static IEnumerable<string> GenerateMethodBody(ToolModel model)
+    {
+        // 生成方法体逻辑
+        yield return "// 实现代码";
     }
 }
 ```
 
-## 📚 API 速查表
+## 完整示例
 
-| API                                   | 适用接口                         | 说明                |
-| ------------------------------------- | -------------------------------- | ------------------- |
-| `Using(string)`                       | SourceTextBuilder                | 添加 using 命名空间 |
-| `UsingStatic(string)`                 | SourceTextBuilder                | 添加 using static   |
-| `AddTypeDeclaration(...)`             | IAllowTypeDeclaration            | 添加类型声明        |
-| `AddMethodDeclaration(...)`           | IAllowMemberDeclaration          | 添加方法声明        |
-| `AddRawText(string)`                  | 所有 Builder                     | 添加单行原始文本    |
-| `AddRawStatements(...)`               | IAllowStatements                 | 批量添加语句        |
-| `AddRawMembers(...)`                  | IAllowMemberDeclaration          | 批量添加成员        |
-| `AddBracketScope(...)`                | IAllowStatements                 | 添加带括号的作用域  |
-| `WithSummaryComment(string)`          | IAllowDocumentationComment       | 添加 summary 注释   |
-| `WithRawDocumentationComment(string)` | IAllowDocumentationComment       | 添加原始文档注释    |
-| `AddBaseTypes(...)`                   | TypeDeclarationSourceTextBuilder | 添加基类/接口       |
+### 生成类型定义
 
-## 🎓 最佳实践
+```csharp
+private string GenerateBridgeClass(Model model)
+{
+    var targetFactory = $"global::System.Func<{model.ContainingType}>";
 
-1. **始终使用 `using` 语句**
-   ```csharp
-   using var builder = new SourceTextBuilder("MyNamespace");
-   ```
+    using var builder = new SourceTextBuilder(model.Namespace)
+        .Using("System")
+        .Using("System.Text.Json")
+        .AddTypeDeclaration($"public sealed class {model.BridgeTypeName}({targetFactory} targetFactory)", t => t
+            .AddBaseTypes("IBridge")
+            .WithSummaryComment($"为 <see cref=\"{model.ContainingType}.{model.MethodName}\"/> 生成的桥接类")
+            .AddRawMembers(
+                $"private readonly {targetFactory} _targetFactory = targetFactory;",
+                $"private {model.ContainingType} Target => _targetFactory();"
+            )
+            .AddRawText($"public string Name {{ get; }} = \"{model.Name}\";")
+            .AddCallMethod(model)
+        );
 
-2. **优先使用链式调用**
-   ```csharp
-   builder
-       .Using("System")
-       .AddTypeDeclaration("public class MyClass", t => t
-           .AddMethodDeclaration("public void Method()", m => m
-               .AddRawStatement("Console.WriteLine();")
-           )
-       );
-   ```
+    return builder.ToString();
+}
 
-3. **使用 LINQ 生成重复代码**
-   ```csharp
-   m.AddRawStatements(items.Select(item => $"Process({item});"));
-   ```
+private static IAllowMemberDeclaration AddCallMethod(
+    this IAllowMemberDeclaration builder,
+    Model model)
+{
+    var methodCall = $"Target.{model.MethodName}({BuildArguments(model)})";
 
-4. **善用扩展方法封装复杂逻辑**
-   ```csharp
-   file static class MyExtensions
-   {
-       public static IAllowMemberDeclaration AddMyCustomMethod(
-           this IAllowMemberDeclaration builder, Model model) => ...
-   }
-   ```
+    return builder.AddMethodDeclaration("public ValueTask<Result> CallAsync(...)", m => m
+        .WithRawDocumentationComment("/// <inheritdoc />")
+        .AddRawStatements(GenerateParameterParsing(model))
+        .Condition(model.IsAsync, async => async
+            .AddRawStatements(
+                $"var result = await {methodCall}.ConfigureAwait(false);",
+                "return (Result)result;"
+            ))
+        .Otherwise(sync => sync
+            .AddRawStatements(
+                $"var result = {methodCall};",
+                "return ValueTask.FromResult((Result)result);"
+            ))
+    );
+}
 
-## 🔗 相关资源
+private static IEnumerable<string> GenerateParameterParsing(Model model)
+{
+    return model.Parameters
+        .Select(p => (
+            Name: p.Name,
+            Type: p.Type,
+            JsonName: ToKebabCase(p.Name),
+            HasDefault: p.HasExplicitDefaultValue
+        ))
+        .Select(p => $"""
+            var {p.Name} = jsonArgs.TryGetProperty("{p.JsonName}", out var prop)
+                ? prop.Deserialize<{p.Type}>()
+                : {(p.HasDefault ? FormatDefault(p) : $"throw new ArgumentException(\"{p.JsonName}\")")};
+            """);
+}
+```
+
+## 相关资源
 
 - [DotNetCampus.CodeAnalysisUtils GitHub](https://github.com/dotnet-campus/DotNetCampus.CodeAnalysisUtils)
 - [项目开发指南](../.github/copilot-instructions.md)
 - [McpServerToolGenerator 实现](../../src/DotNetCampus.ModelContextProtocol.Analyzer/Generators/McpServerToolGenerator.cs)
-
----
-
-## 📋 附录：实战优化案例总结
-
-### 案例：处理异步方法和 CancellationToken
-
-**问题场景**：
-1. 接口方法需要添加 `CancellationToken` 参数
-2. 目标方法可能是异步的（返回 `Task`/`ValueTask`）
-3. 返回值需要隐式转换为 `CallToolResult`
-
-**优化前的代码**（复杂且难以维护）：
-```csharp
-// ❌ 使用 if 语句，破坏链式调用
-if (model.GetIsAsync())
-{
-    m.AddRawStatements(
-        $"var result = await {methodCall}.ConfigureAwait(false);",
-        $"return ({callToolResult})result;"
-    );
-}
-else
-{
-    m.AddRawStatements(
-        $"var result = {methodCall};",
-        $"return {valueTask}.FromResult(({callToolResult})result);"
-    );
-}
-```
-
-**优化后的代码**（使用 Condition/Otherwise）：
-```csharp
-// ✅ 完全链式调用，清晰简洁
-builder
-    .Condition(model.GetIsAsync(), async => async
-        .AddRawStatements(
-            $"var result = await {methodCall}.ConfigureAwait(false);",
-            $"return ({callToolResult})result;"
-        ))
-    .Otherwise(sync => sync
-        .AddRawStatements(
-            $"var result = {methodCall};",
-            $"return {valueTask}.FromResult(({callToolResult})result);"
-        ));
-```
-
-### 核心优化原则
-
-1. **源生成器代码优先可读性**
-   - 源生成器代码需要被其他开发者阅读和维护
-   - 链式调用提高可读性，减少缩进层次
-
-2. **生成的代码优先性能**
-   - 使用 `ConfigureAwait(false)` 避免上下文切换
-   - 使用 `ValueTask` 减少异步分配
-   - 直接类型转换而非装箱
-
-3. **优先使用链式调用**
-   - 使用 `Condition/Otherwise` 代替 if-else
-   - 使用 `AddRawStatements(IEnumerable)` 代替循环
-   - 使用 LINQ `Select` 进行数据转换
-
-4. **难以链式化时抽取扩展方法**
-   - 将复杂逻辑封装为扩展方法
-   - 保持主流程的链式调用风格
-   - 使用 `file static class` 限制作用域
-
-### 关键技巧
-
-#### 1. 过滤特殊参数
-```csharp
-// 过滤掉 CancellationToken，因为从外部传入
-var methodParameters = model.Method.Parameters
-    .Where(p => !IsCancellationTokenParameter(p))
-    .ToArray();
-```
-
-#### 2. 元组辅助数据转换
-```csharp
-// 使用元组将多个属性组合，便于后续 Select
-.Select(p => (Parameter: p, Name: p.Name, Type: p.Type,
-    JsonName: NamingHelper.MakeKebabCase(p.Name, true, true), 
-    HasDefault: p.HasExplicitDefaultValue))
-.Select(p => $"var {p.Name} = ...{p.JsonName}...{p.HasDefault}...")
-```
-
-#### 3. 多行字符串模板
-```csharp
-// 使用原始字符串字面量（C# 11+）保持格式
-var signature = $"""
-    public {(model.GetIsAsync() ? "async " : "")}{valueTask}<{callToolResult}> CallTool(
-        {jsonElement} jsonArguments,
-        {jsonSerializerContext} jsonSerializerContext,
-        {cancellationToken} cancellationToken)
-    """;
-```
-
-#### 4. 条件表达式
-```csharp
-// 在字符串插值中使用三元表达式
-$"public {(model.GetIsAsync() ? "async " : "")}{valueTask}<{callToolResult}> CallTool(...)"
-
-// 在 Select 中使用三元表达式处理默认值
-: {(p.HasDefault ? FormatDefaultValue(p.Parameter) : $"throw new {exception}(\"{p.JsonName}\")")};
-```
-
-### 完整示例
-
-参见 [`McpServerToolGenerator.cs`](../../src/DotNetCampus.ModelContextProtocol.Analyzer/Generators/McpServerToolGenerator.cs) 中的完整实现。
