@@ -146,27 +146,26 @@ public class InterceptorGenerator : IIncrementalGenerator
             return;
         }
 
-        // 按工具类型分组
+        // 按工具类型分组，所有对同一工具类型的拦截都生成到同一个文件
         var modelGroups = models
             .GroupBy(m => m.ToolType, SymbolEqualityComparer.Default)
-            .ToList();
+            .ToDictionary(g => g.Key!, g => g.ToList(), SymbolEqualityComparer.Default);
 
-        foreach (var group in modelGroups)
+        if (modelGroups.Count == 0)
         {
-            var code = GenerateInterceptorCode(group.ToList());
-            var firstModel = group.First();
-            var fileName = $"ModelContextProtocol.Interceptors/{firstModel.ToolType.ToDisplayString()}.g.cs";
-            context.AddSource(fileName, code);
+            return;
         }
+
+        // 所有拦截器生成到同一个文件
+        var code = GenerateInterceptorCode(modelGroups);
+        context.AddSource("ModelContextProtocol.Interceptors/McpServerToolInterceptors.g.cs", code);
     }
 
     /// <summary>
     /// 生成拦截器代码。
     /// </summary>
-    private string GenerateInterceptorCode(List<WithToolInterceptorGeneratingModel> models)
+    private string GenerateInterceptorCode(Dictionary<ISymbol, List<WithToolInterceptorGeneratingModel>> modelGroups)
     {
-        var firstModel = models[0];
-
         using var builder = new SourceTextBuilder()
         {
             UseFileScopedNamespace = false
@@ -176,9 +175,10 @@ public class InterceptorGenerator : IIncrementalGenerator
             .AddNamespaceDeclaration("DotNetCampus.ModelContextProtocol.Compiler", n => n
                 .AddTypeDeclaration("file static class McpServerToolInterceptors", t =>
                 {
-                    foreach (var model in models)
+                    // 为每个工具类型生成一个拦截方法
+                    foreach (var pair in modelGroups)
                     {
-                        t.AddInterceptorMethod(model);
+                        t.AddInterceptorMethod(pair.Value);
                     }
                 }))
             .AddNamespaceDeclaration("System.Runtime.CompilerServices", n => n
@@ -201,49 +201,59 @@ public class InterceptorGenerator : IIncrementalGenerator
 file static class Extensions
 {
     /// <summary>
-    /// 添加拦截器方法。
+    /// 添加拦截器方法（为同一工具类型的所有拦截位置生成一个方法）。
     /// </summary>
     public static IAllowMemberDeclaration AddInterceptorMethod(
         this IAllowMemberDeclaration builder,
-        WithToolInterceptorGeneratingModel model)
+        List<WithToolInterceptorGeneratingModel> models)
     {
-        var toolType = model.ToolType;
-        
+        if (models.Count == 0)
+        {
+            return builder;
+        }
+
+        var firstModel = models[0];
+        var toolType = firstModel.ToolType;
+
         // 使用简化的方法名，移除特殊字符
         var simplifiedTypeName = toolType.Name.Replace("<", "_").Replace(">", "_").Replace(",", "_");
 
         var signature = $"""
-            [global::System.Runtime.CompilerServices.InterceptsLocation({model.InterceptableLocation.Version}, "{model.InterceptableLocation.Data}")] // {model.InterceptableLocation.GetDisplayLocation()}
-            public static void WithTool_{simplifiedTypeName}(
+            public static global::DotNetCampus.ModelContextProtocol.Servers.McpServerToolsBuilder WithTool_{simplifiedTypeName}<TMcpServerToolType>(
                 this global::DotNetCampus.ModelContextProtocol.Servers.McpServerToolsBuilder builder,
-                global::System.Func<{toolType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)}> toolFactory,
+                global::System.Func<TMcpServerToolType> toolFactory,
                 global::DotNetCampus.ModelContextProtocol.Servers.McpServerToolCreationMode creationMode = global::DotNetCampus.ModelContextProtocol.Servers.McpServerToolCreationMode.Singleton)
+                where TMcpServerToolType : class
             """;
 
         return builder.AddMethodDeclaration(signature, m =>
         {
             m.WithSummaryComment($"拦截 <see cref=\"global::DotNetCampus.ModelContextProtocol.Servers.McpServerToolsBuilder.WithTool{{{toolType.ToDisplayString()}}}\"/> 方法调用。");
-            
+
+            // 为所有拦截位置添加 InterceptsLocation 特性
+            foreach (var model in models)
+            {
+                var location = model.InterceptableLocation;
+                var displayLocation = location.GetDisplayLocation();
+                m.AddAttribute($"""[global::System.Runtime.CompilerServices.InterceptsLocation({location.Version}, "{location.Data}")] // {displayLocation}""");
+            }
+
+            // 创建类型转换的工厂方法
+            m.AddRawStatement($"var typedFactory = () => (({toolType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)})(object)toolFactory()!);");
+
             // 为每个工具方法创建桥接实例
-            foreach (var toolModel in model.ToolModels)
+            foreach (var toolModel in firstModel.ToolModels)
             {
                 var bridgeTypeName = toolModel.GetBridgeTypeName();
                 m.AddRawStatements(
                     $"// 为 {toolModel.Method.Name} 方法创建桥接工具",
-                    $"var tool_{toolModel.Method.Name} = new global::{toolModel.Namespace}.{bridgeTypeName}(toolFactory);",
-                    $"builder.WithTool<{toolType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)}>(tool_{toolModel.Method.Name});"
+                    $"var tool_{toolModel.Method.Name} = new global::{toolModel.Namespace}.{bridgeTypeName}(typedFactory);",
+                    $"builder.WithTool<TMcpServerToolType>(tool_{toolModel.Method.Name});"
                 );
             }
+            
+            // 返回 builder 以支持链式调用
+            m.AddRawStatement("return builder;");
         });
-    }
-
-    /// <summary>
-    /// 生成 InterceptsLocation 特性代码。
-    /// </summary>
-    private static string GenerateInterceptsLocationAttribute(WithToolInterceptorGeneratingModel model)
-    {
-        var location = model.InterceptableLocation;
-        var displayLocation = location.GetDisplayLocation();
-        return $"""[global::System.Runtime.CompilerServices.InterceptsLocation({location.Version}, "{location.Data}")] // {displayLocation}""";
     }
 }

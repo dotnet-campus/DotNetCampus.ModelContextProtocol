@@ -111,7 +111,7 @@ public class McpServerToolsBuilder(McpServerContext? originalContext, Dictionary
         return WithJsonSerializer(new McpServerToolJsonSerializer(generatedJsonSerializerContext));
     }
 
-    public void WithTool<TMcpServerToolType>(Func<TMcpServerToolType> toolFactory,
+    public McpServerToolsBuilder WithTool<TMcpServerToolType>(Func<TMcpServerToolType> toolFactory,
         McpServerToolCreationMode creationMode = McpServerToolCreationMode.Singleton)
         where TMcpServerToolType : class
     {
@@ -119,7 +119,7 @@ public class McpServerToolsBuilder(McpServerContext? originalContext, Dictionary
     }
 
     [EditorBrowsable(EditorBrowsableState.Never)]
-    public void WithTool<TMcpServerToolType>(IMcpServerTool tool)
+    public McpServerToolsBuilder WithTool<TMcpServerToolType>(IMcpServerTool tool)
         where TMcpServerToolType : class
     {
         var name = tool.ToolName;
@@ -127,6 +127,7 @@ public class McpServerToolsBuilder(McpServerContext? originalContext, Dictionary
         {
             throw new InvalidOperationException($"已存在名称为 \"{name}\" 的 MCP 服务器工具，无法重复添加同名工具。");
         }
+        return this;
     }
 }
 
