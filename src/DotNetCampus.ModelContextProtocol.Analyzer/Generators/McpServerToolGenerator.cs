@@ -37,6 +37,7 @@ public class McpServerToolGenerator : IIncrementalGenerator
     {
         var targetFactory = $"global::System.Func<{model.ContainingType.ToUsingString()}>";
         var builder = new SourceTextBuilder(model.Namespace)
+            .Using("System.Text.Json")
             .AddTypeDeclaration($"{model.GetGetAccessModifier()} sealed class {model.GetBridgeTypeName()}({targetFactory} targetFactory)", t => t
                 .AddBaseTypes("global::DotNetCampus.ModelContextProtocol.CompilerServices.IGeneratedMcpServerToolBridge")
                 .WithSummaryComment($"为 <see cref=\"{model.ContainingType.ToUsingString()}.{model.Method.Name}\"/> 方法生成的 MCP 服务器工具桥接类。")
@@ -70,12 +71,105 @@ file static class Extensions
         const string callToolResult = "global::DotNetCampus.ModelContextProtocol.Protocol.CallToolResult";
         const string jsonElement = "global::System.Text.Json.JsonElement";
         const string jsonSerializerContext = "global::System.Text.Json.Serialization.JsonSerializerContext";
+        const string jsonTypeInfo = "global::System.Text.Json.Serialization.Metadata.JsonTypeInfo";
+        const string missingRequiredArgumentException = "global::DotNetCampus.ModelContextProtocol.Exceptions.MissingRequiredArgumentException";
+
         const string signature = $"public {valueTask}<{callToolResult}> CallTool({jsonElement} jsonArguments, {jsonSerializerContext} jsonSerializerContext)";
-        return builder.AddMethodDeclaration(signature, m => m
-            .WithRawDocumentationComment("/// <inheritdoc />")
-            .AddRawText("// 方法体省略，具体实现根据方法参数和返回值生成。")
-            .AddRawText("throw new global::System.NotImplementedException();")
-        );
+        return builder.AddMethodDeclaration(signature, m =>
+        {
+            m.WithRawDocumentationComment("/// <inheritdoc />");
+
+            // 为每个参数生成反序列化代码
+            var parameters = model.Method.Parameters;
+            foreach (var parameter in parameters)
+            {
+                var parameterName = parameter.Name;
+                var jsonPropertyName = DotNetCampus.ModelContextProtocol.Utils.NamingHelper.MakeKebabCase(parameterName, true, true);
+                var parameterType = parameter.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+                var hasDefaultValue = parameter.HasExplicitDefaultValue;
+
+                if (hasDefaultValue)
+                {
+                    // 有默认值的可选参数
+                    var defaultValue = FormatDefaultValue(parameter);
+                    m.AddRawText($"var {parameterName} = jsonArguments.TryGetProperty(\"{jsonPropertyName}\", out var {parameterName}Property)");
+                    m.AddRawText($"    ? {parameterName}Property.Deserialize(");
+                    m.AddRawText($"        ({jsonTypeInfo}<{parameterType}>)jsonSerializerContext.GetTypeInfo(typeof({GetTypeForGetTypeInfo(parameter.Type)}))!)");
+                    m.AddRawText($"    : {defaultValue};");
+                }
+                else
+                {
+                    // 必需参数
+                    m.AddRawText($"var {parameterName} = jsonArguments.TryGetProperty(\"{jsonPropertyName}\", out var {parameterName}Property)");
+                    m.AddRawText($"    ? {parameterName}Property.Deserialize(");
+                    m.AddRawText($"        ({jsonTypeInfo}<{parameterType}>)jsonSerializerContext.GetTypeInfo(typeof({GetTypeForGetTypeInfo(parameter.Type)}))!)");
+                    m.AddRawText($"    : throw new {missingRequiredArgumentException}(\"{jsonPropertyName}\");");
+                }
+            }
+
+            // 调用目标方法
+            var methodCall = $"Target.{model.Method.Name}(";
+            var argumentList = string.Join(",\n            ", parameters.Select(p =>
+            {
+                var paramName = p.Name;
+                // 如果是引用类型且非可空，添加 null-forgiving 操作符
+                if (!p.Type.IsValueType && p.NullableAnnotation != NullableAnnotation.Annotated && !p.HasExplicitDefaultValue)
+                {
+                    return $"{paramName}!";
+                }
+                return paramName;
+            }));
+            m.AddRawText($"var result = {methodCall}");
+            if (parameters.Length > 0)
+            {
+                m.AddRawText($"            {argumentList});");
+            }
+            else
+            {
+                m.AddRawText($");");
+            }
+
+            // 返回结果
+            m.AddRawText($"return {valueTask}.FromResult(result);");
+        });
+    }
+
+    private static string FormatDefaultValue(IParameterSymbol parameter)
+    {
+        if (!parameter.HasExplicitDefaultValue)
+        {
+            return "default";
+        }
+
+        var defaultValue = parameter.ExplicitDefaultValue;
+        if (defaultValue == null)
+        {
+            return "null";
+        }
+
+        // 处理不同类型的默认值
+        return parameter.Type.SpecialType switch
+        {
+            SpecialType.System_String => $"\"{defaultValue}\"",
+            SpecialType.System_Boolean => defaultValue.ToString()!.ToLowerInvariant(),
+            SpecialType.System_Char => $"'{defaultValue}'",
+            _ => defaultValue.ToString()!,
+        };
+    }
+
+    private static string GetTypeForGetTypeInfo(ITypeSymbol type)
+    {
+        // 对于可空值类型，需要去掉 Nullable<> 包装
+        if (type.NullableAnnotation == NullableAnnotation.Annotated && type is INamedTypeSymbol namedType)
+        {
+            if (namedType.OriginalDefinition.SpecialType == SpecialType.System_Nullable_T)
+            {
+                // Nullable<T> -> T
+                return namedType.TypeArguments[0].ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+            }
+        }
+
+        return type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
     }
 
     private static ISourceTextBuilder AddPropertyAssignment(this ISourceTextBuilder builder, string propertyName, string? stringValue)
