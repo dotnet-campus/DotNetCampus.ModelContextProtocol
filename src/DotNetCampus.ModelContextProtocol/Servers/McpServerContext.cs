@@ -6,8 +6,6 @@ namespace DotNetCampus.ModelContextProtocol.Servers;
 
 public record McpServerContext
 {
-    public McpServerHandlers Handlers { get; init; } = new();
-
     [NotNull]
     internal ILogger? Logger
     {
@@ -20,5 +18,16 @@ public record McpServerContext
     {
         get => field ??= new McpServerToolJsonSerializer();
         init;
+    }
+
+    [NotNull]
+    internal McpServerHandlers? Handlers
+    {
+        get => field ?? throw new InvalidOperationException("Handlers 未被设置。");
+        set => field = field switch
+        {
+            null => value,
+            _ => throw new InvalidOperationException("Handlers 已经被设置，不能重复设置。"),
+        };
     }
 }

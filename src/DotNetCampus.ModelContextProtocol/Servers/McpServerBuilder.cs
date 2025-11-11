@@ -1,6 +1,6 @@
+using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
 using System.Text.Json.Serialization;
-using DotNetCampus.ModelContextProtocol.CompilerServices;
 using DotNetCampus.ModelContextProtocol.Core;
 
 namespace DotNetCampus.ModelContextProtocol.Servers;
@@ -12,6 +12,7 @@ public class McpServerBuilder
 {
     private McpServerContext? _context;
     private HttpServerTransportOptions? _httpOptions;
+    private readonly Dictionary<string, IMcpServerTool> _tools = [];
 
     /// <summary>
     /// 配置 MCP 服务器的工具和相关选项。
@@ -20,7 +21,7 @@ public class McpServerBuilder
     /// <returns>用于链式调用的 MCP 服务器生成器。</returns>
     public McpServerBuilder WithTools(Action<McpServerToolsBuilder> toolsBuilder)
     {
-        var builder = new McpServerToolsBuilder(_context);
+        var builder = new McpServerToolsBuilder(_context, _tools);
         toolsBuilder(builder);
         _context = builder.Context;
         return this;
@@ -69,18 +70,23 @@ public class McpServerBuilder
     public McpServer Build()
     {
         var context = _context ?? new McpServerContext();
-        var list = new List<HttpServerTransport>();
+        var transports = new List<HttpServerTransport>();
         if (_httpOptions is not null)
         {
-            list.Add(new HttpServerTransport(
+            transports.Add(new HttpServerTransport(
                 context,
                 _httpOptions));
         }
-        return new McpServer(list);
+        return new McpServer
+        {
+            Context = context,
+            Transports = transports,
+            Tools = _tools,
+        };
     }
 }
 
-public class McpServerToolsBuilder(McpServerContext? originalContext)
+public class McpServerToolsBuilder(McpServerContext? originalContext, Dictionary<string, IMcpServerTool> tools)
 {
     internal McpServerContext? Context { get; private set; } = originalContext;
 
@@ -112,11 +118,15 @@ public class McpServerToolsBuilder(McpServerContext? originalContext)
         throw new InvalidOperationException("源生成器本应该在编译时拦截了此方法的调用。请检查编译警告，查看 DotNetCampus.ModelContextProtocol 的源生成器是否正常工作。");
     }
 
-    public void WithTool<TMcpServerToolType>(IMcpServerTool tool,
-        McpServerToolCreationMode creationMode = McpServerToolCreationMode.Singleton)
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public void WithTool<TMcpServerToolType>(IMcpServerTool tool)
         where TMcpServerToolType : class
     {
-        throw new NotImplementedException();
+        var name = tool.ToolName;
+        if (!tools.TryAdd(name, tool))
+        {
+            throw new InvalidOperationException($"已存在名称为 \"{name}\" 的 MCP 服务器工具，无法重复添加同名工具。");
+        }
     }
 }
 

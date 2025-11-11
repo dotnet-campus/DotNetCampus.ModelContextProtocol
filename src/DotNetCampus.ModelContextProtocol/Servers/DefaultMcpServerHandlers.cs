@@ -4,7 +4,7 @@ using DotNetCampus.ModelContextProtocol.Protocol;
 
 namespace DotNetCampus.ModelContextProtocol.Servers;
 
-public class DefaultMcpServerHandlers
+public class DefaultMcpServerHandlers(McpServer server)
 {
     public async ValueTask<InitializeResult> Initialize(RequestContext<InitializeRequestParams> request, CancellationToken cancellationToken)
     {
@@ -20,7 +20,10 @@ public class DefaultMcpServerHandlers
 
     public async ValueTask<ListToolsResult> ListTools(RequestContext<ListToolsRequestParams> request, CancellationToken cancellationToken)
     {
-        return new ListToolsResult();
+        return new ListToolsResult
+        {
+            Tools = server.Tools.Select(x => x.Value.GetToolDefinition()).ToList(),
+        };
     }
 
     public async ValueTask<NullResult> Ping(RequestContext<PingRequestParams> request, CancellationToken cancellationToken)

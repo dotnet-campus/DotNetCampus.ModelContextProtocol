@@ -9,9 +9,9 @@ public delegate ValueTask<TResult> McpRequestHandler<TParams, TResult>(
     RequestContext<TParams> request,
     CancellationToken cancellationToken);
 
-public record McpServerHandlers
+public class McpServerHandlers(McpServer server)
 {
-    private readonly DefaultMcpServerHandlers _default = new();
+    private readonly DefaultMcpServerHandlers _default = new(server);
 
     [NotNull]
     public McpRequestHandler<InitializeRequestParams, InitializeResult>? InitializeHandler
