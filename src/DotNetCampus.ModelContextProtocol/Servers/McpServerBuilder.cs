@@ -8,7 +8,7 @@ namespace DotNetCampus.ModelContextProtocol.Servers;
 /// <summary>
 /// 用于构建 MCP 服务器的生成器。
 /// </summary>
-public class McpServerBuilder
+public class McpServerBuilder(string serverName)
 {
     private McpServerContext? _context;
     private HttpServerTransportOptions? _httpOptions;
@@ -79,6 +79,7 @@ public class McpServerBuilder
         }
         return new McpServer
         {
+            ServerName = serverName,
             Context = context,
             Transports = transports,
             Tools = _tools,

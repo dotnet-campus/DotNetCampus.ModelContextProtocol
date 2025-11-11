@@ -1,5 +1,4 @@
 ﻿using DotNetCampus.ModelContextProtocol.Core;
-using DotNetCampus.ModelContextProtocol.Messages;
 using DotNetCampus.ModelContextProtocol.Protocol;
 
 namespace DotNetCampus.ModelContextProtocol.Servers;
@@ -8,12 +7,31 @@ public class DefaultMcpServerHandlers(McpServer server)
 {
     public async ValueTask<InitializeResult> Initialize(RequestContext<InitializeRequestParams> request, CancellationToken cancellationToken)
     {
+        var hasTools = server.Tools.Count > 0;
+
         return new InitializeResult
         {
+            ProtocolVersion = "2025-06-18",
             ServerInfo = new ServerInfo
             {
-                Name = "DotNetCampus.ModelContextProtocol",
-                Version = "1.0.0",
+                Name = server.ServerName,
+                Version = server.ServerVersion ?? "0.0.0",
+            },
+            Instructions = server.Instructions,
+            Capabilities = new ServerCapabilities
+            {
+                // 如果服务器有工具,则声明支持 tools 能力
+                Tools = hasTools
+                    ? new ToolsCapability
+                    {
+                        ListChanged = true,
+                    }
+                    : null,
+                // 暂不支持 prompts 和 resources
+                Prompts = null,
+                Resources = null,
+                // 暂不支持日志记录
+                Logging = null,
             },
         };
     }

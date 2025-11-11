@@ -22,7 +22,7 @@ internal class Program
 
         Log.Info($"[App] Starting Sample MCP Server...");
 
-        var mcpServer = new McpServerBuilder()
+        var mcpServer = new McpServerBuilder("SampleMcpServer")
             .WithTools(t => t
                 .WithJsonSerializer(McpToolJsonContext.Default)
                 .WithTool(() => new SampleTools())

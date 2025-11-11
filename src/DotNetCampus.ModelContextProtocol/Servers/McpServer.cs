@@ -11,6 +11,21 @@ public class McpServer
     }
 
     /// <summary>
+    /// 获取或初始化服务器名称。
+    /// </summary>
+    public required string ServerName { get; init; }
+
+    /// <summary>
+    /// 获取或初始化服务器版本。
+    /// </summary>
+    public string? ServerVersion { get; init; }
+
+    /// <summary>
+    /// 获取或初始化服务器使用说明(可选)。
+    /// </summary>
+    public string? Instructions { get; init; }
+
+    /// <summary>
     /// 获取 MCP 服务器的处理程序集合。
     /// </summary>
     public McpServerHandlers Handlers { get; }

@@ -1,4 +1,6 @@
-﻿#if NET7_0_OR_GREATER
+﻿#pragma warning disable CS9113
+
+#if NET7_0_OR_GREATER
 #else
 namespace System.Diagnostics
 {
