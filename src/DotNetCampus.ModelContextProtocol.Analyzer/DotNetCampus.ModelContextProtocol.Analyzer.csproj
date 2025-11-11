@@ -24,8 +24,4 @@
     <Compile Include="..\DotNetCampus.ModelContextProtocol\Servers\McpServerToolCreationMode.cs" LinkBase="Servers" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Folder Include="Generators\ModelProviders\" />
-  </ItemGroup>
-
 </Project>

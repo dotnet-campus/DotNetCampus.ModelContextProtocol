@@ -4,8 +4,8 @@ using DotNetCampus.ModelContextProtocol.Generators.Builders;
 using DotNetCampus.ModelContextProtocol.Generators.Models;
 using DotNetCampus.ModelContextProtocol.Utils;
 using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
 using System.Collections.Immutable;
+using DotNetCampus.ModelContextProtocol.Generators.ModelProviders;
 
 namespace DotNetCampus.ModelContextProtocol.Generators;
 
@@ -17,20 +17,7 @@ public class InterceptorGenerator : IIncrementalGenerator
 {
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
-        // 查找所有 WithTool 方法调用
-        var withToolInvocations = context.SyntaxProvider.CreateSyntaxProvider(
-                predicate: static (node, _) => node is InvocationExpressionSyntax
-                {
-                    Expression: MemberAccessExpressionSyntax
-                    {
-                        Name.Identifier.ValueText: "WithTool",
-                    },
-                },
-                transform: static (ctx, ct) => WithToolInterceptorGeneratingModel.Parse(ctx, ct))
-            .Where(model => model is not null)
-            .Select((model, ct) => model!);
-
-        // 生成拦截器代码
+        var withToolInvocations = context.SelectWithToolProvider();
         context.RegisterSourceOutput(withToolInvocations.Collect(), ExecuteInterceptors);
     }
 
