@@ -105,13 +105,15 @@ public class McpServerToolsBuilder(McpServerContext? originalContext)
         return WithJsonSerializer(new McpServerToolJsonSerializer(generatedJsonSerializerContext));
     }
 
-    public void WithTool<TMcpServerToolType>(Func<TMcpServerToolType> toolFactory, McpServerToolCreationMode creationMode = McpServerToolCreationMode.Singleton)
+    public void WithTool<TMcpServerToolType>(Func<TMcpServerToolType> toolFactory,
+        McpServerToolCreationMode creationMode = McpServerToolCreationMode.Singleton)
         where TMcpServerToolType : class
     {
-        throw new NotImplementedException();
+        throw new InvalidOperationException("源生成器本应该在编译时拦截了此方法的调用。请检查编译警告，查看 DotNetCampus.ModelContextProtocol 的源生成器是否正常工作。");
     }
 
-    public void WithTool<TMcpServerToolType>(Func<IGeneratedMcpServerToolBridge> toolBridgeFactory)
+    public void WithTool<TMcpServerToolType>(IMcpServerTool tool,
+        McpServerToolCreationMode creationMode = McpServerToolCreationMode.Singleton)
         where TMcpServerToolType : class
     {
         throw new NotImplementedException();

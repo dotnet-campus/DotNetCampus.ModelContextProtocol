@@ -2,12 +2,12 @@
 using System.Text.Json.Serialization;
 using DotNetCampus.ModelContextProtocol.Protocol;
 
-namespace DotNetCampus.ModelContextProtocol.CompilerServices;
+namespace DotNetCampus.ModelContextProtocol.Servers;
 
 /// <summary>
-/// 源生成器实现此接口，桥接 MCP 服务器工具请求的处理和具体工具方法的调用。
+/// 表示 MCP 服务器工具的接口。
 /// </summary>
-public interface IGeneratedMcpServerToolBridge
+public interface IMcpServerTool
 {
     /// <summary>
     /// 获取工具在 MCP 协议中的名称。

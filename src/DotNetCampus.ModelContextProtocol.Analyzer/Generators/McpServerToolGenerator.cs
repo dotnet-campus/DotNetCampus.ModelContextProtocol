@@ -41,7 +41,7 @@ public class McpServerToolGenerator : IIncrementalGenerator
         using var builder = new SourceTextBuilder(model.Namespace)
             .Using("System.Text.Json")
             .AddTypeDeclaration($"{model.GetGetAccessModifier()} sealed class {model.GetBridgeTypeName()}({targetFactory} targetFactory)", t => t
-                .AddBaseTypes("global::DotNetCampus.ModelContextProtocol.CompilerServices.IGeneratedMcpServerToolBridge")
+                .AddBaseTypes("global::DotNetCampus.ModelContextProtocol.Servers.IMcpServerTool")
                 .WithSummaryComment($"为 <see cref=\"{model.ContainingType.ToUsingString()}.{model.Method.Name}\"/> 方法生成的 MCP 服务器工具桥接类。")
                 .AddRawMembers(
                     $"private readonly {targetFactory} _targetFactory = targetFactory;",
