@@ -89,11 +89,23 @@ file static class Extensions
         const string jsonSerializerContext = "global::System.Text.Json.Serialization.JsonSerializerContext";
         const string jsonTypeInfo = "global::System.Text.Json.Serialization.Metadata.JsonTypeInfo";
         const string missingRequiredArgumentException = "global::DotNetCampus.ModelContextProtocol.Exceptions.MissingRequiredArgumentException";
+        const string cancellationToken = "global::System.Threading.CancellationToken";
 
-        const string signature = $"public {valueTask}<{callToolResult}> CallTool({jsonElement} jsonArguments, {jsonSerializerContext} jsonSerializerContext)";
+        var signature = $"""
+            public {(model.GetIsAsync() ? "async " : "")}{valueTask}<{callToolResult}> CallTool(
+                {jsonElement} jsonArguments,
+                {jsonSerializerContext} jsonSerializerContext,
+                {cancellationToken} cancellationToken)
+            """;
+
+        // 过滤掉 CancellationToken 参数，因为我们会从外部传入
+        var methodParameters = model.Method.Parameters
+            .Where(p => !IsCancellationTokenParameter(p))
+            .ToArray();
+
         return builder.AddMethodDeclaration(signature, m => m
             .WithRawDocumentationComment("/// <inheritdoc />")
-            .AddRawStatements(model.Method.Parameters
+            .AddRawStatements(methodParameters
                 .Select(p => (Parameter: p, Name: p.Name, Type: p.Type,
                     JsonName: NamingHelper.MakeKebabCase(p.Name, true, true), HasDefault: p.HasExplicitDefaultValue))
                 .Select(p => $"""
@@ -103,10 +115,52 @@ file static class Extensions
                         : {(p.HasDefault ? FormatDefaultValue(p.Parameter) : $"throw new {missingRequiredArgumentException}(\"{p.JsonName}\")")};
                     """
                 ))
-            .AddRawStatements(
-                $"var result = Target.{model.Method.Name}({string.Join(", ", model.Method.Parameters.Select(FormatArgument))});",
-                $"return {valueTask}.FromResult(result);")
+            .AddInvokeTargetMethodStatements(model, methodParameters)
         );
+    }
+
+    /// <summary>
+    /// 添加调用目标方法的语句（包括异步等待和返回值转换）。
+    /// </summary>
+    private static IAllowStatements AddInvokeTargetMethodStatements(
+        this IAllowStatements builder,
+        McpServerToolGeneratingModel model,
+        IParameterSymbol[] methodParameters)
+    {
+        const string valueTask = "global::System.Threading.Tasks.ValueTask";
+        const string callToolResult = "global::DotNetCampus.ModelContextProtocol.Protocol.CallToolResult";
+
+        var arguments = model.Method.Parameters
+            .Select(p => IsCancellationTokenParameter(p)
+                ? "cancellationToken"
+                : FormatArgument(methodParameters.First(mp => mp.Name == p.Name)))
+            .ToArray();
+
+        var methodCall = $"Target.{model.Method.Name}({string.Join(", ", arguments)})";
+
+        builder
+            .Condition(model.GetIsAsync(), c => c
+                // 异步方法：await 并转换
+                .AddRawStatements(
+                    $"var result = await {methodCall}.ConfigureAwait(false);",
+                    $"return ({callToolResult})result;"
+                ))
+            .Otherwise(c => c
+                // 同步方法：直接转换并返回
+                .AddRawStatements(
+                    $"var result = {methodCall};",
+                    $"return {valueTask}.FromResult(({callToolResult})result);"
+                ));
+
+        return builder;
+    }
+
+    /// <summary>
+    /// 判断参数是否为 CancellationToken 类型。
+    /// </summary>
+    private static bool IsCancellationTokenParameter(IParameterSymbol parameter)
+    {
+        return parameter.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat) == "global::System.Threading.CancellationToken";
     }
 
     private static string FormatArgument(IParameterSymbol parameter)

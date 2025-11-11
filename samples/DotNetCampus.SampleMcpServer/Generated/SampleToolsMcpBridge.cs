@@ -22,7 +22,7 @@ public class McpServerToolBridge_SampleTools_EchoInfo : IGeneratedMcpServerToolB
         Title = "",
     };
 
-    public ValueTask<CallToolResult> CallTool(JsonElement jsonArguments, JsonSerializerContext jsonSerializerContext)
+    public ValueTask<CallToolResult> CallTool(JsonElement jsonArguments, JsonSerializerContext jsonSerializerContext, CancellationToken cancellationToken)
     {
         var text = jsonArguments.TryGetProperty("text", out var textProperty)
             ? textProperty.Deserialize(
@@ -44,7 +44,7 @@ public class McpServerToolBridge_SampleTools_EchoInfo : IGeneratedMcpServerToolB
             ? isErrorProperty.Deserialize(
                 (JsonTypeInfo<bool>)jsonSerializerContext.GetTypeInfo(typeof(bool))!)
             : false;
-        var result = Target.EchoInfo(
+        var result = Target.Echo(
             text!,
             options,
             count,

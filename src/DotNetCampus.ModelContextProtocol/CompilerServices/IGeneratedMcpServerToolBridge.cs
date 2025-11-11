@@ -25,6 +25,7 @@ public interface IGeneratedMcpServerToolBridge
     /// </summary>
     /// <param name="jsonArguments">来自 MCP 协议中 tools/call 请求中 arguments 字段的 JSON 元素。</param>
     /// <param name="jsonSerializerContext">用于反序列化参数和序列化结果的 JSON 序列化上下文。</param>
+    /// <param name="cancellationToken">用于取消操作的取消令牌。</param>
     /// <returns>表示工具调用结果的 JSON 元素。</returns>
-    ValueTask<CallToolResult> CallTool(JsonElement jsonArguments, JsonSerializerContext jsonSerializerContext);
+    ValueTask<CallToolResult> CallTool(JsonElement jsonArguments, JsonSerializerContext jsonSerializerContext, CancellationToken cancellationToken);
 }

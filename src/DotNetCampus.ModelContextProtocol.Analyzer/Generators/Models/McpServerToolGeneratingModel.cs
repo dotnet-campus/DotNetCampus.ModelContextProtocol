@@ -45,6 +45,8 @@ public record McpServerToolGeneratingModel
         };
     }
 
+    public bool GetIsAsync() => IsTaskLikeReturnType(Method.ReturnType);
+
     public string GetGetAccessModifier()
     {
         var accessibility = (Accessibility)Math.Min((int)ContainingType.DeclaredAccessibility, (int)Method.DeclaredAccessibility);
@@ -60,5 +62,22 @@ public record McpServerToolGeneratingModel
     {
         var name = ContainingType.ToDisplayString(SimpleContainingTypeFormat).Replace('.', '_');
         return $"{name}_{Method.Name}_Bridge";
+    }
+
+    /// <summary>
+    /// 判断返回类型是否为 Task 或 ValueTask。
+    /// </summary>
+    private static bool IsTaskLikeReturnType(ITypeSymbol returnType)
+    {
+        if (returnType is not INamedTypeSymbol namedType)
+        {
+            return false;
+        }
+
+        var fullName = namedType.OriginalDefinition.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+        return fullName is "global::System.Threading.Tasks.Task<TResult>"
+            or "global::System.Threading.Tasks.ValueTask<TResult>"
+            or "global::System.Threading.Tasks.Task"
+            or "global::System.Threading.Tasks.ValueTask";
     }
 }
