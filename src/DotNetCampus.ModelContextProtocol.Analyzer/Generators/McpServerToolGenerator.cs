@@ -159,7 +159,38 @@ file static class Extensions
         var (coreType, isNullable) = SchemaMemberDescriptor.UnwrapNullableType(member.Type);
         var jsonSchemaType = SchemaMemberDescriptor.GetJsonSchemaType(coreType);
         var rawTypeExpr = GenerateRawTypeExpression(jsonSchemaType, isNullable);
-        var descriptionExpr = member.Description != null ? $"\"{member.Description}\"" : "null";
+        
+        // 处理枚举类型：将枚举的描述信息合并到主描述中
+        string? descriptionExpr;
+        string? enumExpr = "null";
+        
+        if (SchemaMemberDescriptor.IsEnumType(coreType))
+        {
+            var enumValues = SchemaMemberDescriptor.GetEnumValues(coreType);
+            enumExpr = GenerateEnumValuesExpression(enumValues);
+            descriptionExpr = GenerateEnumDescriptionExpression(member.Description, enumValues);
+        }
+        else
+        {
+            descriptionExpr = member.Description != null ? $"\"{member.Description}\"" : "null";
+        }
+
+        // 处理枚举类型
+        if (SchemaMemberDescriptor.IsEnumType(coreType))
+        {
+            return $$"""
+                new {{G.InputSchemaJsonObject}}
+                {
+                    RawType = {{rawTypeExpr}},
+                    Default = null,
+                    Description = {{descriptionExpr}},
+                    Enum = {{enumExpr}},
+                    Items = null,
+                    Required = null,
+                    Properties = null,
+                }
+                """;
+        }
 
         // 处理数组类型
         if (jsonSchemaType == "array")
@@ -232,6 +263,68 @@ file static class Extensions
         return isNullable
             ? $"JsonSerializer.SerializeToElement(new[] {{ \"{jsonSchemaType}\", \"null\" }}, jsonContext.IReadOnlyListString)"
             : $"JsonSerializer.SerializeToElement(\"{jsonSchemaType}\", jsonContext.String)";
+    }
+
+    /// <summary>
+    /// 生成枚举值数组表达式。
+    /// </summary>
+    private static string GenerateEnumValuesExpression(EnumValueInfo[] enumValues)
+    {
+        if (enumValues.Length == 0)
+        {
+            return "null";
+        }
+
+        var values = enumValues
+            .Select(v => $"\"{v.Value}\"")
+            .ToArray();
+
+        return $"new[] {{ {string.Join(", ", values)} }}";
+    }
+
+    /// <summary>
+    /// 生成包含枚举值描述的完整描述文本。
+    /// </summary>
+    private static string GenerateEnumDescriptionExpression(string? baseDescription, EnumValueInfo[] enumValues)
+    {
+        var parts = new List<string>();
+        
+        if (!string.IsNullOrWhiteSpace(baseDescription))
+        {
+            parts.Add(baseDescription!);
+        }
+
+        var enumDescriptions = enumValues
+            .Where(v => !string.IsNullOrWhiteSpace(v.Description))
+            .Select(v => $"{v.Value}: {v.Description}")
+            .ToArray();
+
+        if (enumDescriptions.Length > 0)
+        {
+            var enumPart = "可选值: " + string.Join(", ", enumDescriptions);
+            parts.Add(enumPart);
+        }
+
+        if (parts.Count == 0)
+        {
+            return "null";
+        }
+
+        var fullDescription = string.Join(" ", parts);
+        return $"\"{EscapeForJsonString(fullDescription)}\"";
+    }
+
+    /// <summary>
+    /// 转义 JSON 字符串中的特殊字符。
+    /// </summary>
+    private static string EscapeForJsonString(string text)
+    {
+        return text
+            .Replace("\\", "\\\\")
+            .Replace("\"", "\\\"")
+            .Replace("\n", "\\n")
+            .Replace("\r", "\\r")
+            .Replace("\t", "\\t");
     }
 
     /// <summary>

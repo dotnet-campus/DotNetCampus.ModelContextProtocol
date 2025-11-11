@@ -1,4 +1,5 @@
 using Microsoft.CodeAnalysis;
+using System.Xml.Linq;
 
 namespace DotNetCampus.ModelContextProtocol.Generators.Models;
 
@@ -119,6 +120,12 @@ public record SchemaMemberDescriptor(
     /// </summary>
     public static string GetJsonSchemaType(ITypeSymbol typeSymbol)
     {
+        // 处理枚举类型
+        if (typeSymbol.TypeKind == TypeKind.Enum)
+        {
+            return "string";
+        }
+
         // 处理特殊类型
         switch (typeSymbol.SpecialType)
         {
@@ -285,4 +292,71 @@ public record SchemaMemberDescriptor(
             .Replace("\r", "\\r")
             .Replace("\t", "\\t");
     }
+
+    /// <summary>
+    /// 判断类型是否为枚举类型。
+    /// </summary>
+    public static bool IsEnumType(ITypeSymbol typeSymbol)
+    {
+        return typeSymbol.TypeKind == TypeKind.Enum;
+    }
+
+    /// <summary>
+    /// 获取枚举的所有值和描述。
+    /// </summary>
+    public static EnumValueInfo[] GetEnumValues(ITypeSymbol typeSymbol)
+    {
+        if (typeSymbol is not INamedTypeSymbol namedType || namedType.TypeKind != TypeKind.Enum)
+        {
+            return Array.Empty<EnumValueInfo>();
+        }
+
+        var values = new List<EnumValueInfo>();
+        foreach (var member in namedType.GetMembers())
+        {
+            if (member is IFieldSymbol { IsConst: true } field)
+            {
+                var value = field.Name;
+                var description = GetEnumMemberDescription(field);
+                values.Add(new EnumValueInfo(value, description));
+            }
+        }
+
+        return values.ToArray();
+    }
+
+    /// <summary>
+    /// 获取枚举成员的描述。
+    /// </summary>
+    private static string? GetEnumMemberDescription(IFieldSymbol field)
+    {
+        var xmlComment = field.GetDocumentationCommentXml();
+        if (string.IsNullOrWhiteSpace(xmlComment))
+        {
+            return null;
+        }
+
+        try
+        {
+            var doc = XDocument.Parse(xmlComment);
+            var summaryElement = doc.Descendants("summary").FirstOrDefault();
+            if (summaryElement == null)
+            {
+                return null;
+            }
+
+            return summaryElement.Value.Trim();
+        }
+        catch
+        {
+            return null;
+        }
+    }
 }
+
+/// <summary>
+/// 枚举值信息。
+/// </summary>
+/// <param name="Value">枚举值名称</param>
+/// <param name="Description">枚举值描述</param>
+public record EnumValueInfo(string Value, string? Description);
