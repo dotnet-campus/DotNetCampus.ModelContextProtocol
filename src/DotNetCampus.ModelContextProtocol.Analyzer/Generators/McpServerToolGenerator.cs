@@ -159,25 +159,15 @@ file static class Extensions
         var (coreType, isNullable) = SchemaMemberDescriptor.UnwrapNullableType(member.Type);
         var jsonSchemaType = SchemaMemberDescriptor.GetJsonSchemaType(coreType);
         var rawTypeExpr = GenerateRawTypeExpression(jsonSchemaType, isNullable);
-        
-        // 处理枚举类型：将枚举的描述信息合并到主描述中
-        string? descriptionExpr;
-        string? enumExpr = "null";
-        
-        if (SchemaMemberDescriptor.IsEnumType(coreType))
-        {
-            var enumValues = SchemaMemberDescriptor.GetEnumValues(coreType);
-            enumExpr = GenerateEnumValuesExpression(enumValues);
-            descriptionExpr = GenerateEnumDescriptionExpression(member.Description, enumValues);
-        }
-        else
-        {
-            descriptionExpr = member.Description != null ? $"\"{member.Description}\"" : "null";
-        }
+        var descriptionExpr = member.Description != null ? $"\"{member.Description}\"" : "null";
 
         // 处理枚举类型
         if (SchemaMemberDescriptor.IsEnumType(coreType))
         {
+            var enumValues = SchemaMemberDescriptor.GetEnumValues(coreType);
+            var enumExpr = GenerateEnumArrayExpression(enumValues);
+            var enumNamesExpr = GenerateEnumNamesExpression(enumValues);
+
             return $$"""
                 new {{G.InputSchemaJsonObject}}
                 {
@@ -185,6 +175,7 @@ file static class Extensions
                     Default = null,
                     Description = {{descriptionExpr}},
                     Enum = {{enumExpr}},
+                    EnumNames = {{enumNamesExpr}},
                     Items = null,
                     Required = null,
                     Properties = null,
@@ -266,9 +257,9 @@ file static class Extensions
     }
 
     /// <summary>
-    /// 生成枚举值数组表达式。
+    /// 生成枚举值数组表达式（enum 字段）。
     /// </summary>
-    private static string GenerateEnumValuesExpression(EnumValueInfo[] enumValues)
+    private static string GenerateEnumArrayExpression(EnumValueInfo[] enumValues)
     {
         if (enumValues.Length == 0)
         {
@@ -283,35 +274,29 @@ file static class Extensions
     }
 
     /// <summary>
-    /// 生成包含枚举值描述的完整描述文本。
+    /// 生成枚举值的显示名称数组表达式（enumNames 字段）。
     /// </summary>
-    private static string GenerateEnumDescriptionExpression(string? baseDescription, EnumValueInfo[] enumValues)
+    private static string GenerateEnumNamesExpression(EnumValueInfo[] enumValues)
     {
-        var parts = new List<string>();
-        
-        if (!string.IsNullOrWhiteSpace(baseDescription))
-        {
-            parts.Add(baseDescription!);
-        }
-
-        var enumDescriptions = enumValues
-            .Where(v => !string.IsNullOrWhiteSpace(v.Description))
-            .Select(v => $"{v.Value}: {v.Description}")
-            .ToArray();
-
-        if (enumDescriptions.Length > 0)
-        {
-            var enumPart = "可选值: " + string.Join(", ", enumDescriptions);
-            parts.Add(enumPart);
-        }
-
-        if (parts.Count == 0)
+        if (enumValues.Length == 0)
         {
             return "null";
         }
 
-        var fullDescription = string.Join(" ", parts);
-        return $"\"{EscapeForJsonString(fullDescription)}\"";
+        // 如果所有枚举值都没有描述，返回 null
+        if (enumValues.All(v => string.IsNullOrEmpty(v.Description)))
+        {
+            return "null";
+        }
+
+        // 生成显示名称数组，优先使用描述，否则使用值本身
+        var names = enumValues
+            .Select(v => string.IsNullOrEmpty(v.Description) 
+                ? $"\"{v.Value}\"" 
+                : $"\"{EscapeForJsonString(v.Description!)}\"")
+            .ToArray();
+
+        return $"new[] {{ {string.Join(", ", names)} }}";
     }
 
     /// <summary>

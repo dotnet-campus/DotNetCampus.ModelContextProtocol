@@ -22,6 +22,13 @@ public sealed record InputSchemaJsonObject
     public IReadOnlyList<string>? Enum { get; init; }
 
     /// <summary>
+    /// 枚举值的显示名称列表（与 Enum 对应，仅用于枚举类型）。
+    /// </summary>
+    [JsonPropertyName("enumNames")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyList<string>? EnumNames { get; init; }
+
+    /// <summary>
     /// 默认值。
     /// </summary>
     [JsonPropertyName("default")]
