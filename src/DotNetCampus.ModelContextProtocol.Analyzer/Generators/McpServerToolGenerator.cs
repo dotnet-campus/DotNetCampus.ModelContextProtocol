@@ -66,11 +66,11 @@ file static class Extensions
         this IAllowMemberDeclaration builder, McpServerToolGeneratingModel model)
     {
         return builder
-            .AddMethodDeclaration(
+            .AddMethodDeclaration(true,
                 $"public {G.Tool} GetToolDefinition({G.InputSchemaJsonObjectJsonContext} jsonContext)",
                 m => m
                     .WithRawDocumentationComment("/// <inheritdoc />")
-                    .AddBracketScope("return new()", "{", "};", b => b
+                    .AddBracketScope("new()", "{", "}", b => b
                         .AddStringAssignment("Name", model.Name)
                         .AddStringAssignment("Title", model.Title)
                         .AddStringAssignment("Description", model.Description)
@@ -78,66 +78,87 @@ file static class Extensions
                             $"InputSchema = {G.JsonSerializer}.SerializeToElement(GetInputSchema(jsonContext), jsonContext.InputSchemaJsonObject),")
                     )
             )
-            .AddMethodDeclaration(
-                $"private {G.InputSchemaJsonObject} GetInputSchema({G.InputSchemaJsonObjectJsonContext} jsonContext)",
+            .AddMethodDeclaration($"private {G.InputSchemaJsonObject} GetInputSchema({G.InputSchemaJsonObjectJsonContext} jsonContext)",
                 m => m
-                    .AddRawText("return")
                     .AddNewInputSchema(model)
             );
     }
 
-    private static IAllowStatements AddNewInputSchema(this IAllowStatements builder, McpServerToolGeneratingModel model)
+    private static IAllowStatement AddNewInputSchema(this IAllowStatement builder, McpServerToolGeneratingModel model)
     {
-        // 生成包含所有参数的 object 类型 schema
-        var requiredParams = model.Parameters
-            .Where(p => p.IsRequired)
-            .Select(p => $"\"{p.JsonName}\"")
+        // 将参数转换为统一的 schema 成员描述
+        var members = model.Parameters
+            .Select(p => new SchemaMemberDescriptor(
+                p.JsonName,
+                p.Type,
+                p.GetJsonEscapedDescription(),
+                p.IsRequired
+            ))
             .ToArray();
 
-        var propertyEntries = model.Parameters
-            .Select(p => $"{{ \"{p.JsonName}\", {GeneratePropertySchemaExpression(p)} }}")
-            .ToArray();
-
-        return builder
-            .AddBracketScope("new()", "{", "};", b => b
-                .AddExpressionAssignment("RawType",
-                    "JsonSerializer.SerializeToElement(\"object\", jsonContext.String)")
-                .AddStringAssignment("Default", null)
-                .AddStringAssignment("Description", null)
-                .AddExpressionAssignment("Enum", "null")
-                .AddExpressionAssignment("Items", "null")
-                .Condition(requiredParams.Length > 0, req => req
-                    .AddExpressionAssignment("Required",
-                        $"new[] {{ {string.Join(", ", requiredParams)} }}"))
-                .Otherwise(noReq => noReq
-                    .AddExpressionAssignment("Required", "null"))
-                .EndCondition()
-                .Condition(propertyEntries.Length > 0, props =>
-                {
-                    props.AddRawText($"Properties = new Dictionary<string, {G.InputSchemaJsonObject}>");
-                    props.AddRawText("{");
-                    foreach (var entry in propertyEntries)
-                    {
-                        props.AddRawText($"    {entry},");
-                    }
-                    props.AddRawText("},");
-                })
-                .Otherwise(noProps => noProps
-                    .AddExpressionAssignment("Properties", "null"))
-                .EndCondition()
-            );
+        return builder.AddRawStatement($"return {GenerateSchemaExpression(members, null)};");
     }
 
     /// <summary>
-    /// 生成单个属性的 schema 表达式。
+    /// 生成 schema 表达式（递归）。
     /// </summary>
-    private static string GeneratePropertySchemaExpression(ToolParameterModel parameter)
+    /// <param name="members">成员描述列表（参数或属性）</param>
+    /// <param name="description">当前层的描述</param>
+    private static string GenerateSchemaExpression(SchemaMemberDescriptor[] members, string? description)
     {
-        var typeSymbol = parameter.Type;
-        var description = parameter.GetJsonEscapedDescription();
+        var requiredMembers = members
+            .Where(m => m.IsRequired)
+            .Select(m => $"\"{m.JsonName}\"")
+            .ToArray();
 
+        var requiredExpr = requiredMembers.Length > 0
+            ? $"new[] {{ {string.Join(", ", requiredMembers)} }}"
+            : "null";
+
+        var descriptionExpr = description != null ? $"\"{description}\"" : "null";
+
+        var propertiesExpr = members.Length > 0
+            ? GeneratePropertiesDictionary(members)
+            : "null";
+
+        return $$"""
+            new {{G.InputSchemaJsonObject}}
+            {
+                RawType = JsonSerializer.SerializeToElement("object", jsonContext.String),
+                Default = null,
+                Description = {{descriptionExpr}},
+                Enum = null,
+                Items = null,
+                Required = {{requiredExpr}},
+                Properties = {{propertiesExpr}},
+            }
+            """;
+    }
+
+    /// <summary>
+    /// 生成 Properties 字典表达式。
+    /// </summary>
+    private static string GeneratePropertiesDictionary(SchemaMemberDescriptor[] members)
+    {
+        var entries = members
+            .Select(m => $"{{ \"{m.JsonName}\", {GenerateMemberSchemaExpression(m)} }}")
+            .ToArray();
+
+        return $$"""
+            new Dictionary<string, {{G.InputSchemaJsonObject}}>
+            {
+                {{string.Join(",\n    ", entries)}},
+            }
+            """;
+    }
+
+    /// <summary>
+    /// 生成单个成员的 schema 表达式（递归处理嵌套对象）。
+    /// </summary>
+    private static string GenerateMemberSchemaExpression(SchemaMemberDescriptor member)
+    {
         // 处理可空类型
-        var (coreType, isNullable) = UnwrapNullableType(typeSymbol);
+        var (coreType, isNullable) = UnwrapNullableType(member.Type);
 
         // 获取 JSON Schema 类型
         var jsonSchemaType = GetJsonSchemaType(coreType);
@@ -147,39 +168,229 @@ file static class Extensions
             ? $"JsonSerializer.SerializeToElement(new[] {{ \"{jsonSchemaType}\", \"null\" }}, jsonContext.IReadOnlyListString)"
             : $"JsonSerializer.SerializeToElement(\"{jsonSchemaType}\", jsonContext.String)";
 
-        // 生成描述表达式
-        var descriptionExpr = description != null ? $"\"{description}\"" : "null";
+        var descriptionExpr = member.Description != null ? $"\"{member.Description}\"" : "null";
 
         // 处理数组类型的 Items
-        string? itemsExpr = null;
         if (jsonSchemaType == "array")
         {
             var elementType = GetArrayElementType(coreType);
             if (elementType != null)
             {
-                // 递归生成数组元素的 schema
-                var elementParam = new ToolParameterModel
-                {
-                    Name = parameter.Name,
-                    JsonName = parameter.JsonName,
-                    Type = elementType,
-                    TypeName = elementType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
-                    IsRequired = true,
-                    Description = null
-                };
-                itemsExpr = GeneratePropertySchemaExpression(elementParam);
+                var elementDescriptor = new SchemaMemberDescriptor(
+                    member.JsonName,
+                    elementType,
+                    null,
+                    true
+                );
+                var itemsExpr = GenerateMemberSchemaExpression(elementDescriptor);
+
+                return $$"""
+                    new {{G.InputSchemaJsonObject}}
+                    {
+                        RawType = {{rawTypeExpr}},
+                        Default = null,
+                        Description = {{descriptionExpr}},
+                        Enum = null,
+                        Items = {{itemsExpr}},
+                        Required = null,
+                        Properties = null,
+                    }
+                    """;
             }
         }
 
-        // 构建完整的 schema 表达式
-        if (itemsExpr != null)
+        // 处理对象类型（需要递归生成属性）
+        if (jsonSchemaType == "object" && coreType is INamedTypeSymbol namedType)
         {
-            return $"new {G.InputSchemaJsonObject} {{ RawType = {rawTypeExpr}, Description = {descriptionExpr}, Items = {itemsExpr} }}";
+            var properties = GetObjectProperties(namedType);
+            if (properties.Length > 0)
+            {
+                var propertiesExpr = GeneratePropertiesDictionary(properties);
+
+                // 提取所有必需属性
+                var requiredProps = properties
+                    .Where(p => p.IsRequired)
+                    .Select(p => $"\"{p.JsonName}\"")
+                    .ToArray();
+
+                var requiredExpr = requiredProps.Length > 0
+                    ? $"new[] {{ {string.Join(", ", requiredProps)} }}"
+                    : "null";
+
+                return $$"""
+                    new {{G.InputSchemaJsonObject}}
+                    {
+                        RawType = {{rawTypeExpr}},
+                        Default = null,
+                        Description = {{descriptionExpr}},
+                        Enum = null,
+                        Items = null,
+                        Required = {{requiredExpr}},
+                        Properties = {{propertiesExpr}},
+                    }
+                    """;
+            }
         }
-        else
+
+        // 简单类型（无 Items 和 Properties）
+        return $$"""
+            new {{G.InputSchemaJsonObject}}
+            {
+                RawType = {{rawTypeExpr}},
+                Default = null,
+                Description = {{descriptionExpr}},
+                Enum = null,
+                Items = null,
+                Required = null,
+                Properties = null,
+            }
+            """;
+    }
+
+    /// <summary>
+    /// 获取对象类型的所有属性。
+    /// </summary>
+    private static SchemaMemberDescriptor[] GetObjectProperties(INamedTypeSymbol typeSymbol)
+    {
+        var properties = new List<SchemaMemberDescriptor>();
+
+        // 获取所有公共属性和可访问属性
+        foreach (var member in typeSymbol.GetMembers())
         {
-            return $"new {G.InputSchemaJsonObject} {{ RawType = {rawTypeExpr}, Description = {descriptionExpr} }}";
+            if (member is IPropertySymbol property &&
+                property.DeclaredAccessibility == Accessibility.Public &&
+                !property.IsStatic)
+            {
+                var jsonName = NamingHelper.MakeKebabCase(property.Name, true, true);
+                var description = GetPropertyDescription(property);
+                var isRequired = !IsNullableType(property.Type);
+
+                properties.Add(new SchemaMemberDescriptor(
+                    jsonName,
+                    property.Type,
+                    description,
+                    isRequired
+                ));
+            }
         }
+
+        // 处理主构造函数参数（record 类型）
+        if (typeSymbol.IsRecord)
+        {
+            foreach (var ctor in typeSymbol.Constructors)
+            {
+                if (ctor.DeclaredAccessibility == Accessibility.Public)
+                {
+                    foreach (var param in ctor.Parameters)
+                    {
+                        var jsonName = NamingHelper.MakeKebabCase(param.Name, true, true);
+
+                        // 检查是否已经通过属性添加
+                        if (!properties.Any(p => p.JsonName == jsonName))
+                        {
+                            var description = GetParameterDescription(param);
+                            var isRequired = !IsNullableType(param.Type) && !param.HasExplicitDefaultValue;
+
+                            properties.Add(new SchemaMemberDescriptor(
+                                jsonName,
+                                param.Type,
+                                description,
+                                isRequired
+                            ));
+                        }
+                    }
+                    break; // 只处理第一个公共构造函数
+                }
+            }
+        }
+
+        return properties.ToArray();
+    }
+
+    /// <summary>
+    /// 获取属性的描述（从 XML 文档注释）。
+    /// </summary>
+    private static string? GetPropertyDescription(IPropertySymbol property)
+    {
+        var xmlComment = property.GetDocumentationCommentXml();
+        if (string.IsNullOrWhiteSpace(xmlComment))
+        {
+            return null;
+        }
+
+        // 简单提取 <summary> 标签内容
+        var summaryStart = xmlComment!.IndexOf("<summary>");
+        var summaryEnd = xmlComment.IndexOf("</summary>");
+        if (summaryStart >= 0 && summaryEnd > summaryStart)
+        {
+            var summary = xmlComment.Substring(summaryStart + 9, summaryEnd - summaryStart - 9).Trim();
+            return EscapeForJsonString(summary);
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// 获取参数的描述（从 XML 文档注释）。
+    /// </summary>
+    private static string? GetParameterDescription(IParameterSymbol parameter)
+    {
+        // 从包含方法/构造函数获取 XML 注释
+        var containingSymbol = parameter.ContainingSymbol;
+        var xmlComment = containingSymbol?.GetDocumentationCommentXml();
+        if (string.IsNullOrWhiteSpace(xmlComment))
+        {
+            return null;
+        }
+
+        // 查找对应的 <param name="xxx"> 标签
+        var paramTag = $"<param name=\"{parameter.Name}\">";
+        var paramStart = xmlComment!.IndexOf(paramTag);
+        if (paramStart >= 0)
+        {
+            var contentStart = paramStart + paramTag.Length;
+            var paramEnd = xmlComment.IndexOf("</param>", contentStart);
+            if (paramEnd > contentStart)
+            {
+                var description = xmlComment.Substring(contentStart, paramEnd - contentStart).Trim();
+                return EscapeForJsonString(description);
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// 转义 JSON 字符串中的特殊字符。
+    /// </summary>
+    private static string EscapeForJsonString(string text)
+    {
+        return text
+            .Replace("\\", "\\\\")
+            .Replace("\"", "\\\"")
+            .Replace("\n", "\\n")
+            .Replace("\r", "\\r")
+            .Replace("\t", "\\t");
+    }
+
+    /// <summary>
+    /// 判断类型是否可空。
+    /// </summary>
+    private static bool IsNullableType(ITypeSymbol typeSymbol)
+    {
+        // 值类型的可空形式
+        if (typeSymbol is INamedTypeSymbol { OriginalDefinition.SpecialType: SpecialType.System_Nullable_T })
+        {
+            return true;
+        }
+
+        // 引用类型的可空注解
+        if (typeSymbol.NullableAnnotation == NullableAnnotation.Annotated)
+        {
+            return true;
+        }
+
+        return false;
     }
 
     /// <summary>
@@ -319,8 +530,8 @@ file static class Extensions
     /// <summary>
     /// 添加调用目标方法的语句（包括异步等待和返回值转换）。
     /// </summary>
-    private static IAllowStatements AddInvokeTargetMethodStatements(
-        this IAllowStatements builder,
+    private static IAllowStatement AddInvokeTargetMethodStatements(
+        this IAllowStatement builder,
         McpServerToolGeneratingModel model,
         IParameterSymbol[] methodParameters)
     {
@@ -415,3 +626,17 @@ file static class Extensions
         return builder;
     }
 }
+
+/// <summary>
+/// Schema 成员描述符（统一表示参数和属性）。
+/// </summary>
+/// <param name="JsonName">JSON 属性名（kebab-case）</param>
+/// <param name="Type">类型符号</param>
+/// <param name="Description">描述文本（已转义）</param>
+/// <param name="IsRequired">是否必需</param>
+file record SchemaMemberDescriptor(
+    string JsonName,
+    ITypeSymbol Type,
+    string? Description,
+    bool IsRequired
+);
