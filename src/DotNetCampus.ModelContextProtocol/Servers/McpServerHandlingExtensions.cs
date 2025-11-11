@@ -32,6 +32,9 @@ internal static class McpServerHandlingExtensions
         "tools/list" => await request.HandleRequestAsync(handlers.ListToolsHandler,
             McpServerRequestJsonContext.Default.ListToolsRequestParams, McpServerResponseJsonContext.Default.ListToolsResult,
             cancellationToken),
+        "tools/call" => await request.HandleRequestAsync(handlers.CallToolHandler,
+            McpServerRequestJsonContext.Default.CallToolRequestParams, McpServerResponseJsonContext.Default.CallToolResult,
+            cancellationToken),
         _ => new JsonRpcResponse
         {
             Id = request.Id,

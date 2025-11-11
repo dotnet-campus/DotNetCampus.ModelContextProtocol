@@ -34,8 +34,13 @@ public class McpServerHandlers(McpServer server)
         set;
     }
 
-    // public McpRequestHandler<CallToolRequestParams, CallToolResult>? CallToolHandler { get; set; }
-    //
+    [NotNull]
+    public McpRequestHandler<CallToolRequestParams, CallToolResult>? CallToolHandler
+    {
+        get => field ?? _default.CallTool;
+        set;
+    }
+
     // public McpRequestHandler<ListPromptsRequestParams, ListPromptsResult>? ListPromptsHandler { get; set; }
     //
     // public McpRequestHandler<GetPromptRequestParams, GetPromptResult>? GetPromptHandler { get; set; }

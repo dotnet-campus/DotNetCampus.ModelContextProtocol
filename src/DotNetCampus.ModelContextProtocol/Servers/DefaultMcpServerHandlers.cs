@@ -45,6 +45,50 @@ public class DefaultMcpServerHandlers(McpServer server)
         };
     }
 
+    public async ValueTask<CallToolResult> CallTool(RequestContext<CallToolRequestParams> request, CancellationToken cancellationToken)
+    {
+        var toolName = request.Params?.Name;
+        
+        if (string.IsNullOrEmpty(toolName))
+        {
+            return new CallToolResult
+            {
+                IsError = true,
+                Content = [new TextContentBlock { Text = "Tool name is required." }],
+            };
+        }
+        
+        if (!server.Tools.TryGetValue(toolName, out var tool))
+        {
+            return new CallToolResult
+            {
+                IsError = true,
+                Content = [new TextContentBlock { Text = $"Tool '{toolName}' not found." }],
+            };
+        }
+
+        try
+        {
+            var arguments = request.Params?.Arguments ?? default;
+            var jsonSerializer = server.Context.JsonSerializer;
+            var jsonContext = jsonSerializer switch
+            {
+                McpServerToolJsonSerializer mcpSerializer => mcpSerializer.JsonSerializerContext ?? InputSchemaJsonObjectJsonContext.Default,
+                _ => InputSchemaJsonObjectJsonContext.Default,
+            };
+            
+            return await tool.CallTool(arguments, jsonContext, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            return new CallToolResult
+            {
+                IsError = true,
+                Content = [new TextContentBlock { Text = $"Error calling tool '{toolName}': {ex.Message}" }],
+            };
+        }
+    }
+
     public async ValueTask<EmptyResult> Ping(RequestContext<PingRequestParams> request, CancellationToken cancellationToken)
     {
         return default;
