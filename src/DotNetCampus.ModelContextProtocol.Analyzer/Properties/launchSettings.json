@@ -3,7 +3,7 @@
   "profiles": {
     "DebugRoslynSourceGenerator": {
       "commandName": "DebugRoslynComponent",
-      "targetProject": "../../sample/DotNetCampus.SampleMcpServer/DotNetCampus.SampleMcpServer.csproj"
+      "targetProject": "../../samples/DotNetCampus.SampleMcpServer/DotNetCampus.SampleMcpServer.csproj"
     }
   }
 }

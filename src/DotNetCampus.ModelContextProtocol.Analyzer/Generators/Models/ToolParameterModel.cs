@@ -20,6 +20,11 @@ public record ToolParameterModel
     public required string JsonName { get; init; }
 
     /// <summary>
+    /// 参数类型符号。
+    /// </summary>
+    public required ITypeSymbol Type { get; init; }
+
+    /// <summary>
     /// 参数类型的完整名称。
     /// </summary>
     public required string TypeName { get; init; }
@@ -49,6 +54,7 @@ public record ToolParameterModel
         {
             Name = parameter.Name,
             JsonName = NamingHelper.MakeKebabCase(parameter.Name, true, true),
+            Type = parameter.Type,
             TypeName = parameter.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
             IsRequired = !parameter.HasExplicitDefaultValue,
             Description = ExtractParameterDescription(parameter, method),
