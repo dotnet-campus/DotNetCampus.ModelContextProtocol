@@ -42,6 +42,12 @@ src/DotNetCampus.ModelContextProtocol/
   - 代码主要以最新版本协议进行编写
   - 遇到需要兼容旧协议的部分，用 `Legacy` 命名相关代码并尽量减少代码量
 
+### 3. 源代码生成
+
+- **使用 SourceTextBuilder**：源生成器代码使用 `DotNetCampus.CodeAnalysisUtils` 库的 `SourceTextBuilder` 进行链式代码生成
+- **优先链式调用**：使用 LINQ + `AddRawStatements` 等批量 API，避免循环中的单个调用
+- **详细文档**：参见 [SourceTextBuilder API 使用指南](../docs/knowledge/sourcetextbuilder-guide.md)
+
 ## 快速参考
 
 ### HTTP 端点
@@ -59,6 +65,7 @@ src/DotNetCampus.ModelContextProtocol/
 详细的实现指南、完整代码示例和故障排查手册请参阅：
 
 - 📘 [HTTP 传输层开发指南](../docs/knowledge/http-transport-guide.md) - 完整协议实现细节
+- 🔧 [SourceTextBuilder API 使用指南](../docs/knowledge/sourcetextbuilder-guide.md) - 源代码生成器 API 详解
 
 ## 参考资源
 
