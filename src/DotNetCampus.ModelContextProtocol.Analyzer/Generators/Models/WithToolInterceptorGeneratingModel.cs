@@ -1,7 +1,11 @@
 #pragma warning disable RSEXPERIMENTAL002
 
+using DotNetCampus.ModelContextProtocol.CompilerServices;
+using DotNetCampus.ModelContextProtocol.Servers;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
+using Microsoft.CodeAnalysis.Operations;
 
 namespace DotNetCampus.ModelContextProtocol.Generators.Models;
 
@@ -16,20 +20,90 @@ public record WithToolInterceptorGeneratingModel(
     InterceptableLocation InterceptableLocation,
     INamedTypeSymbol ToolType,
     List<McpServerToolGeneratingModel> ToolModels,
-    McpServerToolCreationMode CreationMode);
-
-/// <summary>
-/// MCP 服务器工具的创建模式（与 McpServerToolCreationMode 枚举同步）。
-/// </summary>
-public enum McpServerToolCreationMode
+    McpServerToolCreationMode CreationMode)
 {
     /// <summary>
-    /// 工具只调用创建委托一次，并在整个 McpServer 生命周期内重用该实例。
+    /// 从语法上下文解析 WithTool 拦截器模型。
     /// </summary>
-    Singleton,
+    public static WithToolInterceptorGeneratingModel? Parse(GeneratorSyntaxContext ctx, CancellationToken ct)
+    {
+        if (ctx.Node is not InvocationExpressionSyntax
+            {
+                Expression: MemberAccessExpressionSyntax
+                {
+                    Name: { } nameSyntax,
+                },
+            } invocation)
+        {
+            return null;
+        }
 
-    /// <summary>
-    /// 每次调用工具时，都会调用创建委托，根据委托内的实现决定是复用还是新建实例。
-    /// </summary>
-    Transient,
-}
+        // 获取方法的语义信息
+        if (ctx.SemanticModel.GetOperation(ctx.Node, ct) is not IInvocationOperation invocationOperation)
+        {
+            return null;
+        }
+
+        // 检查是否是 McpServerToolsBuilder.WithTool 方法
+        var targetMethod = invocationOperation.TargetMethod;
+        if (targetMethod.Name != "WithTool")
+        {
+            return null;
+        }
+
+        // 检查是否定义在 McpServerToolsBuilder 类型中
+        if (targetMethod.ContainingType?.ToDisplayString() != "DotNetCampus.ModelContextProtocol.Servers.McpServerToolsBuilder")
+        {
+            return null;
+        }
+
+        // 检查是否有泛型参数 TMcpServerToolType
+        if (targetMethod.TypeArguments.Length != 1)
+        {
+            return null;
+        }
+
+        var toolType = targetMethod.TypeArguments[0];
+
+        // 在 toolType 中查找所有标记了 McpServerToolAttribute 的方法
+        var toolMethods = toolType.GetMembers()
+            .OfType<IMethodSymbol>()
+            .Where(m => m.GetAttributes().Any(a =>
+                a.AttributeClass?.ToDisplayString() == typeof(McpServerToolAttribute).FullName))
+            .ToList();
+
+        if (toolMethods.Count == 0)
+        {
+            return null;
+        }
+
+        // 解析所有工具方法的模型
+        var toolModels = toolMethods
+            .Select(m => McpServerToolGeneratingModel.TryParse(m, ct))
+            .ToList();
+
+        // 获取拦截位置
+        var interceptableLocation = ctx.SemanticModel.GetInterceptableLocation(invocation);
+        if (interceptableLocation is null)
+        {
+            return null;
+        }
+
+        // 获取创建模式参数（如果提供）
+        var creationMode = McpServerToolCreationMode.Singleton;
+        if (invocationOperation.Arguments.Length > 1)
+        {
+            // 尝试从第二个参数获取枚举值
+            if (invocationOperation.Arguments[1].Value is { ConstantValue: { HasValue: true, Value: int modeValue } })
+            {
+                creationMode = (McpServerToolCreationMode)modeValue;
+            }
+        }
+
+        return new WithToolInterceptorGeneratingModel(
+            interceptableLocation,
+            (INamedTypeSymbol)toolType,
+            toolModels,
+            creationMode);
+    }
+};

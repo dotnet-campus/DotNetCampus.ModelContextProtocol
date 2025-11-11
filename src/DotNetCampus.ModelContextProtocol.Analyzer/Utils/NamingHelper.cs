@@ -4,6 +4,86 @@ namespace DotNetCampus.ModelContextProtocol.Utils;
 
 internal static class NamingHelper
 {
+    internal static string MakePascalCase(string oldName)
+    {
+        var builder = new StringBuilder();
+
+        var isFirstLetter = true;
+        var isWordStart = true;
+        for (var i = 0; i < oldName.Length; i++)
+        {
+            var c = oldName[i];
+            if (!char.IsLetterOrDigit(c))
+            {
+                // Append nothing because PascalCase has no special characters.
+                isWordStart = true;
+                continue;
+            }
+
+            if (isFirstLetter)
+            {
+                if (char.IsDigit(c))
+                {
+                    // PascalCase does not support digital as the first letter.
+                    isWordStart = true;
+                    continue;
+                }
+                else if (char.IsLower(c))
+                {
+                    // 小写字母。
+                    isFirstLetter = false;
+                    isWordStart = false;
+                    builder.Append(char.ToUpperInvariant(c));
+                }
+                else if (char.IsUpper(c))
+                {
+                    // 大写字母。
+                    isFirstLetter = false;
+                    isWordStart = false;
+                    builder.Append(c);
+                }
+                else
+                {
+                    // 无大小写，但可作为标识符的字符（对 char 来说也视为字母）。
+                    isFirstLetter = false;
+                    isWordStart = true;
+                    builder.Append(c);
+                }
+            }
+            else
+            {
+                if (char.IsDigit(c))
+                {
+                    // PascalCase does not support digital as the first letter.
+                    isWordStart = true;
+                    builder.Append(c);
+                }
+                else if (char.IsLower(c))
+                {
+                    // 小写字母。
+                    builder.Append(isWordStart
+                        ? char.ToUpperInvariant(c)
+                        : c);
+                    isWordStart = false;
+                }
+                else if (char.IsUpper(c))
+                {
+                    // 大写字母。
+                    isWordStart = false;
+                    builder.Append(c);
+                }
+                else
+                {
+                    // 无大小写，但可作为标识符的字符（对 char 来说也视为字母）。
+                    isWordStart = true;
+                    builder.Append(c);
+                }
+            }
+        }
+
+        return builder.ToString();
+    }
+
     /// <summary>
     /// 从其他命名法转换为 kebab-case 命名法。
     /// </summary>
