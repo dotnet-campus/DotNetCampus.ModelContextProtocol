@@ -64,44 +64,66 @@ file static class Extensions
     public static IAllowMemberDeclaration AddGetToolDefinitionMethod(
         this IAllowMemberDeclaration builder, McpServerToolGeneratingModel model)
     {
-        return builder.AddMethodDeclaration(
-            "public global::DotNetCampus.ModelContextProtocol.Protocol.Tool GetToolDefinition()",
-            m => m
-                .WithRawDocumentationComment("/// <inheritdoc />")
-                .AddInputSchemaCreation(model)
-                .AddBracketScope("return new()", "{", "};", b => b
-                    .AddPropertyAssignment("Name", model.Name)
-                    .AddPropertyAssignment("Title", model.Title)
-                    .AddPropertyAssignment("Description", model.Description)
-                    .AddRawText("InputSchema = inputSchema,")
-                )
-        );
+        return builder
+            .AddMethodDeclaration(
+                "public global::DotNetCampus.ModelContextProtocol.Protocol.Tool GetToolDefinition(global::DotNetCampus.ModelContextProtocol.CompilerServices.InputSchemaJsonObjectJsonContext jsonContext)",
+                m => m
+                    .WithRawDocumentationComment("/// <inheritdoc />")
+                    .AddBracketScope("return new()", "{", "};", b => b
+                        .AddStringAssignment("Name", model.Name)
+                        .AddStringAssignment("Title", model.Title)
+                        .AddStringAssignment("Description", model.Description)
+                        .AddRawText(
+                            "InputSchema = global::System.Text.Json.JsonSerializer.SerializeToElement(GetInputSchema(jsonContext), jsonContext.InputSchemaJsonObject),")
+                    )
+            )
+            .AddMethodDeclaration(
+                $"private global::DotNetCampus.ModelContextProtocol.Protocol.InputSchemaJsonObject GetInputSchema(global::DotNetCampus.ModelContextProtocol.CompilerServices.InputSchemaJsonObjectJsonContext jsonContext)",
+                m => m
+                    .AddRawText("return")
+                    .AddNewInputSchema(model)
+            );
     }
 
-    /// <summary>
-    /// 生成 inputSchema 创建代码。
-    /// </summary>
-    private static TBuilder AddInputSchemaCreation<TBuilder>(this TBuilder builder, McpServerToolGeneratingModel model)
-        where TBuilder : IAllowStatements
+    private static IAllowStatements AddNewInputSchema(this IAllowStatements builder, McpServerToolGeneratingModel model)
     {
         return builder
-            .Condition(model.Parameters.Count is 0, c => c
-                .AddRawStatement("var inputSchema = global::DotNetCampus.ModelContextProtocol.Servers.McpToolInputSchemaBuilder.CreateEmptySchema();"))
-            .Otherwise(c => c
-                .AddBracketScope("var parameters = new global::DotNetCampus.ModelContextProtocol.Servers.ToolParameterInfo[]", "{", "};", b => b
-                    .AddRawStatements(model.Parameters.Select(param => $$"""
-                        new()
-                        {
-                            JsonName = "{{param.JsonName}}",
-                            TypeName = "{{param.TypeName}}",
-                            IsRequired = {{param.IsRequired.ToString().ToLowerInvariant()}},
-                            Description = {{(param.GetJsonEscapedDescription() is { } d ? $"\"{d}\"" : "null")}},
-                        },
-                        """))
-                )
-                .AddRawStatement("var inputSchema = global::DotNetCampus.ModelContextProtocol.Servers.McpToolInputSchemaBuilder.CreateSchema(parameters);")
-            )
-            .EndCondition();
+            .AddBracketScope("new()", "{", "};", b => b
+                .AddExpressionAssignment("RawType",
+                    /*
+                     * 这里只可能有两种情况，对应不可空类型和可空类型
+                     * 1. JsonSerializer.SerializeToElement("string|number|...|array", jsonContext.String)
+                     * 2. JsonSerializer.SerializeToElement(["string|number|...|array", null], jsonContext.IReadOnlyListString)
+                     */
+                    "default")
+                .AddStringAssignment("Default", null)
+                .AddStringAssignment("Description", null)
+                .AddExpressionAssignment("Enum",
+                    /*
+                     * 如果是枚举类型，则这里是枚举所有值的列表
+                     */
+                    "null")
+                .AddExpressionAssignment("Items",
+                    /*
+                     * 当类型是 array 时，这里有两种情况：
+                     * 1. null，即当前类型不是数组类型
+                     * 2. 数组项的 InputSchemaJsonObject，可能递归调用 AddNewInputSchema
+                     */
+                    "null")
+                .AddExpressionAssignment("Required",
+                    /*
+                     * 当类型是 object 时，这里有两种情况：
+                     * 1. null，即当前类型没有属性了（例如 String、Int32 等基础类型）或所有属性都是可选的
+                     * 1. 一个字符串列表，表示所有必需属性的名称
+                     */
+                    "null")
+                .AddExpressionAssignment("Properties",
+                    /*
+                     * 当类型是 object 时，这里有两种情况：
+                     * 1. null，即当前类型没有属性了（例如 String、Int32 等基础类型）
+                     * 2. 一个字典，表示所有属性的名称和对应的 InputSchemaJsonObject，这里可能递归调用 AddNewInputSchema
+                     */
+                    "null"));
     }
 
     /// <summary>
@@ -228,12 +250,24 @@ file static class Extensions
     /// <summary>
     /// 为属性赋值添加代码（用于对象初始化器）。
     /// </summary>
-    private static ISourceTextBuilder AddPropertyAssignment(
+    private static ISourceTextBuilder AddStringAssignment(
         this ISourceTextBuilder builder,
         string propertyName,
         string? stringValue)
     {
         builder.AddRawText($"{propertyName} = {(stringValue is null ? "null" : $"\"{stringValue}\"")},");
+        return builder;
+    }
+
+    /// <summary>
+    /// 为属性赋值添加代码（用于对象初始化器）。
+    /// </summary>
+    private static ISourceTextBuilder AddExpressionAssignment(
+        this ISourceTextBuilder builder,
+        string propertyName,
+        string? expression)
+    {
+        builder.AddRawText($"{propertyName} = {expression ?? "null"},");
         return builder;
     }
 }

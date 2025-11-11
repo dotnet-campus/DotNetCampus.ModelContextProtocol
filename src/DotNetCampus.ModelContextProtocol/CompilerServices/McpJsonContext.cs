@@ -1,10 +1,11 @@
 ﻿using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.Json.Serialization.Metadata;
+using DotNetCampus.ModelContextProtocol.Core;
 using DotNetCampus.ModelContextProtocol.Messages;
 using DotNetCampus.ModelContextProtocol.Protocol;
 
-namespace DotNetCampus.ModelContextProtocol.Core;
+namespace DotNetCampus.ModelContextProtocol.CompilerServices;
 
 /// <summary>
 /// 以 <see cref="System.Text.Json"/> 作为底层机制支持 MCP 服务器工具的 JSON 序列化器。
@@ -48,6 +49,9 @@ internal sealed class McpServerToolCompositeJsonContext(JsonSerializerContext ex
     protected override JsonSerializerOptions GeneratedSerializerOptions => externalContext.Options;
 }
 
+[JsonSerializable(typeof(InputSchemaJsonObject))]
+public partial class InputSchemaJsonObjectJsonContext : JsonSerializerContext;
+
 // 基础类型
 [JsonSerializable(typeof(bool))]
 [JsonSerializable(typeof(byte))]
@@ -70,10 +74,11 @@ internal partial class McpServerToolJsonContext : JsonSerializerContext;
 [JsonSerializable(typeof(JsonRpcRequest))]
 [JsonSerializable(typeof(InitializeRequestParams))]
 [JsonSerializable(typeof(PingRequestParams))]
-public partial class McpServerRequestJsonContext : JsonSerializerContext;
+internal partial class McpServerRequestJsonContext : JsonSerializerContext;
 
 [JsonSerializable(typeof(JsonElement))]
 [JsonSerializable(typeof(JsonRpcResponse))]
 [JsonSerializable(typeof(InitializeResult))]
+[JsonSerializable(typeof(InputSchemaJsonObject))]
 [JsonSerializable(typeof(NullResult))]
-public partial class McpServerResponseJsonContext : JsonSerializerContext;
+internal partial class McpServerResponseJsonContext : JsonSerializerContext;

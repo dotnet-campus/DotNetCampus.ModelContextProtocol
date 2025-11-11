@@ -1,4 +1,5 @@
-﻿using DotNetCampus.ModelContextProtocol.Core;
+﻿using DotNetCampus.ModelContextProtocol.CompilerServices;
+using DotNetCampus.ModelContextProtocol.Core;
 using DotNetCampus.ModelContextProtocol.Protocol;
 
 namespace DotNetCampus.ModelContextProtocol.Servers;
@@ -40,7 +41,7 @@ public class DefaultMcpServerHandlers(McpServer server)
     {
         return new ListToolsResult
         {
-            Tools = server.Tools.Select(x => x.Value.GetToolDefinition()).ToList(),
+            Tools = server.Tools.Select(x => x.Value.GetToolDefinition(InputSchemaJsonObjectJsonContext.Default)).ToList(),
         };
     }
 

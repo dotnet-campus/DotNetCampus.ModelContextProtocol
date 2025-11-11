@@ -1,5 +1,6 @@
 ﻿using System.Text.Json;
 using System.Text.Json.Serialization;
+using DotNetCampus.ModelContextProtocol.CompilerServices;
 using DotNetCampus.ModelContextProtocol.Protocol;
 
 namespace DotNetCampus.ModelContextProtocol.Servers;
@@ -18,7 +19,7 @@ public interface IMcpServerTool
     /// 获取工具的定义信息，这些信息将被 AI 查看，以了解工具的功能和使用方法。
     /// </summary>
     /// <returns>工具的定义信息。</returns>
-    Tool GetToolDefinition();
+    Tool GetToolDefinition(InputSchemaJsonObjectJsonContext jsonContext);
 
     /// <summary>
     /// 调用 MCP 服务器工具的方法。

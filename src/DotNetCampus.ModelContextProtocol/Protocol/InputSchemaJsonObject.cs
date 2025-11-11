@@ -1,0 +1,58 @@
+using System.Text.Json;
+using System.Text.Json.Serialization;
+
+namespace DotNetCampus.ModelContextProtocol.Protocol;
+
+/// <summary>
+/// 表示 MCP 工具的 inputSchema（JSON Schema 格式）。
+/// </summary>
+public sealed record InputSchemaJsonObject
+{
+    /// <summary>
+    /// Schema 类型（可能是字符串或数组，数组用于表示可空类型）。
+    /// </summary>
+    [JsonPropertyName("type")]
+    public required JsonElement RawType { get; init; }
+
+    /// <summary>
+    /// 枚举值列表（仅用于枚举类型）。
+    /// </summary>
+    [JsonPropertyName("enum")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyList<string>? Enum { get; init; }
+
+    /// <summary>
+    /// 默认值。
+    /// </summary>
+    [JsonPropertyName("default")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public object? Default { get; init; }
+
+    /// <summary>
+    /// 参数描述。
+    /// </summary>
+    [JsonPropertyName("description")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Description { get; init; }
+
+    /// <summary>
+    /// 对象属性定义（仅用于 object 类型）。
+    /// </summary>
+    [JsonPropertyName("properties")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyDictionary<string, InputSchemaJsonObject>? Properties { get; init; }
+
+    /// <summary>
+    /// 必需属性列表（仅用于 object 类型）。
+    /// </summary>
+    [JsonPropertyName("required")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyList<string>? Required { get; init; }
+
+    /// <summary>
+    /// 数组项类型定义（仅用于 array 类型）。
+    /// </summary>
+    [JsonPropertyName("items")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public InputSchemaJsonObject? Items { get; init; }
+}

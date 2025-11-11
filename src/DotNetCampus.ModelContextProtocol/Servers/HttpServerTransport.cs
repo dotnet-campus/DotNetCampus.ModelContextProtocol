@@ -6,6 +6,8 @@ using System.Text.Json;
 using DotNetCampus.Logging;
 using DotNetCampus.ModelContextProtocol.Core;
 using DotNetCampus.ModelContextProtocol.Messages;
+using McpServerRequestJsonContext = DotNetCampus.ModelContextProtocol.CompilerServices.McpServerRequestJsonContext;
+using McpServerResponseJsonContext = DotNetCampus.ModelContextProtocol.CompilerServices.McpServerResponseJsonContext;
 
 namespace DotNetCampus.ModelContextProtocol.Servers;
 
