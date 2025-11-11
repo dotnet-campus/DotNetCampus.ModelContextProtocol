@@ -19,6 +19,8 @@ public record McpServerToolGeneratingModel
 
     public required string? Description { get; init; }
 
+    public required IReadOnlyList<ToolParameterModel> Parameters { get; init; }
+
     private static readonly SymbolDisplayFormat SimpleContainingTypeFormat = new SymbolDisplayFormat(
         globalNamespaceStyle: SymbolDisplayGlobalNamespaceStyle.Omitted,
         typeQualificationStyle: SymbolDisplayTypeQualificationStyle.NameAndContainingTypes,
@@ -42,7 +44,19 @@ public record McpServerToolGeneratingModel
                    ?? NamingHelper.MakeSnakeCase(methodSymbol.Name, true, true),
             Title = attribute.NamedArguments.GetValueOrDefault<string>(nameof(McpServerToolAttribute.Title)),
             Description = "描述信息未提供",
+            Parameters = methodSymbol.Parameters
+                .Where(p => !IsCancellationTokenParameter(p))
+                .Select(p => ToolParameterModel.Parse(p, methodSymbol))
+                .ToList(),
         };
+    }
+
+    /// <summary>
+    /// 判断参数是否为 CancellationToken 类型。
+    /// </summary>
+    private static bool IsCancellationTokenParameter(IParameterSymbol parameter)
+    {
+        return parameter.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat) == "global::System.Threading.CancellationToken";
     }
 
     public bool GetIsAsync() => IsTaskLikeReturnType(Method.ReturnType);

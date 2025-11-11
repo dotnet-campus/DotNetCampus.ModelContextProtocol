@@ -68,12 +68,40 @@ file static class Extensions
             "public global::DotNetCampus.ModelContextProtocol.Protocol.Tool GetToolDefinition()",
             m => m
                 .WithRawDocumentationComment("/// <inheritdoc />")
+                .AddInputSchemaCreation(model)
                 .AddBracketScope("return new()", "{", "};", b => b
                     .AddPropertyAssignment("Name", model.Name)
                     .AddPropertyAssignment("Title", model.Title)
                     .AddPropertyAssignment("Description", model.Description)
+                    .AddRawText("InputSchema = inputSchema,")
                 )
         );
+    }
+
+    /// <summary>
+    /// 生成 inputSchema 创建代码。
+    /// </summary>
+    private static TBuilder AddInputSchemaCreation<TBuilder>(this TBuilder builder, McpServerToolGeneratingModel model)
+        where TBuilder : IAllowStatements
+    {
+        return builder
+            .Condition(model.Parameters.Count is 0, c => c
+                .AddRawStatement("var inputSchema = global::DotNetCampus.ModelContextProtocol.Servers.McpToolInputSchemaBuilder.CreateEmptySchema();"))
+            .Otherwise(c => c
+                .AddBracketScope("var parameters = new global::DotNetCampus.ModelContextProtocol.Servers.ToolParameterInfo[]", "{", "};", b => b
+                    .AddRawStatements(model.Parameters.Select(param => $$"""
+                        new()
+                        {
+                            JsonName = "{{param.JsonName}}",
+                            TypeName = "{{param.TypeName}}",
+                            IsRequired = {{param.IsRequired.ToString().ToLowerInvariant()}},
+                            Description = {{(param.GetJsonEscapedDescription() is { } d ? $"\"{d}\"" : "null")}},
+                        },
+                        """))
+                )
+                .AddRawStatement("var inputSchema = global::DotNetCampus.ModelContextProtocol.Servers.McpToolInputSchemaBuilder.CreateSchema(parameters);")
+            )
+            .EndCondition();
     }
 
     /// <summary>
