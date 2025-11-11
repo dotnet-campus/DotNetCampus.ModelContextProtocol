@@ -1,6 +1,8 @@
-﻿using DotNetCampus.ModelContextProtocol.CompilerServices;
+﻿using System.Reflection.Metadata;
+using DotNetCampus.ModelContextProtocol.CompilerServices;
 using DotNetCampus.ModelContextProtocol.Generators.Builders;
 using DotNetCampus.ModelContextProtocol.Generators.Models;
+using DotNetCampus.ModelContextProtocol.Utils;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
@@ -75,63 +77,33 @@ file static class Extensions
         const string missingRequiredArgumentException = "global::DotNetCampus.ModelContextProtocol.Exceptions.MissingRequiredArgumentException";
 
         const string signature = $"public {valueTask}<{callToolResult}> CallTool({jsonElement} jsonArguments, {jsonSerializerContext} jsonSerializerContext)";
-        return builder.AddMethodDeclaration(signature, m =>
+        return builder.AddMethodDeclaration(signature, m => m
+            .WithRawDocumentationComment("/// <inheritdoc />")
+            .AddRawStatements(model.Method.Parameters
+                .Select(p => (Parameter: p, Name: p.Name, Type: p.Type,
+                    JsonName: NamingHelper.MakeKebabCase(p.Name, true, true), HasDefault: p.HasExplicitDefaultValue))
+                .Select(p => $"""
+                    var {p.Name} = jsonArguments.TryGetProperty("{p.JsonName}", out var {p.Name}Property)
+                        ? {p.Name}Property.Deserialize(
+                            ({jsonTypeInfo}<{p.Type.ToUsingString()}>)jsonSerializerContext.GetTypeInfo(typeof({p.Type.ToNotNullGlobalDisplayString()}))!)
+                        : {(p.HasDefault ? FormatDefaultValue(p.Parameter) : $"throw new {missingRequiredArgumentException}(\"{p.JsonName}\")")};
+                    """
+                ))
+            .AddRawStatements(
+                $"var result = Target.{model.Method.Name}({string.Join(", ", model.Method.Parameters.Select(FormatArgument))});",
+                $"return {valueTask}.FromResult(result);")
+        );
+    }
+
+    private static string FormatArgument(IParameterSymbol parameter)
+    {
+        var paramName = parameter.Name;
+        // 如果是引用类型且非可空，添加 null-forgiving 操作符
+        if (!parameter.Type.IsValueType && parameter.NullableAnnotation != NullableAnnotation.Annotated && !parameter.HasExplicitDefaultValue)
         {
-            m.WithRawDocumentationComment("/// <inheritdoc />");
-
-            // 为每个参数生成反序列化代码
-            var parameters = model.Method.Parameters;
-            foreach (var parameter in parameters)
-            {
-                var parameterName = parameter.Name;
-                var jsonPropertyName = DotNetCampus.ModelContextProtocol.Utils.NamingHelper.MakeKebabCase(parameterName, true, true);
-                var parameterType = parameter.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
-                var hasDefaultValue = parameter.HasExplicitDefaultValue;
-
-                if (hasDefaultValue)
-                {
-                    // 有默认值的可选参数
-                    var defaultValue = FormatDefaultValue(parameter);
-                    m.AddRawText($"var {parameterName} = jsonArguments.TryGetProperty(\"{jsonPropertyName}\", out var {parameterName}Property)");
-                    m.AddRawText($"    ? {parameterName}Property.Deserialize(");
-                    m.AddRawText($"        ({jsonTypeInfo}<{parameterType}>)jsonSerializerContext.GetTypeInfo(typeof({GetTypeForGetTypeInfo(parameter.Type)}))!)");
-                    m.AddRawText($"    : {defaultValue};");
-                }
-                else
-                {
-                    // 必需参数
-                    m.AddRawText($"var {parameterName} = jsonArguments.TryGetProperty(\"{jsonPropertyName}\", out var {parameterName}Property)");
-                    m.AddRawText($"    ? {parameterName}Property.Deserialize(");
-                    m.AddRawText($"        ({jsonTypeInfo}<{parameterType}>)jsonSerializerContext.GetTypeInfo(typeof({GetTypeForGetTypeInfo(parameter.Type)}))!)");
-                    m.AddRawText($"    : throw new {missingRequiredArgumentException}(\"{jsonPropertyName}\");");
-                }
-            }
-
-            // 调用目标方法
-            var methodCall = $"Target.{model.Method.Name}(";
-            var argumentList = string.Join(",\n            ", parameters.Select(p =>
-            {
-                var paramName = p.Name;
-                // 如果是引用类型且非可空，添加 null-forgiving 操作符
-                if (!p.Type.IsValueType && p.NullableAnnotation != NullableAnnotation.Annotated && !p.HasExplicitDefaultValue)
-                {
-                    return $"{paramName}!";
-                }
-                return paramName;
-            }));
-            m.AddRawText($"var result = {methodCall}");
-            if (parameters.Length > 0)
-            {
-                m.AddRawText($"            {argumentList});");
-            }
-            else
-            {
-                m.AddRawText($");");
-            }
-
-            // 返回结果
-            m.AddRawText($"return {valueTask}.FromResult(result);");
-        });
+            return $"{paramName}!";
+        }
+        return paramName;
     }
 
     private static string FormatDefaultValue(IParameterSymbol parameter)
@@ -155,21 +127,6 @@ file static class Extensions
             SpecialType.System_Char => $"'{defaultValue}'",
             _ => defaultValue.ToString()!,
         };
-    }
-
-    private static string GetTypeForGetTypeInfo(ITypeSymbol type)
-    {
-        // 对于可空值类型，需要去掉 Nullable<> 包装
-        if (type.NullableAnnotation == NullableAnnotation.Annotated && type is INamedTypeSymbol namedType)
-        {
-            if (namedType.OriginalDefinition.SpecialType == SpecialType.System_Nullable_T)
-            {
-                // Nullable<T> -> T
-                return namedType.TypeArguments[0].ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
-            }
-        }
-
-        return type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
     }
 
     private static ISourceTextBuilder AddPropertyAssignment(this ISourceTextBuilder builder, string propertyName, string? stringValue)
