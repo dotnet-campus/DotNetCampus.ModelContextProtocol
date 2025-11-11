@@ -10,11 +10,13 @@ namespace DotNetCampus.ModelContextProtocol.Generators.Models;
 /// <param name="Type">类型符号</param>
 /// <param name="Description">描述文本（已转义）</param>
 /// <param name="IsRequired">是否必需</param>
+/// <param name="DefaultValue">默认值（如果有）</param>
 public record SchemaMemberDescriptor(
     string JsonName,
     ITypeSymbol Type,
     string? Description,
-    bool IsRequired)
+    bool IsRequired,
+    object? DefaultValue = null)
 {
     /// <summary>
     /// 从参数创建 Schema 成员描述符。
@@ -25,7 +27,8 @@ public record SchemaMemberDescriptor(
             parameter.JsonName,
             parameter.Type,
             parameter.GetJsonEscapedDescription(),
-            parameter.IsRequired
+            parameter.IsRequired,
+            parameter.DefaultValue
         );
     }
 

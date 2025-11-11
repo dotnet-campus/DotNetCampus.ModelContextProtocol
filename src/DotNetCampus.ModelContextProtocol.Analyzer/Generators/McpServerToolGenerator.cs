@@ -160,6 +160,7 @@ file static class Extensions
         var jsonSchemaType = SchemaMemberDescriptor.GetJsonSchemaType(coreType);
         var rawTypeExpr = GenerateRawTypeExpression(jsonSchemaType, isNullable);
         var descriptionExpr = member.Description != null ? $"\"{EscapeForCSharpString(member.Description)}\"" : "null";
+        var defaultExpr = GenerateDefaultValueExpression(member);
 
         // 处理枚举类型
         if (SchemaMemberDescriptor.IsEnumType(coreType))
@@ -172,7 +173,7 @@ file static class Extensions
                 new {{G.InputSchemaJsonObject}}
                 {
                     RawType = {{rawTypeExpr}},
-                    Default = null,
+                    Default = {{defaultExpr}},
                     Description = {{descriptionExpr}},
                     Enum = {{enumExpr}},
                     EnumNames = {{enumNamesExpr}},
@@ -189,14 +190,14 @@ file static class Extensions
             var elementType = SchemaMemberDescriptor.GetArrayElementType(coreType);
             if (elementType != null)
             {
-                var elementDescriptor = new SchemaMemberDescriptor(member.JsonName, elementType, null, true);
+                var elementDescriptor = new SchemaMemberDescriptor(member.JsonName, elementType, null, true, null);
                 var itemsExpr = GenerateMemberSchemaExpression(elementDescriptor);
 
                 return $$"""
                     new {{G.InputSchemaJsonObject}}
                     {
                         RawType = {{rawTypeExpr}},
-                        Default = null,
+                        Default = {{defaultExpr}},
                         Description = {{descriptionExpr}},
                         Enum = null,
                         Items = {{itemsExpr}},
@@ -220,7 +221,7 @@ file static class Extensions
                     new {{G.InputSchemaJsonObject}}
                     {
                         RawType = {{rawTypeExpr}},
-                        Default = null,
+                        Default = {{defaultExpr}},
                         Description = {{descriptionExpr}},
                         Enum = null,
                         Items = null,
@@ -236,7 +237,7 @@ file static class Extensions
             new {{G.InputSchemaJsonObject}}
             {
                 RawType = {{rawTypeExpr}},
-                Default = null,
+                Default = {{defaultExpr}},
                 Description = {{descriptionExpr}},
                 Enum = null,
                 Items = null,
@@ -254,6 +255,43 @@ file static class Extensions
         return isNullable
             ? $"JsonSerializer.SerializeToElement(new[] {{ \"{jsonSchemaType}\", \"null\" }}, jsonContext.IReadOnlyListString)"
             : $"JsonSerializer.SerializeToElement(\"{jsonSchemaType}\", jsonContext.String)";
+    }
+
+    /// <summary>
+    /// 生成默认值表达式。
+    /// </summary>
+    private static string GenerateDefaultValueExpression(SchemaMemberDescriptor member)
+    {
+        if (member.DefaultValue == null)
+        {
+            return "null";
+        }
+
+        var defaultValue = member.DefaultValue;
+        var type = member.Type;
+
+        // 解包可空类型
+        var (coreType, _) = SchemaMemberDescriptor.UnwrapNullableType(type);
+
+        // 根据类型生成适当的默认值表达式
+        return coreType.SpecialType switch
+        {
+            SpecialType.System_Boolean => defaultValue.ToString()!.ToLowerInvariant(),
+            SpecialType.System_String => $"\"{EscapeForCSharpString(defaultValue.ToString()!)}\"",
+            SpecialType.System_Char => $"'{EscapeForCSharpString(defaultValue.ToString()!)}'",
+            SpecialType.System_Byte or
+            SpecialType.System_SByte or
+            SpecialType.System_Int16 or
+            SpecialType.System_UInt16 or
+            SpecialType.System_Int32 or
+            SpecialType.System_UInt32 or
+            SpecialType.System_Int64 or
+            SpecialType.System_UInt64 => defaultValue.ToString()!,
+            SpecialType.System_Single => $"{defaultValue}f",
+            SpecialType.System_Double => $"{defaultValue}d",
+            SpecialType.System_Decimal => $"{defaultValue}m",
+            _ => "null" // 对于复杂类型，暂时返回 null
+        };
     }
 
     /// <summary>

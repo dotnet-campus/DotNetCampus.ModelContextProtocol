@@ -38,6 +38,11 @@ public record ToolParameterModel
     /// </summary>
     public string? Description { get; init; }
 
+    /// <summary>
+    /// 参数默认值。
+    /// </summary>
+    public object? DefaultValue { get; init; }
+
     public string? GetJsonEscapedDescription()
     {
         return Description?
@@ -57,6 +62,7 @@ public record ToolParameterModel
             TypeName = parameter.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
             IsRequired = !parameter.HasExplicitDefaultValue,
             Description = parameter.GetParameterDescription(),
+            DefaultValue = parameter.HasExplicitDefaultValue ? parameter.ExplicitDefaultValue : null,
         };
     }
 }
