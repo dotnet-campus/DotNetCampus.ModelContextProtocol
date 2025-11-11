@@ -408,12 +408,34 @@ public class HttpServerTransport
         ctx.Response.Close();
     }
 
+    /// <summary>
+    /// 返回 JSON-RPC 错误响应（HTTP 200 + JSON-RPC error）
+    /// 用于已经进入 JSON-RPC 协议层的错误
+    /// </summary>
+    private static async Task RespondWithJsonRpcError(HttpListenerContext ctx, JsonRpcErrorCode errorCode, string message, object? requestId = null)
+    {
+        var errorResponse = new JsonRpcResponse
+        {
+            Id = requestId,
+            Error = new JsonRpcError
+            {
+                Code = (int)errorCode,
+                Message = message,
+            },
+        };
+
+        await RespondWithJson(ctx, errorResponse);
+    }
+
     private static void RespondWithSuccess(HttpListenerContext ctx, HttpStatusCode statusCode)
     {
         ctx.Response.StatusCode = (int)statusCode;
         ctx.Response.Close();
     }
 
+    /// <summary>
+    /// 返回 HTTP 错误（用于传输层错误，未进入 JSON-RPC 协议层）
+    /// </summary>
     private static void RespondWithError(HttpListenerContext ctx, HttpStatusCode statusCode, string? message = null)
     {
         ctx.Response.StatusCode = (int)statusCode;

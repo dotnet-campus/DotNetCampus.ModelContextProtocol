@@ -16,9 +16,10 @@ internal static class McpServerHandlingExtensions
     {
         null => new JsonRpcResponse
         {
+            Id = request?.Id,
             Error = new JsonRpcError
             {
-                Code = 400,
+                Code = (int)JsonRpcErrorCode.InvalidRequest,
                 Message = "Json-RPC format error or missing method.",
             },
         },
@@ -30,9 +31,10 @@ internal static class McpServerHandlingExtensions
             cancellationToken),
         _ => new JsonRpcResponse
         {
+            Id = request.Id,
             Error = new JsonRpcError
             {
-                Code = 400,
+                Code = (int)JsonRpcErrorCode.MethodNotFound,
                 Message = $"{request.Method} method is not supported.",
             },
         },
@@ -99,9 +101,10 @@ internal static class McpServerHandlingExtensions
         }
         errorResponse = new JsonRpcResponse
         {
+            Id = request.Id,
             Error = new JsonRpcError
             {
-                Code = 400,
+                Code = (int)JsonRpcErrorCode.InvalidParams,
                 Message = $"{request.Method} 方法缺少必要的参数。",
             },
         };
