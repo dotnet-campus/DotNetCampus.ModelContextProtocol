@@ -2,6 +2,7 @@ using DotNetCampus.ModelContextProtocol.CodeAnalysis;
 using DotNetCampus.ModelContextProtocol.CompilerServices;
 using DotNetCampus.ModelContextProtocol.Utils;
 using Microsoft.CodeAnalysis;
+using G = DotNetCampus.ModelContextProtocol.GlobalTypeNames;
 
 namespace DotNetCampus.ModelContextProtocol.Generators.Models;
 
@@ -19,7 +20,20 @@ public record McpServerToolGeneratingModel
 
     public required string? Description { get; init; }
 
-    public required IReadOnlyList<ToolParameterModel> Parameters { get; init; }
+    public IReadOnlyList<IParameterSymbol> GetParameters(bool includeAll = false)
+    {
+        return Method.Parameters
+            .Where(p => includeAll || !p.IsCancellationTokenParameter())
+            .ToList();
+    }
+
+    public IReadOnlyList<JsonPropertySchemaInfo> GetProperties()
+    {
+        return Method.Parameters
+            .Where(p => !p.IsCancellationTokenParameter())
+            .Select(JsonPropertySchemaInfo.From)
+            .ToList();
+    }
 
     public static McpServerToolGeneratingModel TryParse(IMethodSymbol methodSymbol, CancellationToken cancellationToken)
     {
@@ -39,19 +53,7 @@ public record McpServerToolGeneratingModel
                    ?? NamingHelper.MakeSnakeCase(methodSymbol.Name, true, true),
             Title = attribute.NamedArguments.GetValueOrDefault<string>(nameof(McpServerToolAttribute.Title)),
             Description = methodSymbol.GetSummaryFromSymbol(),
-            Parameters = methodSymbol.Parameters
-                .Where(p => !IsCancellationTokenParameter(p))
-                .Select(p => ToolParameterModel.Parse(p, methodSymbol))
-                .ToList(),
         };
-    }
-
-    /// <summary>
-    /// 判断参数是否为 CancellationToken 类型。
-    /// </summary>
-    private static bool IsCancellationTokenParameter(IParameterSymbol parameter)
-    {
-        return parameter.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat) == "global::System.Threading.CancellationToken";
     }
 
     public bool GetIsAsync() => IsTaskLikeReturnType(Method.ReturnType);

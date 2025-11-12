@@ -43,4 +43,12 @@ public static class SymbolExtensions
             return typeSymbol.ToDisplayString(SimpleContainingTypeFormat);
         }
     }
+
+    /// <summary>
+    /// 判断参数是否为 CancellationToken 类型。
+    /// </summary>
+    public static bool IsCancellationTokenParameter(this IParameterSymbol parameter)
+    {
+        return parameter.Type.ToGlobalDisplayString() == "global::System.Threading.CancellationToken";
+    }
 }

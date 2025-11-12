@@ -1,4 +1,5 @@
 ﻿using System.Collections.Immutable;
+using DotNetCampus.ModelContextProtocol.CodeAnalysis;
 using DotNetCampus.ModelContextProtocol.Generators.Builders;
 using DotNetCampus.ModelContextProtocol.Generators.Models;
 using DotNetCampus.ModelContextProtocol.Utils;
@@ -38,35 +39,32 @@ internal static class McpServerToolSourceBuilder
     {
         return builder
             .AddMethodDeclaration(true, $"private {G.InputSchemaJsonObject} GetInputSchema({G.InputSchemaJsonObjectJsonContext} jsonContext)",
-                m => m.AddInputSchemaExpression(model,
-                    JsonPropertySchemaInfo.From(model),
-                    model.Parameters.Select(JsonPropertySchemaInfo.From).ToList())
+                m => m.AddInputSchemaExpression(JsonPropertySchemaInfo.From(model))
             );
     }
 
     /// <summary>
     /// 添加生成 InputSchema 的表达式。
     /// </summary>
-    private static IAllowStatement AddInputSchemaExpression(this IAllowStatement builder,
-        McpServerToolGeneratingModel model, JsonPropertySchemaInfo self, IReadOnlyList<JsonPropertySchemaInfo> members)
+    private static IAllowStatement AddInputSchemaExpression(this IAllowStatement builder, JsonPropertySchemaInfo info)
     {
-        var itemSchema = self.GetItemSchemaOfArrayOrDefault();
-        var properties = self.GetProperties();
+        var itemSchema = info.GetItemSchemaOfArrayOrDefault();
+        var properties = info.GetProperties();
         return builder
             .AddBracketScope($"new {G.InputSchemaJsonObject}", "{", "}", true, bs => bs
-                .AddPropertyAssignment("RawType", $"JsonSerializer.SerializeToElement(\"{self.JsonSchemaType}\", jsonContext.String)")
-                .AddStringAssignment("Default", self.DefaultValue)
-                .AddStringAssignment("Description", self.Description)
-                .AddPropertyAssignment("Enum", self.GetJsonEnumNameExpressionOrDefault())
+                .AddPropertyAssignment("RawType", $"JsonSerializer.SerializeToElement(\"{info.JsonSchemaType}\", jsonContext.String)")
+                .AddStringAssignment("Default", info.DefaultValue)
+                .AddStringAssignment("Description", info.Description)
+                .AddPropertyAssignment("Enum", info.GetJsonEnumNameExpressionOrDefault())
                 .Condition(itemSchema is not null, i => i
-                    .AddStatement("Items = ", null, c => c.AddInputSchemaExpression(model, itemSchema!, members)))
+                    .AddStatement("Items = ", null, c => c.AddInputSchemaExpression(itemSchema!)))
                 .EndCondition()
-                .AddPropertyAssignment("Required", self.GetJsonRequiredPropertiesExpressionOrDefault())
+                .AddPropertyAssignment("Required", info.GetJsonRequiredPropertiesExpressionOrDefault())
                 .Condition(properties.Count > 0, i => i
                     .AddBracketScope($"Properties = new Dictionary<string, {G.InputSchemaJsonObject}>", rbs => rbs
                         .AddStatements(properties, (d, p) => d
                             .AddStatement($"[ \"{p.JsonPropertyName}\" ] = ", ",", c => c
-                                .AddInputSchemaExpression(model, p, members))
+                                .AddInputSchemaExpression(p))
                         )))
                 .EndCondition());
     }
@@ -85,10 +83,7 @@ internal static class McpServerToolSourceBuilder
                  {G.CancellationToken} cancellationToken)
              """;
 
-        var methodParameters = model.Method.Parameters
-            .Where(p => !IsCancellationTokenParameter(p))
-            .ToArray();
-
+        var methodParameters = model.GetParameters();
         return builder.AddMethodDeclaration(signature, m => m
             .WithRawDocumentationComment("/// <inheritdoc />")
             .AddRawStatements(GenerateParameterDeserializationStatements(methodParameters))
@@ -99,7 +94,7 @@ internal static class McpServerToolSourceBuilder
     /// <summary>
     /// 生成参数反序列化语句。
     /// </summary>
-    private static IEnumerable<string> GenerateParameterDeserializationStatements(IParameterSymbol[] parameters)
+    private static IEnumerable<string> GenerateParameterDeserializationStatements(IReadOnlyList<IParameterSymbol> parameters)
     {
         return parameters
             .Select(p => (
@@ -124,9 +119,9 @@ internal static class McpServerToolSourceBuilder
     private static IAllowStatement AddInvokeTargetMethodStatements(
         this IAllowStatement builder,
         McpServerToolGeneratingModel model,
-        IParameterSymbol[] methodParameters)
+        IReadOnlyList<IParameterSymbol> methodParameters)
     {
-        var arguments = GenerateMethodArguments(model.Method.Parameters, methodParameters);
+        var arguments = GenerateMethodArguments(model.GetParameters(true), methodParameters);
         var methodCall = $"Target.{model.Method.Name}({string.Join(", ", arguments)})";
 
         builder
@@ -148,22 +143,14 @@ internal static class McpServerToolSourceBuilder
     /// 生成方法调用参数列表。
     /// </summary>
     private static IEnumerable<string> GenerateMethodArguments(
-        ImmutableArray<IParameterSymbol> allParameters,
-        IParameterSymbol[] deserializedParameters)
+        IReadOnlyList<IParameterSymbol> allParameters,
+        IReadOnlyList<IParameterSymbol> deserializedParameters)
     {
         return allParameters.Select(p =>
-            IsCancellationTokenParameter(p)
+            p.IsCancellationTokenParameter()
                 ? "cancellationToken"
                 : FormatArgument(deserializedParameters.First(mp => mp.Name == p.Name))
         );
-    }
-
-    /// <summary>
-    /// 判断参数是否为 CancellationToken 类型。
-    /// </summary>
-    private static bool IsCancellationTokenParameter(IParameterSymbol parameter)
-    {
-        return parameter.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat) == G.CancellationToken;
     }
 
     /// <summary>

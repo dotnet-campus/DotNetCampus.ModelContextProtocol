@@ -152,22 +152,7 @@ public record JsonPropertySchemaInfo(ITypeSymbol PropertyType)
             Description = model.Description,
             IsRequired = true,
             DefaultValue = null,
-            Properties = model.Method.Parameters.Select(From).ToList(),
-        };
-    }
-
-    /// <summary>
-    /// 从编译时模型参数创建 Schema 属性信息。
-    /// </summary>
-    public static JsonPropertySchemaInfo From(ToolParameterModel parameter)
-    {
-        return new JsonPropertySchemaInfo(parameter.Type)
-        {
-            JsonPropertyName = parameter.JsonName,
-            JsonSchemaType = parameter.Type.ToJsonSchemaTypeString(),
-            Description = parameter.GetJsonEscapedDescription(),
-            IsRequired = parameter.IsRequired,
-            DefaultValue = parameter.DefaultValue?.ToString(),
+            Properties = model.GetProperties(),
         };
     }
 
@@ -196,8 +181,8 @@ public record JsonPropertySchemaInfo(ITypeSymbol PropertyType)
             JsonPropertyName = NamingHelper.MakeCamelCase(parameter.Name),
             JsonSchemaType = parameter.Type.ToJsonSchemaTypeString(),
             Description = parameter.GetParameterDescription(),
-            IsRequired = parameter.Type.IsNullableType || !parameter.HasExplicitDefaultValue,
-            // DefaultValue = parameter.HasExplicitDefaultValue ? parameter.ExplicitDefaultValue?.ToString() : null,
+            IsRequired = !parameter.HasExplicitDefaultValue,
+            DefaultValue = parameter.HasExplicitDefaultValue ? parameter.ExplicitDefaultValue?.ToString() : null,
         };
     }
 
