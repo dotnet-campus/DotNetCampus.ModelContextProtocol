@@ -21,11 +21,6 @@ public record McpServerToolGeneratingModel
 
     public required IReadOnlyList<ToolParameterModel> Parameters { get; init; }
 
-    private static readonly SymbolDisplayFormat SimpleContainingTypeFormat = new SymbolDisplayFormat(
-        globalNamespaceStyle: SymbolDisplayGlobalNamespaceStyle.Omitted,
-        typeQualificationStyle: SymbolDisplayTypeQualificationStyle.NameAndContainingTypes,
-        genericsOptions: SymbolDisplayGenericsOptions.IncludeTypeParameters);
-
     public static McpServerToolGeneratingModel TryParse(IMethodSymbol methodSymbol, CancellationToken cancellationToken)
     {
         // 解析所有 McpServerToolAttribute 特性中的参数
@@ -72,9 +67,13 @@ public record McpServerToolGeneratingModel
         };
     }
 
+    /// <summary>
+    /// 获取桥接类的名称。
+    /// </summary>
+    /// <returns>桥接类的名称。</returns>
     public string GetBridgeTypeName()
     {
-        var name = ContainingType.ToDisplayString(SimpleContainingTypeFormat).Replace('.', '_');
+        var name = ContainingType.ToTypeOnlyString().Replace('.', '_');
         return $"{name}_{Method.Name}_Bridge";
     }
 

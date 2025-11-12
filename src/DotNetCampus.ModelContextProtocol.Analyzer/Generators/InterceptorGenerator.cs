@@ -45,7 +45,7 @@ public class InterceptorGenerator : IIncrementalGenerator
 
         // 所有拦截器生成到同一个文件
         var code = GenerateInterceptorCode(modelGroups);
-        context.AddSource("ModelContextProtocol.Interceptors/McpServerToolInterceptors.g.cs", code);
+        context.AddSource("DotNetCampus.ModelContextProtocol.Interceptors/McpServerToolInterceptors.g.cs", code);
     }
 
     /// <summary>
