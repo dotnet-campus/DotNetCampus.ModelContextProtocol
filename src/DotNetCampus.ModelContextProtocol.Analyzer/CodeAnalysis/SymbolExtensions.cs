@@ -7,7 +7,7 @@ public static class SymbolExtensions
     /// <summary>
     /// 用于将类型符号转换为仅包含名称的字符串形式。会去掉可空标记、命名空间、泛型参数等信息。
     /// </summary>
-    private static readonly SymbolDisplayFormat SimpleNameFormat = new SymbolDisplayFormat(
+    private static readonly SymbolDisplayFormat SimpleDisplayFormat = new SymbolDisplayFormat(
         globalNamespaceStyle: SymbolDisplayGlobalNamespaceStyle.Omitted,
         typeQualificationStyle: SymbolDisplayTypeQualificationStyle.NameOnly,
         genericsOptions: SymbolDisplayGenericsOptions.None,
@@ -18,7 +18,7 @@ public static class SymbolExtensions
     /// <summary>
     /// 用于将类型符号转换为仅包含声明名称的字符串形式。会去掉可空标记、命名空间、泛型参数等信息，但不会使用类型关键字。
     /// </summary>
-    private static readonly SymbolDisplayFormat SimpleDeclarationNameFormat = new SymbolDisplayFormat(
+    private static readonly SymbolDisplayFormat SimpleDeclarationDisplayFormat = new SymbolDisplayFormat(
         globalNamespaceStyle: SymbolDisplayGlobalNamespaceStyle.Omitted,
         typeQualificationStyle: SymbolDisplayTypeQualificationStyle.NameOnly,
         genericsOptions: SymbolDisplayGenericsOptions.None,
@@ -28,10 +28,21 @@ public static class SymbolExtensions
     /// <summary>
     /// 用于将类型符号转换为不带命名空间的类型名称字符串形式，包含嵌套类型。
     /// </summary>
-    private static readonly SymbolDisplayFormat SimpleContainingNameFormat = new SymbolDisplayFormat(
+    private static readonly SymbolDisplayFormat SimpleContainingDisplayFormat = new SymbolDisplayFormat(
         globalNamespaceStyle: SymbolDisplayGlobalNamespaceStyle.Omitted,
         typeQualificationStyle: SymbolDisplayTypeQualificationStyle.NameAndContainingTypes,
         genericsOptions: SymbolDisplayGenericsOptions.IncludeTypeParameters);
+
+    /// <summary>
+    /// 用于将类型符号转换为不带可空标记的全局类型名称字符串形式，包含命名空间和嵌套类型。
+    /// </summary>
+    private static readonly SymbolDisplayFormat NullableDisabledGlobalDisplayFormat = new SymbolDisplayFormat(
+        globalNamespaceStyle: SymbolDisplayGlobalNamespaceStyle.Included,
+        typeQualificationStyle: SymbolDisplayTypeQualificationStyle.NameAndContainingTypesAndNamespaces,
+        genericsOptions: SymbolDisplayGenericsOptions.IncludeTypeParameters,
+        miscellaneousOptions:
+        SymbolDisplayMiscellaneousOptions.EscapeKeywordIdentifiers |
+        SymbolDisplayMiscellaneousOptions.UseSpecialTypes);
 
     extension(ITypeSymbol typeSymbol)
     {
@@ -68,19 +79,25 @@ public static class SymbolExtensions
         /// 获取类型的简单名称，仅包含名称本身，不包含命名空间、泛型参数、可空标记等信息，尽可能使用类型关键字。
         /// </summary>
         /// <returns></returns>
-        public string ToSimpleDisplayString() => typeSymbol.ToDisplayString(SimpleNameFormat);
+        public string ToSimpleDisplayString() => typeSymbol.ToDisplayString(SimpleDisplayFormat);
 
         /// <summary>
         /// 获取类型的简单名称，仅包含名称本身，不包含命名空间、泛型参数、可空标记等信息，尽可能使用类型名称而不是关键字。
         /// </summary>
         /// <returns></returns>
-        public string ToDeclarationDisplayString() => typeSymbol.ToDisplayString(SimpleDeclarationNameFormat);
+        public string ToDeclarationDisplayString() => typeSymbol.ToDisplayString(SimpleDeclarationDisplayFormat);
 
         /// <summary>
         /// 获取不带命名空间的类型名称，包含嵌套类型。
         /// </summary>
         /// <returns></returns>
-        public string ToDeclarationNestedDisplayString() => typeSymbol.ToDisplayString(SimpleContainingNameFormat);
+        public string ToDeclarationNestedDisplayString() => typeSymbol.ToDisplayString(SimpleContainingDisplayFormat);
+
+        /// <summary>
+        /// 获取类型的全局名称字符串形式，去掉可空标记。
+        /// </summary>
+        /// <returns></returns>
+        public string ToNullableDisabledGlobalDisplayString() => typeSymbol.ToDisplayString(NullableDisabledGlobalDisplayFormat);
     }
 
     /// <summary>

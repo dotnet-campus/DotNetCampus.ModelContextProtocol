@@ -85,52 +85,50 @@ internal static class McpServerToolSourceBuilder
         var methodParameters = model.GetParameters();
         return builder.AddMethodDeclaration(signature, m => m
             .WithRawDocumentationComment("/// <inheritdoc />")
-            .AddRawStatements(GenerateParameterDeserializationStatements(methodParameters))
-            .AddInvokeTargetMethodStatements(model, methodParameters)
+            .AddRawStatements(model.GetParameters().Select(GenerateParameterDeserializationStatements))
+            .AddInvokeTargetMethodStatements(model)
         );
     }
 
     /// <summary>
     /// 生成参数反序列化语句。
     /// </summary>
-    private static IEnumerable<string> GenerateParameterDeserializationStatements(IReadOnlyList<IParameterSymbol> parameters)
+    private static string GenerateParameterDeserializationStatements(IParameterSymbol parameter)
     {
-        return parameters
-            .Select(p => (
-                Parameter: p,
-                Name: p.Name,
-                Type: p.Type,
-                JsonName: NamingHelper.MakeCamelCase(p.Name),
-                HasDefault: p.HasExplicitDefaultValue
-            ))
-            .Select(p => $$"""
-                 var {{p.Name}} = jsonArguments.TryGetProperty("{{p.JsonName}}", out var {{p.Name}}Property)
-                     ? {{p.Name}}Property.Deserialize(({{G.JsonTypeInfo}}<{{p.Type.ToUsingString()}}>)jsonSerializerContext.GetTypeInfo(typeof({{p.Type.ToNotNullGlobalDisplayString()}}))!)
-                     : {{(p.HasDefault ? FormatDefaultValue(p.Parameter) : $"throw new {G.MissingRequiredArgumentException}(\"{p.JsonName}\")")}};
-                 """
-            );
+        var jsonName = NamingHelper.MakeCamelCase(parameter.Name);
+        var hasDefault = parameter.HasExplicitDefaultValue;
+        return $"""
+            var {parameter.Name} = jsonArguments.TryGetProperty("{jsonName}", out var {parameter.Name}Property)
+                ? {parameter.Name}Property.Deserialize(({G.JsonTypeInfo}<{parameter.Type.ToUsingString()}>)jsonSerializerContext.GetTypeInfo(typeof({parameter.Type.ToNullableDisabledGlobalDisplayString()}))!)
+                : {(hasDefault ? parameter.GetDefaultValueExpression() : $"throw new {G.MissingRequiredArgumentException}(\"{jsonName}\")")};
+            """;
     }
 
     /// <summary>
     /// 添加调用目标方法的语句。
     /// </summary>
-    private static IAllowStatement AddInvokeTargetMethodStatements(
-        this IAllowStatement builder,
-        McpServerToolGeneratingModel model,
-        IReadOnlyList<IParameterSymbol> methodParameters)
+    private static TBuilder AddInvokeTargetMethodStatements<TBuilder>(
+        this TBuilder builder,
+        McpServerToolGeneratingModel model)
+        where TBuilder : IAllowStatement
     {
-        var arguments = GenerateMethodArguments(model.GetParameters(true), methodParameters);
-        var methodCall = $"Target.{model.Method.Name}({string.Join(", ", arguments)})";
+        var arguments = model.GetParameters(true)
+            .Select(x => x.IsCancellationTokenParameter()
+                ? "cancellationToken"
+                : x.RequireNullForgiving()
+                    ? $"{x.Name}!"
+                    : x.Name);
+        var callMethodExpression = $"Target.{model.Method.Name}({string.Join(", ", arguments)})";
 
         builder
             .Condition(model.GetIsAsync(), async => async
                 .AddRawStatements(
-                    $"var result = await {methodCall}.ConfigureAwait(false);",
+                    $"var result = await {callMethodExpression}.ConfigureAwait(false);",
                     $"return ({G.CallToolResult})result;"
                 ))
             .Otherwise(sync => sync
                 .AddRawStatements(
-                    $"var result = {methodCall};",
+                    $"var result = {callMethodExpression};",
                     $"return {G.ValueTask}.FromResult(({G.CallToolResult})result);"
                 ));
 
@@ -138,39 +136,19 @@ internal static class McpServerToolSourceBuilder
     }
 
     /// <summary>
-    /// 生成方法调用参数列表。
+    /// 判断参数是否是非可空引用类型，且参数没有默认值。这种参数需要添加空包容（!）运算符再使用。
     /// </summary>
-    private static IEnumerable<string> GenerateMethodArguments(
-        IReadOnlyList<IParameterSymbol> allParameters,
-        IReadOnlyList<IParameterSymbol> deserializedParameters)
+    private static bool RequireNullForgiving(this IParameterSymbol parameter)
     {
-        return allParameters.Select(p =>
-            p.IsCancellationTokenParameter()
-                ? "cancellationToken"
-                : FormatArgument(deserializedParameters.First(mp => mp.Name == p.Name))
-        );
+        return !parameter.Type.IsValueType &&
+               parameter.NullableAnnotation is not NullableAnnotation.Annotated &&
+               !parameter.HasExplicitDefaultValue;
     }
 
     /// <summary>
-    /// 格式化参数（添加 null-forgiving 操作符）。
+    /// 获取此参数的默认值的表达式字符串形式。
     /// </summary>
-    private static string FormatArgument(IParameterSymbol parameter)
-    {
-        var paramName = parameter.Name;
-        // 引用类型且非可空，添加 ! 操作符
-        if (!parameter.Type.IsValueType &&
-            parameter.NullableAnnotation != NullableAnnotation.Annotated &&
-            !parameter.HasExplicitDefaultValue)
-        {
-            return $"{paramName}!";
-        }
-        return paramName;
-    }
-
-    /// <summary>
-    /// 格式化参数默认值。
-    /// </summary>
-    private static string FormatDefaultValue(IParameterSymbol parameter)
+    private static string GetDefaultValueExpression(this IParameterSymbol parameter)
     {
         if (!parameter.HasExplicitDefaultValue)
         {
