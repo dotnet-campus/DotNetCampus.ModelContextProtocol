@@ -28,6 +28,11 @@ internal enum JsonSchemaType
     Null,
 
     /// <summary>
+    /// 整数。
+    /// </summary>
+    Integer,
+
+    /// <summary>
     /// 数值。
     /// </summary>
     Number,
@@ -57,6 +62,11 @@ internal enum JsonSpecialType
     /// 布尔值。
     /// </summary>
     Boolean,
+
+    /// <summary>
+    /// 整数。
+    /// </summary>
+    Integer,
 
     /// <summary>
     /// 数值。
