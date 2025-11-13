@@ -104,7 +104,8 @@ public partial class InputSchemaJsonObjectJsonContext : JsonSerializerContext;
     PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,
     DictionaryKeyPolicy = JsonKnownNamingPolicy.Unspecified,
     NumberHandling = JsonNumberHandling.AllowReadingFromString,
-    UseStringEnumConverter = true)]
+    UseStringEnumConverter = true,
+    WriteIndented = false)]
 internal partial class McpServerToolJsonContext : JsonSerializerContext;
 
 /// <summary>
@@ -128,4 +129,8 @@ internal partial class McpServerRequestJsonContext : JsonSerializerContext;
 [JsonSerializable(typeof(EmptyResult))]
 [JsonSerializable(typeof(ListToolsResult))]
 [JsonSerializable(typeof(CallToolResult))]
+[JsonSourceGenerationOptions(
+    PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,
+    UseStringEnumConverter = true,
+    WriteIndented = false)]
 internal partial class McpServerResponseJsonContext : JsonSerializerContext;

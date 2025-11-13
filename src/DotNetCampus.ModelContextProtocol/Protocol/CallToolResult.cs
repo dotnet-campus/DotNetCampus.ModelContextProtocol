@@ -11,12 +11,13 @@ public sealed class CallToolResult
     /// 获取或设置 MCP 工具响应工具调用所返回的内容。
     /// </summary>
     [JsonPropertyName("content")]
-    public IReadOnlyList<ContentBlock> Content { get; init; } = [];
+    public IReadOnlyList<TextContentBlock> Content { get; init; } = [];
 
     /// <summary>
     /// 获取或设置一个值，该值指示工具调用是否失败。
     /// </summary>
     [JsonPropertyName("isError")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public bool? IsError { get; set; }
 
     public override string ToString()
@@ -45,6 +46,7 @@ public sealed class CallToolResult
 
 public abstract class ContentBlock
 {
+    [JsonPropertyName("type")]
     public string Type { get; set; } = "";
 }
 
@@ -58,5 +60,6 @@ public sealed class TextContentBlock : ContentBlock
     /// <summary>
     /// Gets or sets the text content of the message.
     /// </summary>
+    [JsonPropertyName("text")]
     public required string Text { get; init; }
 }
