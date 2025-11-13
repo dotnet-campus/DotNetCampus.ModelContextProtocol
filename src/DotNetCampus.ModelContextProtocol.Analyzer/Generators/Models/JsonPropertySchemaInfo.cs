@@ -46,19 +46,27 @@ public record JsonPropertySchemaInfo(ITypeSymbol PropertyType)
     /// </summary>
     public IReadOnlyList<JsonPropertySchemaInfo> GetProperties()
     {
-        if (Properties is { } p)
+        if (Properties is not null)
         {
-            return p;
+            // 顶级 MCP 工具是通过方法的参数列表视作属性来工作的。
+            return Properties;
+        }
+
+        if (new JsonSchemaTypeInfo(PropertyType).SpecialKind is not JsonSpecialType.Object)
+        {
+            // 非对象类型没有属性。
+            return [];
         }
 
         if (PropertyType is not INamedTypeSymbol typeSymbol)
         {
+            // 大部分情况应该都被前面的 object 类型判断覆盖了，这里作为兜底。
             return [];
         }
 
         var properties = new List<JsonPropertySchemaInfo>();
 
-        // 获取所有公共属性
+        // 获取所有公共属性。
         foreach (var member in typeSymbol.GetMembers())
         {
             if (member is IPropertySymbol { DeclaredAccessibility: Accessibility.Public, IsStatic: false } property)
@@ -70,22 +78,18 @@ public record JsonPropertySchemaInfo(ITypeSymbol PropertyType)
         // 处理主构造函数参数。
         if (typeSymbol.IsRecord)
         {
-            foreach (var ctor in typeSymbol.Constructors)
+            foreach (var param in typeSymbol.Constructors
+                         .Where(ctor => ctor.DeclaredAccessibility == Accessibility.Public)
+                         .SelectMany(x => x.Parameters))
             {
-                if (ctor.DeclaredAccessibility == Accessibility.Public)
+                var jsonName = NamingHelper.MakeCamelCase(param.Name);
+                // 检查是否已经通过属性添加。
+                if (properties.All(p => p.JsonPropertyName != jsonName))
                 {
-                    foreach (var param in ctor.Parameters)
-                    {
-                        var jsonName = NamingHelper.MakeKebabCase(param.Name, true, true);
-                        // 检查是否已经通过属性添加
-                        if (properties.All(p => p.JsonPropertyName != jsonName))
-                        {
-                            properties.Add(From(param));
-                        }
-                    }
-                    // 只处理第一个公共构造函数
-                    break;
+                    properties.Add(From(param));
                 }
+                // 只处理第一个公共构造函数。
+                break;
             }
         }
 
@@ -200,92 +204,4 @@ public record JsonPropertySchemaInfo(ITypeSymbol PropertyType)
             DefaultValue = null,
         };
     }
-
-    // /// <summary>
-    // /// 解包可空类型，返回核心类型和是否可空。
-    // /// </summary>
-    // public static (ITypeSymbol CoreType, bool IsNullable) UnwrapNullableType(ITypeSymbol typeSymbol)
-    // {
-    //     // 处理 Nullable<T> (值类型可空)
-    //     if (typeSymbol is INamedTypeSymbol { OriginalDefinition.SpecialType: SpecialType.System_Nullable_T } namedType)
-    //     {
-    //         return (namedType.TypeArguments[0], true);
-    //     }
-    //
-    //     // 处理引用类型可空注解
-    //     if (typeSymbol.NullableAnnotation == NullableAnnotation.Annotated)
-    //     {
-    //         return (typeSymbol.WithNullableAnnotation(NullableAnnotation.NotAnnotated), true);
-    //     }
-    //
-    //     return (typeSymbol, false);
-    // }
-    //
-    // /// <summary>
-    // /// 获取数组或集合的元素类型。
-    // /// </summary>
-    // public static ITypeSymbol? GetArrayElementType(ITypeSymbol typeSymbol)
-    // {
-    //     // 处理数组类型
-    //     if (typeSymbol is IArrayTypeSymbol arrayType)
-    //     {
-    //         return arrayType.ElementType;
-    //     }
-    //
-    //     // 处理泛型集合类型
-    //     if (typeSymbol is INamedTypeSymbol namedType && namedType.TypeArguments.Length > 0)
-    //     {
-    //         var fullName = namedType.OriginalDefinition.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
-    //         if (fullName.StartsWith("global::System.Collections.Generic.IEnumerable<") ||
-    //             fullName.StartsWith("global::System.Collections.Generic.List<") ||
-    //             fullName.StartsWith("global::System.Collections.Generic.IList<") ||
-    //             fullName.StartsWith("global::System.Collections.Generic.IReadOnlyList<") ||
-    //             fullName.StartsWith("global::System.Collections.Generic.ICollection<"))
-    //         {
-    //             return namedType.TypeArguments[0];
-    //         }
-    //     }
-    //
-    //     return null;
-    // }
-    //
-    // /// <summary>
-    // /// 判断类型是否为枚举类型。
-    // /// </summary>
-    // public static bool IsEnumType(ITypeSymbol typeSymbol)
-    // {
-    //     return typeSymbol.TypeKind == TypeKind.Enum;
-    // }
-    //
-    // /// <summary>
-    // /// 获取枚举的所有值和描述。
-    // /// </summary>
-    // public static EnumJsonValueInfo[] GetEnumValues(ITypeSymbol typeSymbol)
-    // {
-    //     if (typeSymbol is not INamedTypeSymbol namedType || namedType.TypeKind != TypeKind.Enum)
-    //     {
-    //         return Array.Empty<EnumJsonValueInfo>();
-    //     }
-    //
-    //     var values = new List<EnumJsonValueInfo>();
-    //     foreach (var member in namedType.GetMembers())
-    //     {
-    //         if (member is IFieldSymbol { IsConst: true } field)
-    //         {
-    //             var value = field.Name;
-    //             var description = GetEnumMemberDescription(field);
-    //             values.Add(new EnumJsonValueInfo(value, description));
-    //         }
-    //     }
-    //
-    //     return values.ToArray();
-    // }
-    //
-    // /// <summary>
-    // /// 获取枚举成员的描述。
-    // /// </summary>
-    // private static string? GetEnumMemberDescription(IFieldSymbol field)
-    // {
-    //     return field.GetSummaryFromSymbol();
-    // }
 }
