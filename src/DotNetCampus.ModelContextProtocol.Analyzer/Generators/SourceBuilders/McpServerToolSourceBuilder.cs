@@ -123,12 +123,12 @@ internal static class McpServerToolSourceBuilder
             .Condition(model.GetIsAsync(), async => async
                 .AddRawStatements(
                     $"var result = await {callMethodExpression}.ConfigureAwait(false);",
-                    $"return ({G.CallToolResult})result;"
+                    $"return (({G.CallToolResult})result).Structure(jsonSerializerContext);"
                 ))
             .Otherwise(sync => sync
                 .AddRawStatements(
                     $"var result = {callMethodExpression};",
-                    $"return {G.ValueTask}.FromResult(({G.CallToolResult})result);"
+                    $"return {G.ValueTask}.FromResult((({G.CallToolResult})result).Structure(jsonSerializerContext));"
                 ));
 
         return builder;
