@@ -1,5 +1,4 @@
-﻿using System.Collections.Immutable;
-using DotNetCampus.ModelContextProtocol.CodeAnalysis;
+﻿using DotNetCampus.ModelContextProtocol.CodeAnalysis;
 using DotNetCampus.ModelContextProtocol.Generators.Builders;
 using DotNetCampus.ModelContextProtocol.Generators.Models;
 using DotNetCampus.ModelContextProtocol.Utils;
@@ -106,8 +105,7 @@ internal static class McpServerToolSourceBuilder
             ))
             .Select(p => $$"""
                  var {{p.Name}} = jsonArguments.TryGetProperty("{{p.JsonName}}", out var {{p.Name}}Property)
-                     ? {{p.Name}}Property.Deserialize(
-                         ({{G.JsonTypeInfo}}<{{p.Type.ToUsingString()}}>)jsonSerializerContext.GetTypeInfo(typeof({{p.Type.ToNotNullGlobalDisplayString()}}))!)
+                     ? {{p.Name}}Property.Deserialize(({{G.JsonTypeInfo}}<{{p.Type.ToUsingString()}}>)jsonSerializerContext.GetTypeInfo(typeof({{p.Type.ToNotNullGlobalDisplayString()}}))!)
                      : {{(p.HasDefault ? FormatDefaultValue(p.Parameter) : $"throw new {G.MissingRequiredArgumentException}(\"{p.JsonName}\")")}};
                  """
             );
@@ -203,7 +201,18 @@ internal static class McpServerToolSourceBuilder
     {
         if (stringValue is not null)
         {
-            builder.AddRawText($"{propertyName} = \"{stringValue}\",");
+            var hasSpecialChars = stringValue.IndexOfAny(['\r', '\n', '\t', '"', '\\']) >= 0;
+            var value = hasSpecialChars switch
+            {
+                true => $"""""
+                        """
+                            {stringValue}
+                            """
+                        """"",
+                false => $"\"{stringValue}\"",
+            };
+
+            builder.AddRawText($"{propertyName} = {value},");
         }
         return builder;
     }
