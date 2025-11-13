@@ -16,8 +16,7 @@ internal static class McpServerToolSourceBuilder
         McpServerToolGeneratingModel model)
     {
         return builder
-            .AddMethodDeclaration(true,
-                $"public {G.Tool} GetToolDefinition({G.InputSchemaJsonObjectJsonContext} jsonContext)",
+            .AddMethodDeclaration($"public {G.Tool} GetToolDefinition({G.InputSchemaJsonObjectJsonContext} jsonContext)", true,
                 m => m
                     .WithRawDocumentationComment("/// <inheritdoc />")
                     .AddBracketScope("new()", "{", "}", bs => bs
@@ -37,7 +36,7 @@ internal static class McpServerToolSourceBuilder
         McpServerToolGeneratingModel model)
     {
         return builder
-            .AddMethodDeclaration(true, $"private {G.InputSchemaJsonObject} GetInputSchema({G.InputSchemaJsonObjectJsonContext} jsonContext)",
+            .AddMethodDeclaration($"private {G.InputSchemaJsonObject} GetInputSchema({G.InputSchemaJsonObjectJsonContext} jsonContext)", true,
                 m => m.AddInputSchemaExpression(JsonPropertySchemaInfo.From(model))
             );
     }
@@ -60,7 +59,7 @@ internal static class McpServerToolSourceBuilder
                 .EndCondition()
                 .AddPropertyAssignment("Required", info.GetJsonRequiredPropertiesExpressionOrDefault())
                 .Condition(properties.Count > 0, i => i
-                    .AddBracketScope($"Properties = new Dictionary<string, {G.InputSchemaJsonObject}>", rbs => rbs
+                    .AddBracketScope($"Properties = new {G.Dictionary}<string, {G.InputSchemaJsonObject}>", rbs => rbs
                         .AddStatements(properties, (d, p) => d
                             .AddStatement($"[ \"{p.JsonPropertyName}\" ] = ", ",", c => c
                                 .AddInputSchemaExpression(p))
