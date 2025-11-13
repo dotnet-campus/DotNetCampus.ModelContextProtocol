@@ -99,6 +99,8 @@ public partial class InputSchemaJsonObjectJsonContext : JsonSerializerContext;
 [JsonSerializable(typeof(ushort))]
 [JsonSerializable(typeof(ushort?))]
 [JsonSerializable(typeof(CallToolResult))]
+[JsonSerializable(typeof(ContentBlock))]
+[JsonSerializable(typeof(TextContentBlock))]
 [JsonSourceGenerationOptions(
     PropertyNameCaseInsensitive = true,
     PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,
@@ -129,6 +131,8 @@ internal partial class McpServerRequestJsonContext : JsonSerializerContext;
 [JsonSerializable(typeof(EmptyResult))]
 [JsonSerializable(typeof(ListToolsResult))]
 [JsonSerializable(typeof(CallToolResult))]
+[JsonSerializable(typeof(ContentBlock))]
+[JsonSerializable(typeof(TextContentBlock))]
 [JsonSourceGenerationOptions(
     PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,
     UseStringEnumConverter = true,

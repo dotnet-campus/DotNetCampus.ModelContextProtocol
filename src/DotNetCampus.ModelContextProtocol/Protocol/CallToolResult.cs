@@ -11,7 +11,7 @@ public sealed class CallToolResult
     /// 获取或设置 MCP 工具响应工具调用所返回的内容。
     /// </summary>
     [JsonPropertyName("content")]
-    public IReadOnlyList<TextContentBlock> Content { get; init; } = [];
+    public IReadOnlyList<ContentBlock> Content { get; init; } = [];
 
     /// <summary>
     /// 获取或设置一个值，该值指示工具调用是否失败。
@@ -44,19 +44,12 @@ public sealed class CallToolResult
     }
 }
 
-public abstract class ContentBlock
-{
-    [JsonPropertyName("type")]
-    public string Type { get; set; } = "";
-}
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(TextContentBlock), typeDiscriminator: "text")]
+public abstract class ContentBlock;
 
 public sealed class TextContentBlock : ContentBlock
 {
-    public TextContentBlock()
-    {
-        Type = "text";
-    }
-
     /// <summary>
     /// Gets or sets the text content of the message.
     /// </summary>
