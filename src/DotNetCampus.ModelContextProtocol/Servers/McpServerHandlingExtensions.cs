@@ -87,6 +87,15 @@ internal static class McpServerHandlingExtensions
                 // JSON-RPC 2.0 规范要求成功响应必须包含 result 字段，即使为空对象
                 Result = EmptyResult.JsonElement,
             },
+            CallToolResult { IsError: true } errorResult => new JsonRpcResponse
+            {
+                Id = request.Id,
+                Error = new JsonRpcError
+                {
+                    Code = (int)JsonRpcErrorCode.McpError,
+                    Message = errorResult.ToString(),
+                },
+            },
             _ => new JsonRpcResponse
             {
                 Id = request.Id,
