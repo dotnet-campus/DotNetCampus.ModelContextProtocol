@@ -39,6 +39,10 @@ public interface IMcpServerToolJsonSerializer
 {
 }
 
+/// <summary>
+/// 合并 <see cref="McpServerToolJsonContext"/> 和外部提供的 <see cref="JsonSerializerContext"/>，以支持业务自定义类型的序列化和反序列化。
+/// </summary>
+/// <param name="externalContext"></param>
 internal sealed class McpServerToolCompositeJsonContext(JsonSerializerContext externalContext) : JsonSerializerContext(null)
 {
     public override JsonTypeInfo? GetTypeInfo(Type type)
@@ -49,6 +53,9 @@ internal sealed class McpServerToolCompositeJsonContext(JsonSerializerContext ex
     protected override JsonSerializerOptions GeneratedSerializerOptions => externalContext.Options;
 }
 
+/// <summary>
+/// 提供给源生成器使用，用于序列化 MCP 工具的描述信息。
+/// </summary>
 // 用于编译期可确定的默认值（请参见 JsonPropertySchemaInfo 编译期代码）
 [JsonSerializable(typeof(bool))]
 [JsonSerializable(typeof(decimal))]
@@ -57,8 +64,12 @@ internal sealed class McpServerToolCompositeJsonContext(JsonSerializerContext ex
 [JsonSerializable(typeof(string[]))]
 // 协议类型
 [JsonSerializable(typeof(InputSchemaJsonObject))]
+[JsonSourceGenerationOptions(GenerationMode = JsonSourceGenerationMode.Serialization)]
 public partial class InputSchemaJsonObjectJsonContext : JsonSerializerContext;
 
+/// <summary>
+/// 与业务自己定义的 MCP 工具一起合并成 <see cref="McpServerToolJsonSerializer"/> 以序列化和反序列化业务定义的 MCP 工具参数、返回值和相关类型。
+/// </summary>
 // 基础类型
 [JsonSerializable(typeof(bool))]
 [JsonSerializable(typeof(bool?))]
@@ -88,8 +99,17 @@ public partial class InputSchemaJsonObjectJsonContext : JsonSerializerContext;
 [JsonSerializable(typeof(ushort))]
 [JsonSerializable(typeof(ushort?))]
 [JsonSerializable(typeof(CallToolResult))]
+[JsonSourceGenerationOptions(
+    PropertyNameCaseInsensitive = true,
+    PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,
+    DictionaryKeyPolicy = JsonKnownNamingPolicy.Unspecified,
+    NumberHandling = JsonNumberHandling.AllowReadingFromString,
+    UseStringEnumConverter = true)]
 internal partial class McpServerToolJsonContext : JsonSerializerContext;
 
+/// <summary>
+/// 提供给 MCP 协议中，服务端收到来自客户端的请求数据时使用的 JSON 序列化上下文。
+/// </summary>
 [JsonSerializable(typeof(JsonElement))]
 [JsonSerializable(typeof(JsonRpcRequest))]
 [JsonSerializable(typeof(InitializeRequestParams))]
@@ -98,6 +118,9 @@ internal partial class McpServerToolJsonContext : JsonSerializerContext;
 [JsonSerializable(typeof(CallToolRequestParams))]
 internal partial class McpServerRequestJsonContext : JsonSerializerContext;
 
+/// <summary>
+/// 提供给 MCP 协议中，服务端发送给客户端的响应数据时使用的 JSON 序列化上下文。
+/// </summary>
 [JsonSerializable(typeof(JsonElement))]
 [JsonSerializable(typeof(JsonRpcResponse))]
 [JsonSerializable(typeof(InitializeResult))]

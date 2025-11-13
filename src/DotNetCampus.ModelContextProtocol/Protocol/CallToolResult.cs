@@ -1,4 +1,6 @@
-﻿namespace DotNetCampus.ModelContextProtocol.Protocol;
+﻿using System.Text.Json.Serialization;
+
+namespace DotNetCampus.ModelContextProtocol.Protocol;
 
 /// <summary>
 /// MCP 服务返回的工具调用结果。
@@ -8,11 +10,13 @@ public sealed class CallToolResult
     /// <summary>
     /// 获取或设置 MCP 工具响应工具调用所返回的内容。
     /// </summary>
+    [JsonPropertyName("content")]
     public IReadOnlyList<ContentBlock> Content { get; init; } = [];
 
     /// <summary>
     /// 获取或设置一个值，该值指示工具调用是否失败。
     /// </summary>
+    [JsonPropertyName("isError")]
     public bool? IsError { get; set; }
 
     public override string ToString()
