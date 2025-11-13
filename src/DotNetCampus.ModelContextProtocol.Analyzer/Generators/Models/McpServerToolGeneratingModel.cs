@@ -75,7 +75,7 @@ public record McpServerToolGeneratingModel
     /// <returns>桥接类的名称。</returns>
     public string GetBridgeTypeName()
     {
-        var name = ContainingType.ToTypeOnlyString().Replace('.', '_');
+        var name = ContainingType.ToDeclarationNestedDisplayString().Replace('.', '_');
         return $"{name}_{Method.Name}_Bridge";
     }
 

@@ -48,7 +48,7 @@ public class McpServerToolGenerator : IIncrementalGenerator
                         .AddCallToolMethod(model)
                 );
             var code = builder.ToString();
-            context.AddSource($"{model.Namespace}/{model.ContainingType.ToTypeOnlyString()}.{model.Method.Name}.cs", code);
+            context.AddSource($"{model.Namespace}/{model.ContainingType.ToDeclarationNestedDisplayString()}.{model.Method.Name}.cs", code);
         }
         catch (Exception ex)
         {

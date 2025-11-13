@@ -51,8 +51,8 @@ internal static class McpServerToolSourceBuilder
         var properties = info.GetProperties();
         return builder
             .AddBracketScope($"new {G.InputSchemaJsonObject}", "{", "}", true, bs => bs
-                .AddPropertyAssignment("RawType", $"JsonSerializer.SerializeToElement(\"{info.JsonSchemaType}\", jsonContext.String)")
-                .AddStringAssignment("Default", info.DefaultValue)
+                .AddPropertyAssignment("RawType", info.GetJsonSchemaTypeExpression())
+                .AddPropertyAssignment("Default", info.DefaultValueJsonElement)
                 .AddStringAssignment("Description", info.Description)
                 .AddPropertyAssignment("Enum", info.GetJsonEnumNameExpressionOrDefault())
                 .Condition(itemSchema is not null, i => i

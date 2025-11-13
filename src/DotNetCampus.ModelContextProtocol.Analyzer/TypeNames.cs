@@ -9,6 +9,7 @@ internal static class GlobalTypeNames
     public const string InputSchemaJsonObjectJsonContext = "global::DotNetCampus.ModelContextProtocol.CompilerServices.InputSchemaJsonObjectJsonContext";
     public const string InputSchemaJsonObject = "global::DotNetCampus.ModelContextProtocol.Protocol.InputSchemaJsonObject";
     public const string JsonSerializer = "global::System.Text.Json.JsonSerializer";
+    public const string JsonDocument = "global::System.Text.Json.JsonDocument";
     public const string IMcpServerTool = "global::DotNetCampus.ModelContextProtocol.Servers.IMcpServerTool";
     public const string ValueTask = "global::System.Threading.Tasks.ValueTask";
     public const string CallToolResult = "global::DotNetCampus.ModelContextProtocol.Protocol.CallToolResult";

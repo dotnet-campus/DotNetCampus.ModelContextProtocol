@@ -65,6 +65,7 @@ internal sealed class McpServerToolCompositeJsonContext(JsonSerializerContext ex
 [JsonSerializable(typeof(ulong))]
 [JsonSerializable(typeof(ushort))]
 // 协议类型
+[JsonSerializable(typeof(string[]))]
 [JsonSerializable(typeof(InputSchemaJsonObject))]
 public partial class InputSchemaJsonObjectJsonContext : JsonSerializerContext;
 

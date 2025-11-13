@@ -30,7 +30,7 @@ public readonly record struct EnumJsonValueInfo
 
     public static IEnumerable<EnumJsonValueInfo> FromEnumSymbol(ITypeSymbol enumTypeSymbol)
     {
-        if (new JsonSchemaTypeInfo(enumTypeSymbol).AsEnumSymbol() is not INamedTypeSymbol enumSymbol)
+        if (enumTypeSymbol.ToJsonSchemaTypeInfo().AsEnumSymbol() is not INamedTypeSymbol enumSymbol)
         {
             yield break;
         }

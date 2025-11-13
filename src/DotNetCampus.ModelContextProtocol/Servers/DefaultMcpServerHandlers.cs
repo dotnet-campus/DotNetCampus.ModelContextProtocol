@@ -48,7 +48,7 @@ public class DefaultMcpServerHandlers(McpServer server)
     public async ValueTask<CallToolResult> CallTool(RequestContext<CallToolRequestParams> request, CancellationToken cancellationToken)
     {
         var toolName = request.Params?.Name;
-        
+
         if (string.IsNullOrEmpty(toolName))
         {
             return new CallToolResult
@@ -57,7 +57,7 @@ public class DefaultMcpServerHandlers(McpServer server)
                 Content = [new TextContentBlock { Text = "Tool name is required." }],
             };
         }
-        
+
         if (!server.Tools.TryGetValue(toolName, out var tool))
         {
             return new CallToolResult
@@ -76,7 +76,7 @@ public class DefaultMcpServerHandlers(McpServer server)
                 McpServerToolJsonSerializer mcpSerializer => mcpSerializer.JsonSerializerContext ?? InputSchemaJsonObjectJsonContext.Default,
                 _ => InputSchemaJsonObjectJsonContext.Default,
             };
-            
+
             return await tool.CallTool(arguments, jsonContext, cancellationToken);
         }
         catch (Exception ex)

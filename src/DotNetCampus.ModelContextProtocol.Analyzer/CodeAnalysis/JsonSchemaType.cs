@@ -111,6 +111,7 @@ internal static class JsonSchemaTypeInfoExtensions
         {
             JsonSpecialType.Unknown => JsonSchemaType.Undefined,
             JsonSpecialType.Boolean => JsonSchemaType.Boolean,
+            JsonSpecialType.Integer => JsonSchemaType.Integer,
             JsonSpecialType.Number => JsonSchemaType.Number,
             JsonSpecialType.Enum => JsonSchemaType.String,
             JsonSpecialType.String => JsonSchemaType.String,

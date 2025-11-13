@@ -1,6 +1,8 @@
 using DotNetCampus.ModelContextProtocol.CodeAnalysis;
 using Microsoft.CodeAnalysis;
 using DotNetCampus.ModelContextProtocol.Utils;
+using G = DotNetCampus.ModelContextProtocol.GlobalTypeNames;
+using JsonType = DotNetCampus.ModelContextProtocol.CodeAnalysis.JsonSchemaType;
 
 namespace DotNetCampus.ModelContextProtocol.Generators.Models;
 
@@ -21,6 +23,11 @@ public record JsonPropertySchemaInfo(ITypeSymbol PropertyType)
     public required string JsonSchemaType { get; init; }
 
     /// <summary>
+    /// 属性类型是否是可空值类型（Nullable&lt;T&gt;）。
+    /// </summary>
+    public bool IsNullableValue { get; init; }
+
+    /// <summary>
     /// 描述文本（已转义）。
     /// </summary>
     public string? Description { get; init; }
@@ -31,9 +38,9 @@ public record JsonPropertySchemaInfo(ITypeSymbol PropertyType)
     public bool IsRequired { get; init; }
 
     /// <summary>
-    /// 属性的默认值（如果有）。
+    /// 属性的默认值，以 JsonElement 表示的表达式。
     /// </summary>
-    public string? DefaultValue { get; init; }
+    public string? DefaultValueJsonElement { get; init; }
 
     /// <summary>
     /// 对于顶级 MCP 工具来说，属性是由方法的参数决定的，会给此属性显式赋值。
@@ -52,7 +59,7 @@ public record JsonPropertySchemaInfo(ITypeSymbol PropertyType)
             return Properties;
         }
 
-        if (new JsonSchemaTypeInfo(PropertyType).SpecialKind is not JsonSpecialType.Object)
+        if (PropertyType.ToJsonSchemaTypeInfo().SpecialKind is not JsonSpecialType.Object)
         {
             // 非对象类型没有属性。
             return [];
@@ -93,8 +100,15 @@ public record JsonPropertySchemaInfo(ITypeSymbol PropertyType)
             }
         }
 
+        var a = new[] { "" };
         return properties.ToArray();
     }
+
+    public string? GetJsonSchemaTypeExpression() => IsNullableValue switch
+    {
+        true => $"{G.JsonSerializer}.SerializeToElement(new[] {{ \"{JsonSchemaType}\", \"null\" }}, jsonContext.StringArray)",
+        false => $"{G.JsonSerializer}.SerializeToElement(\"{JsonSchemaType}\", jsonContext.String)",
+    };
 
     /// <summary>
     /// 获取枚举类型的所有可能值的集合表达式语法代码。
@@ -124,7 +138,7 @@ public record JsonPropertySchemaInfo(ITypeSymbol PropertyType)
             return null;
         }
 
-        var itemType = new JsonSchemaTypeInfo(PropertyType).AsArrayItemSymbol();
+        var itemType = PropertyType.ToJsonSchemaTypeInfo().AsArrayItemSymbol();
         return itemType is null
             ? null
             : From(itemType, JsonPropertyName);
@@ -153,9 +167,10 @@ public record JsonPropertySchemaInfo(ITypeSymbol PropertyType)
         {
             JsonPropertyName = model.Name, // 仅为结构相同，实际不会被使用。
             JsonSchemaType = "object", // 顶层模型一定是对象。
-            Description = model.Description,
-            IsRequired = true,
-            DefaultValue = null,
+            IsNullableValue = false, // 顶层模型一定不是可空值类型。
+            Description = null, // 顶层模型有其他描述位置。
+            IsRequired = true, //  顶层模型一定是必需的。
+            DefaultValueJsonElement = null, // 顶层模型没有默认值。
             Properties = model.GetProperties(),
         };
     }
@@ -169,9 +184,10 @@ public record JsonPropertySchemaInfo(ITypeSymbol PropertyType)
         {
             JsonPropertyName = NamingHelper.MakeCamelCase(property.Name),
             JsonSchemaType = property.Type.ToJsonSchemaTypeString(),
+            IsNullableValue = property.Type.IsNullableValueType,
             Description = property.GetSummaryFromSymbol(),
             IsRequired = property.IsRequired || property.Type.IsNullableType,
-            DefaultValue = null,
+            DefaultValueJsonElement = null, // 暂时不知道如何获取属性的默认值。
         };
     }
 
@@ -184,9 +200,10 @@ public record JsonPropertySchemaInfo(ITypeSymbol PropertyType)
         {
             JsonPropertyName = NamingHelper.MakeCamelCase(parameter.Name),
             JsonSchemaType = parameter.Type.ToJsonSchemaTypeString(),
+            IsNullableValue = parameter.Type.IsNullableValueType,
             Description = parameter.GetParameterDescription(),
             IsRequired = !parameter.HasExplicitDefaultValue,
-            DefaultValue = parameter.HasExplicitDefaultValue ? parameter.ExplicitDefaultValue?.ToString() : null,
+            DefaultValueJsonElement = GetJsonSchemaDefaultValueExpression(parameter),
         };
     }
 
@@ -199,9 +216,31 @@ public record JsonPropertySchemaInfo(ITypeSymbol PropertyType)
         {
             JsonPropertyName = NamingHelper.MakeCamelCase(propertyName),
             JsonSchemaType = typeSymbol.ToJsonSchemaTypeString(),
+            IsNullableValue = typeSymbol.IsNullableValueType,
             Description = null,
             IsRequired = true,
-            DefaultValue = null,
+            DefaultValueJsonElement = null,
+        };
+    }
+
+    private static string? GetJsonSchemaDefaultValueExpression(IParameterSymbol parameter)
+    {
+        var info = parameter.Type.ToJsonSchemaTypeInfo();
+        var hasDefaultValue = parameter.HasExplicitDefaultValue;
+        var defaultValue = hasDefaultValue ? parameter.ExplicitDefaultValue : null;
+        if (!hasDefaultValue)
+        {
+            return null;
+        }
+        return (defaultValue, info.SchemaKind) switch
+        {
+            (null, _) => $"{G.JsonDocument}.Parse(\"null\").RootElement",
+            (_, JsonType.Boolean) => $"{G.JsonSerializer}.SerializeToElement({defaultValue.ToString().ToLowerInvariant()}, jsonContext.Boolean)",
+            (_, JsonType.Integer) => $"{G.JsonSerializer}.SerializeToElement((long){defaultValue}, jsonContext.Int64)",
+            (_, JsonType.Number) => $"{G.JsonSerializer}.SerializeToElement((decimal){defaultValue}, jsonContext.Decimal)",
+            (_, JsonType.String) => $"{G.JsonSerializer}.SerializeToElement(\"{defaultValue}\", jsonContext.String)",
+            // 其他情况，C# 语法中写不出来默认值。
+            _ => null,
         };
     }
 }

@@ -29,11 +29,11 @@ public sealed record InputSchemaJsonObject
     public IReadOnlyList<string>? EnumNames { get; init; }
 
     /// <summary>
-    /// 默认值。
+    /// 默认值（未设置默认值时需设为 <see langword="null"/>，显式设置了默认值时必须设置值，即使值的含义为 null）。
     /// </summary>
     [JsonPropertyName("default")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public object? Default { get; init; }
+    public JsonElement? Default { get; init; }
 
     /// <summary>
     /// 参数描述。

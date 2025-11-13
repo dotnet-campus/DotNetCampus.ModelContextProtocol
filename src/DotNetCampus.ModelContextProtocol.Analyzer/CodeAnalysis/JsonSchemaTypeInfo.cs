@@ -18,18 +18,6 @@ internal class JsonSchemaTypeInfo
     public JsonSchemaType SchemaKind { get; }
 
     /// <summary>
-    /// 获取类型的简单名称，仅包含名称本身，不包含命名空间、泛型参数、可空标记等信息，尽可能使用类型关键字。
-    /// </summary>
-    /// <returns></returns>
-    public string GetSimpleName() => TypeSymbol.ToDisplayString(SimpleNameFormat);
-
-    /// <summary>
-    /// 获取类型的简单名称，仅包含名称本身，不包含命名空间、泛型参数、可空标记等信息，尽可能使用类型名称而不是关键字。
-    /// </summary>
-    /// <returns></returns>
-    public string GetSimpleDeclarationName() => TypeSymbol.ToDisplayString(SimpleDeclarationNameFormat);
-
-    /// <summary>
     /// 获取当前类型是否可以从数组或列表赋值。
     /// </summary>
     /// <returns>如果可以从数组或列表赋值，则返回 <see langword="true"/>；否则返回 <see langword="false"/>。</returns>
@@ -45,7 +33,7 @@ internal class JsonSchemaTypeInfo
             return true;
         }
 
-        var simpleName = GetSimpleName();
+        var simpleName = TypeSymbol.ToSimpleDisplayString();
         return AllowedArrayOrListTypeNames.Contains(simpleName);
     }
 
@@ -130,24 +118,6 @@ internal class JsonSchemaTypeInfo
     [
         "IList", "IReadOnlyList", "ICollection", "IReadOnlyCollection", "IEnumerable",
     ];
-
-    /// <summary>
-    /// 用于将类型符号转换为仅包含名称的字符串形式。会去掉可空标记、命名空间、泛型参数等信息。
-    /// </summary>
-    private static readonly SymbolDisplayFormat SimpleNameFormat = new SymbolDisplayFormat(
-        globalNamespaceStyle: SymbolDisplayGlobalNamespaceStyle.Omitted,
-        typeQualificationStyle: SymbolDisplayTypeQualificationStyle.NameOnly,
-        genericsOptions: SymbolDisplayGenericsOptions.None,
-        kindOptions: SymbolDisplayKindOptions.None,
-        miscellaneousOptions: SymbolDisplayMiscellaneousOptions.UseSpecialTypes
-    );
-
-    private static readonly SymbolDisplayFormat SimpleDeclarationNameFormat = new SymbolDisplayFormat(
-        globalNamespaceStyle: SymbolDisplayGlobalNamespaceStyle.Omitted,
-        typeQualificationStyle: SymbolDisplayTypeQualificationStyle.NameOnly,
-        genericsOptions: SymbolDisplayGenericsOptions.None,
-        kindOptions: SymbolDisplayKindOptions.None
-    );
 
     /// <summary>
     /// 视 <paramref name="typeSymbol"/> 为命令行属性的类型，按命令行属性的要求获取其所需的类型信息。<br/>
