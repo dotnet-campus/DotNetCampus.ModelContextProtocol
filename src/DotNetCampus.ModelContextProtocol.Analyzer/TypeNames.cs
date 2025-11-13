@@ -19,4 +19,5 @@ internal static class GlobalTypeNames
     public const string MissingRequiredArgumentException = "global::DotNetCampus.ModelContextProtocol.Exceptions.MissingRequiredArgumentException";
     public const string CancellationToken = "global::System.Threading.CancellationToken";
     public const string Dictionary = "global::System.Collections.Generic.Dictionary";
+    public const string JsonTypeInfoNotGeneratedException = "global::DotNetCampus.ModelContextProtocol.Exceptions.JsonTypeInfoNotGeneratedInJsonSerializerContextException";
 }

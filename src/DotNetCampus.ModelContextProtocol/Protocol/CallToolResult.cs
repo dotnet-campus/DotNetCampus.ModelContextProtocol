@@ -15,6 +15,16 @@ public sealed class CallToolResult
     /// </summary>
     public bool? IsError { get; set; }
 
+    public override string ToString()
+    {
+        return Content switch
+        {
+            [] => "",
+            [TextContentBlock { Text: var text }] => text,
+            _ => $"CallToolResult with {Content.Count} content blocks.",
+        };
+    }
+
     /// <summary>
     /// 隐式将字符串转换为一个表示成功的 <see cref="CallToolResult"/> 实例。
     /// </summary>

@@ -99,7 +99,7 @@ internal static class McpServerToolSourceBuilder
         var hasDefault = parameter.HasExplicitDefaultValue;
         return $"""
             var {parameter.Name} = jsonArguments.TryGetProperty("{jsonName}", out var {parameter.Name}Property)
-                ? {parameter.Name}Property.Deserialize(({G.JsonTypeInfo}<{parameter.Type.ToUsingString()}>)jsonSerializerContext.GetTypeInfo(typeof({parameter.Type.ToNullableDisabledGlobalDisplayString()}))!)
+                ? {parameter.Name}Property.Deserialize({G.JsonTypeInfoNotGeneratedException}.EnsureTypeInfo<{parameter.Type.ToUsingString()}>(jsonSerializerContext))
                 : {(hasDefault ? parameter.GetDefaultValueExpression() : $"throw new {G.MissingRequiredArgumentException}(\"{jsonName}\")")};
             """;
     }

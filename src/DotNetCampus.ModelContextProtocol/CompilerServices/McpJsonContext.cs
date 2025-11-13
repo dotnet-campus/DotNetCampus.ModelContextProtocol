@@ -49,7 +49,17 @@ internal sealed class McpServerToolCompositeJsonContext(JsonSerializerContext ex
     protected override JsonSerializerOptions GeneratedSerializerOptions => externalContext.Options;
 }
 
-// 用于编译期可确定的默认值。
+// 用于编译期可确定的默认值（请参见 JsonPropertySchemaInfo 编译期代码）
+[JsonSerializable(typeof(bool))]
+[JsonSerializable(typeof(decimal))]
+[JsonSerializable(typeof(long))]
+[JsonSerializable(typeof(string))]
+[JsonSerializable(typeof(string[]))]
+// 协议类型
+[JsonSerializable(typeof(InputSchemaJsonObject))]
+public partial class InputSchemaJsonObjectJsonContext : JsonSerializerContext;
+
+// 基础类型
 [JsonSerializable(typeof(bool))]
 [JsonSerializable(typeof(bool?))]
 [JsonSerializable(typeof(byte))]
@@ -77,26 +87,6 @@ internal sealed class McpServerToolCompositeJsonContext(JsonSerializerContext ex
 [JsonSerializable(typeof(ulong?))]
 [JsonSerializable(typeof(ushort))]
 [JsonSerializable(typeof(ushort?))]
-// 协议类型
-[JsonSerializable(typeof(string[]))]
-[JsonSerializable(typeof(InputSchemaJsonObject))]
-public partial class InputSchemaJsonObjectJsonContext : JsonSerializerContext;
-
-// 基础类型
-[JsonSerializable(typeof(bool))]
-[JsonSerializable(typeof(byte))]
-[JsonSerializable(typeof(char))]
-[JsonSerializable(typeof(decimal))]
-[JsonSerializable(typeof(double))]
-[JsonSerializable(typeof(float))]
-[JsonSerializable(typeof(int))]
-[JsonSerializable(typeof(long))]
-[JsonSerializable(typeof(sbyte))]
-[JsonSerializable(typeof(short))]
-[JsonSerializable(typeof(string))]
-[JsonSerializable(typeof(uint))]
-[JsonSerializable(typeof(ulong))]
-[JsonSerializable(typeof(ushort))]
 [JsonSerializable(typeof(CallToolResult))]
 internal partial class McpServerToolJsonContext : JsonSerializerContext;
 
