@@ -4,6 +4,7 @@
     <TargetFrameworks>net6.0;net8.0</TargetFrameworks>
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
     <IsPackable>true</IsPackable>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <IsAotCompatible>true</IsAotCompatible>
   </PropertyGroup>
 
@@ -16,5 +17,13 @@
   <ItemGroup>
     <Folder Include="Transports\" />
   </ItemGroup>
+
+  <Target Name="_IncludeAllDependencies" BeforeTargets="_GetPackageFiles">
+    <ItemGroup>
+      <None Include="$(RepositoryRoot)README.md" Pack="true" PackagePath="\" />
+      <None Include="Package\build\Package.props" Pack="True" PackagePath="build\$(PackageId).props" />
+      <None Include="$(ArtifactsPath)bin\DotNetCampus.ModelContextProtocol.Analyzer\$(Configuration)\**\*.dll" Pack="True" PackagePath="analyzers\dotnet\cs" />
+    </ItemGroup>
+  </Target>
 
 </Project>
