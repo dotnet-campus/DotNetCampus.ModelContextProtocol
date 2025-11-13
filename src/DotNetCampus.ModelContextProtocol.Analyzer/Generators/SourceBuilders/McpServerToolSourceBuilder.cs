@@ -100,7 +100,7 @@ internal static class McpServerToolSourceBuilder
                 Parameter: p,
                 Name: p.Name,
                 Type: p.Type,
-                JsonName: NamingHelper.MakeKebabCase(p.Name, true, true),
+                JsonName: NamingHelper.MakeCamelCase(p.Name),
                 HasDefault: p.HasExplicitDefaultValue
             ))
             .Select(p => $$"""
