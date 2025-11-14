@@ -59,19 +59,23 @@ internal static class McpServerToolSourceBuilder
                 .Condition(itemSchema is not null, i => i
                     .AddStatement("Items = ", null, c => c.AddInputSchemaExpression(itemSchema!)))
                 .EndCondition()
-                .AddPropertyAssignment("Required", info.GetJsonRequiredPropertiesExpressionOrDefault())
-                .Condition(properties.Count > 0, i => i
-                    .AddBracketScope($"Properties = new {G.Dictionary}<string, {G.InputSchemaJsonObject}>", "{", "},", rbs => rbs
-                        .AddStatements(properties, (d, p) => d
-                            .AddStatement($"[ \"{p.JsonPropertyName}\" ] = ", ",", c => c
-                                .AddInputSchemaExpression(p))
-                        )))
-                .EndCondition()
-                .Condition(polymorphicDerivedTypes.Count > 0, i => i
+                // 如果是多态类型，只输出 required 和 anyOf，不输出 properties
+                .Condition(polymorphicDerivedTypes.Count > 0, poly => poly
+                    .AddPropertyAssignment("Required", $"[ \"{info.PolymorphicInfo!.DiscriminatorPropertyName}\" ]")
                     .AddBracketScope("AnyOf = ", "[", "],", rbs => rbs
                         .AddStatements(polymorphicDerivedTypes, (d, derivedType) => d
                             .AddStatement("", ",", c => c.AddPolymorphicDerivedTypeSchema(derivedType, info))
                         )))
+                .Otherwise(nonPoly => nonPoly
+                    // 非多态类型的正常处理
+                    .AddPropertyAssignment("Required", info.GetJsonRequiredPropertiesExpressionOrDefault())
+                    .Condition(properties.Count > 0, i => i
+                        .AddBracketScope($"Properties = new {G.Dictionary}<string, {G.InputSchemaJsonObject}>", "{", "},", rbs => rbs
+                            .AddStatements(properties, (d, p) => d
+                                .AddStatement($"[ \"{p.JsonPropertyName}\" ] = ", ",", c => c
+                                    .AddInputSchemaExpression(p))
+                            )))
+                    .EndCondition())
                 .EndCondition()
             );
     }
