@@ -41,7 +41,7 @@ public class DefaultMcpServerHandlers(McpServer server)
     {
         return new ListToolsResult
         {
-            Tools = server.Tools.Select(x => x.Value.GetToolDefinition(InputSchemaJsonObjectJsonContext.Default)).ToList(),
+            Tools = server.Tools.Select(x => x.Value.GetToolDefinition(InputSchemaJsonContext.Default)).ToList(),
         };
     }
 
@@ -73,8 +73,8 @@ public class DefaultMcpServerHandlers(McpServer server)
             var jsonSerializer = server.Context.JsonSerializer;
             var jsonContext = jsonSerializer switch
             {
-                McpServerToolJsonSerializer mcpSerializer => mcpSerializer.JsonSerializerContext ?? InputSchemaJsonObjectJsonContext.Default,
-                _ => InputSchemaJsonObjectJsonContext.Default,
+                McpServerToolJsonSerializer mcpSerializer => mcpSerializer.JsonSerializerContext ?? InputSchemaJsonContext.Default,
+                _ => InputSchemaJsonContext.Default,
             };
 
             return await tool.CallTool(arguments, jsonContext, cancellationToken);

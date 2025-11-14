@@ -1,12 +1,12 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace DotNetCampus.ModelContextProtocol.Protocol.Messages;
+namespace DotNetCampus.ModelContextProtocol.Protocol.Schema;
 
 /// <summary>
 /// 表示 MCP 工具的 inputSchema（JSON Schema 格式）。
 /// </summary>
-public sealed record InputSchemaJsonObject
+public sealed record ToolInputSchema
 {
     /// <summary>
     /// Schema 类型（可能是字符串或数组，数组用于表示可空类型）。<br/>
@@ -56,7 +56,7 @@ public sealed record InputSchemaJsonObject
     /// </summary>
     [JsonPropertyName("properties")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public IReadOnlyDictionary<string, InputSchemaJsonObject>? Properties { get; init; }
+    public IReadOnlyDictionary<string, ToolInputSchema>? Properties { get; init; }
 
     /// <summary>
     /// 必需属性列表（仅用于 object 类型）。
@@ -70,12 +70,12 @@ public sealed record InputSchemaJsonObject
     /// </summary>
     [JsonPropertyName("items")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public InputSchemaJsonObject? Items { get; init; }
+    public ToolInputSchema? Items { get; init; }
 
     /// <summary>
     /// 多态类型的可能子类型列表。
     /// </summary>
     [JsonPropertyName("anyOf")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public IReadOnlyList<InputSchemaJsonObject>? AnyOf { get; init; }
+    public IReadOnlyList<ToolInputSchema>? AnyOf { get; init; }
 }

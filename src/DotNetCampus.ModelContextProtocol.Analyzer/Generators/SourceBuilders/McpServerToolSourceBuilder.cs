@@ -16,7 +16,7 @@ internal static class McpServerToolSourceBuilder
         McpServerToolGeneratingModel model)
     {
         return builder
-            .AddMethodDeclaration($"public {G.Tool} GetToolDefinition({G.InputSchemaJsonObjectJsonContext} jsonContext)", true,
+            .AddMethodDeclaration($"public {G.Tool} GetToolDefinition({G.InputSchemaJsonContext} jsonContext)", true,
                 m => m
                     .WithRawDocumentationComment("/// <inheritdoc />")
                     .AddBracketScope("new()", "{", "}", bs => bs
@@ -24,7 +24,7 @@ internal static class McpServerToolSourceBuilder
                         .AddStringAssignment("Title", model.Title)
                         .AddStringAssignment("Description", model.Description)
                         .AddRawText(
-                            $"InputSchema = {G.JsonSerializer}.SerializeToElement(GetInputSchema(jsonContext), jsonContext.InputSchemaJsonObject),")
+                            $"InputSchema = {G.JsonSerializer}.SerializeToElement(GetInputSchema(jsonContext), jsonContext.ToolInputSchema),")
                     )
             );
     }
@@ -36,7 +36,7 @@ internal static class McpServerToolSourceBuilder
         McpServerToolGeneratingModel model)
     {
         return builder
-            .AddMethodDeclaration($"private {G.InputSchemaJsonObject} GetInputSchema({G.InputSchemaJsonObjectJsonContext} jsonContext)", true,
+            .AddMethodDeclaration($"private {G.ToolInputSchema} GetInputSchema({G.InputSchemaJsonContext} jsonContext)", true,
                 m => m.AddInputSchemaExpression(JsonPropertySchemaInfo.From(model))
             );
     }
@@ -51,7 +51,7 @@ internal static class McpServerToolSourceBuilder
         var polymorphicDerivedTypes = info.GetPolymorphicDerivedTypes();
 
         return builder
-            .AddBracketScope($"new {G.InputSchemaJsonObject}", "{", "}", true, bs => bs
+            .AddBracketScope($"new {G.ToolInputSchema}", "{", "}", true, bs => bs
                 .AddPropertyAssignment("RawType", info.GetJsonSchemaTypeExpression())
                 .AddPropertyAssignment("Default", info.DefaultValueJsonElement)
                 .AddStringAssignment("Description", info.Description)
@@ -70,7 +70,7 @@ internal static class McpServerToolSourceBuilder
                 .Otherwise(nonPoly => nonPoly
                     .AddPropertyAssignment("Required", info.GetJsonRequiredPropertiesExpressionOrDefault())
                     .Condition(properties.Count > 0, i => i
-                        .AddBracketScope($"Properties = new {G.Dictionary}<string, {G.InputSchemaJsonObject}>", "{", "},", rbs => rbs
+                        .AddBracketScope($"Properties = new {G.Dictionary}<string, {G.ToolInputSchema}>", "{", "},", rbs => rbs
                             .AddStatements(properties, (d, p) => d
                                 .AddStatement($"[ \"{p.JsonPropertyName}\" ] = ", ",", c => c
                                     .AddInputSchemaExpression(p))
@@ -96,11 +96,11 @@ internal static class McpServerToolSourceBuilder
         var properties = derivedType.GetProperties();
 
         return builder
-            .AddBracketScope($"new {G.InputSchemaJsonObject}", "{", "}", true, bs => bs
+            .AddBracketScope($"new {G.ToolInputSchema}", "{", "}", true, bs => bs
                 .AddPropertyAssignment("RawType", "null")
-                .AddBracketScope($"Properties = new {G.Dictionary}<string, {G.InputSchemaJsonObject}>", "{", "},", rbs => rbs
+                .AddBracketScope($"Properties = new {G.Dictionary}<string, {G.ToolInputSchema}>", "{", "},", rbs => rbs
                     .AddStatement($"[ \"{discriminatorPropertyName}\" ] = ", ",", c => c
-                        .AddBracketScope($"new {G.InputSchemaJsonObject}", "{", "}", false, ds => ds
+                        .AddBracketScope($"new {G.ToolInputSchema}", "{", "}", false, ds => ds
                             .AddPropertyAssignment("RawType", "null")
                             .AddStringAssignment("Const", discriminatorValue)
                         ))
