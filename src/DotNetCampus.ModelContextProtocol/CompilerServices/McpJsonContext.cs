@@ -133,6 +133,14 @@ internal partial class McpServerRequestJsonContext : JsonSerializerContext;
 [JsonSerializable(typeof(CallToolResult))]
 [JsonSerializable(typeof(ContentBlock))]
 [JsonSerializable(typeof(TextContentBlock))]
+[JsonSerializable(typeof(ImageContentBlock))]
+[JsonSerializable(typeof(AudioContentBlock))]
+[JsonSerializable(typeof(ResourceLinkContentBlock))]
+[JsonSerializable(typeof(EmbeddedResourceContentBlock))]
+[JsonSerializable(typeof(ResourceContents))]
+[JsonSerializable(typeof(TextResourceContents))]
+[JsonSerializable(typeof(BlobResourceContents))]
+[JsonSerializable(typeof(Annotations))]
 [JsonSourceGenerationOptions(
     PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,
     UseStringEnumConverter = true,

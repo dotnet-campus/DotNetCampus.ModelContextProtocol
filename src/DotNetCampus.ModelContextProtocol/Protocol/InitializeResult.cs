@@ -5,7 +5,7 @@ namespace DotNetCampus.ModelContextProtocol.Protocol;
 /// <summary>
 /// Initialize 响应结果
 /// </summary>
-public class InitializeResult
+public record InitializeResult : Result
 {
     [JsonPropertyName("protocolVersion")]
     public required string ProtocolVersion { get; init; }
