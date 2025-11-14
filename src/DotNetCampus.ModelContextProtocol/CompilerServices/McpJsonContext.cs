@@ -121,6 +121,8 @@ internal partial class McpServerToolJsonContext : JsonSerializerContext;
 [JsonSerializable(typeof(PingRequestParams))]
 [JsonSerializable(typeof(ListToolsRequestParams))]
 [JsonSerializable(typeof(CallToolRequestParams))]
+[JsonSerializable(typeof(SetLevelRequestParams))]
+[JsonSerializable(typeof(LoggingLevel))]
 internal partial class McpServerRequestJsonContext : JsonSerializerContext;
 
 /// <summary>

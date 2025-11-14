@@ -1,3 +1,4 @@
+using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace DotNetCampus.ModelContextProtocol.Protocol.Messages;
@@ -42,7 +43,7 @@ public record ServerCapabilities
     /// </summary>
     [JsonPropertyName("logging")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public object? Logging { get; init; }
+    public JsonElement? Logging { get; init; }
 
     /// <summary>
     /// 如果存在，表示服务器支持参数自动完成建议。<br/>
@@ -50,7 +51,7 @@ public record ServerCapabilities
     /// </summary>
     [JsonPropertyName("completions")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public object? Completions { get; init; }
+    public JsonElement? Completions { get; init; }
 
     /// <summary>
     /// 服务端支持的实验性、非标准能力。<br/>

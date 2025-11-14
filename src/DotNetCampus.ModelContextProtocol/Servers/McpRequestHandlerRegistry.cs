@@ -119,8 +119,25 @@ public class McpRequestHandlerRegistry(McpServer server)
     // public McpRequestHandler<SubscribeRequestParams, EmptyResult>? SubscribeToResourcesHandler { get; set; }
     //
     // public McpRequestHandler<UnsubscribeRequestParams, EmptyResult>? UnsubscribeFromResourcesHandler { get; set; }
-    //
-    // public McpRequestHandler<SetLevelRequestParams, EmptyResult>? SetLoggingLevelHandler { get; set; }
+
+    [NotNull]
+    public McpRequestHandler<SetLevelRequestParams, EmptyResult>? SetLoggingLevelHandler
+    {
+        get => field ?? _default.SetLoggingLevel;
+        set;
+    }
+
+    public async ValueTask<EmptyResult> SetLoggingLevel(RequestContext<SetLevelRequestParams> request, CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await SetLoggingLevelHandler(request, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            throw new ModelContextProtocolException("SetLoggingLevel failed.", ex);
+        }
+    }
 
     public IEnumerable<KeyValuePair<string, Func<JsonRpcNotification, CancellationToken, ValueTask>>>? NotificationHandlers { get; set; }
 }

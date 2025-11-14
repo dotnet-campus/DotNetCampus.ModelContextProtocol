@@ -1,6 +1,7 @@
 ﻿using System.Diagnostics.CodeAnalysis;
 using DotNetCampus.Logging;
 using DotNetCampus.ModelContextProtocol.CompilerServices;
+using DotNetCampus.ModelContextProtocol.Protocol.Messages;
 
 namespace DotNetCampus.ModelContextProtocol.Servers;
 
@@ -32,4 +33,12 @@ public record McpServerContext
     }
 
     public bool IsDebugMode { get; internal set; }
+
+    /// <summary>
+    /// 当前的日志级别。<br/>
+    /// 只有达到或高于此级别的日志消息才应该被发送给客户端。<br/>
+    /// Current logging level.<br/>
+    /// Only log messages at or above this level should be sent to the client.
+    /// </summary>
+    public LoggingLevel? LoggingLevel { get; internal set; }
 }

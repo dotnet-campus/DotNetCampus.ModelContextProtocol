@@ -36,6 +36,9 @@ internal static class McpRequestDispatcher
         ToolsCall => await request.HandleRequestAsync(handlers.CallTool,
             McpServerRequestJsonContext.Default.CallToolRequestParams, McpServerResponseJsonContext.Default.CallToolResult,
             cancellationToken),
+        LoggingSetLevel => await request.HandleRequestAsync(handlers.SetLoggingLevel,
+            McpServerRequestJsonContext.Default.SetLevelRequestParams, McpServerResponseJsonContext.Default.EmptyResult,
+            cancellationToken),
         _ => new JsonRpcResponse
         {
             Id = request.Id,

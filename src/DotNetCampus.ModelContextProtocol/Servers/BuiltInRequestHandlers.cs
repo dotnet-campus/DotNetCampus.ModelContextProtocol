@@ -31,8 +31,8 @@ public class BuiltInRequestHandlers(McpServer server)
                 // 暂不支持 prompts 和 resources
                 Prompts = null,
                 Resources = null,
-                // 暂不支持日志记录
-                Logging = null,
+                // 支持日志记录
+                Logging = EmptyResult.JsonElement,
             },
         };
     }
@@ -80,6 +80,19 @@ public class BuiltInRequestHandlers(McpServer server)
 
     public async ValueTask<EmptyResult> Ping(RequestContext<PingRequestParams> request, CancellationToken cancellationToken)
     {
+        return default;
+    }
+
+    public async ValueTask<EmptyResult> SetLoggingLevel(RequestContext<SetLevelRequestParams> request, CancellationToken cancellationToken)
+    {
+        if (request.Params is null)
+        {
+            throw new ArgumentNullException(nameof(request.Params), "SetLevelRequestParams is required.");
+        }
+
+        // 更新服务器上下文中的日志级别
+        server.Context.LoggingLevel = request.Params.Level;
+
         return default;
     }
 }
