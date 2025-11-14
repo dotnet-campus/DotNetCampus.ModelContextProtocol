@@ -208,4 +208,29 @@ internal static class RoslynExtensions
 
         return null;
     }
+
+    /// <summary>
+    /// 从类型符号获取 summary 描述。
+    /// </summary>
+    public static string? GetSummaryFromSymbol(this ITypeSymbol typeSymbol)
+    {
+        var syntaxRef = typeSymbol.DeclaringSyntaxReferences.FirstOrDefault();
+        if (syntaxRef == null)
+        {
+            return null;
+        }
+
+        var syntax = syntaxRef.GetSyntax();
+        var docComment = syntax switch
+        {
+            ClassDeclarationSyntax classSyntax => classSyntax.GetDocumentationCommentTriviaSyntax(),
+            InterfaceDeclarationSyntax interfaceSyntax => interfaceSyntax.GetDocumentationCommentTriviaSyntax(),
+            StructDeclarationSyntax structSyntax => structSyntax.GetDocumentationCommentTriviaSyntax(),
+            RecordDeclarationSyntax recordSyntax => recordSyntax.GetDocumentationCommentTriviaSyntax(),
+            EnumDeclarationSyntax enumSyntax => enumSyntax.GetDocumentationCommentTriviaSyntax(),
+            _ => null
+        };
+
+        return docComment?.GetSummary();
+    }
 }

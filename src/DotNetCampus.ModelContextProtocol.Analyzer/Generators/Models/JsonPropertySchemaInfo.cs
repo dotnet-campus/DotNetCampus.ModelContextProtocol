@@ -23,9 +23,9 @@ public record JsonPropertySchemaInfo(ITypeSymbol PropertyType)
     public required string JsonSchemaType { get; init; }
 
     /// <summary>
-    /// 属性类型是否是可空值类型（Nullable&lt;T&gt;）。
+    /// 属性类型是否是可空值类型（Nullable&lt;T&gt;）或可空引用类型。
     /// </summary>
-    public bool IsNullableValue { get; init; }
+    public bool IsNullableType { get; init; }
 
     /// <summary>
     /// 描述文本（已转义）。
@@ -47,6 +47,11 @@ public record JsonPropertySchemaInfo(ITypeSymbol PropertyType)
     /// 而其他类型此属性为 <see langword="null"/>，需要通过 <see cref="GetProperties"/> 方法获取。
     /// </summary>
     public IReadOnlyList<JsonPropertySchemaInfo>? Properties { get; init; }
+
+    /// <summary>
+    /// 如果当前类型是多态类型，则此属性包含多态类型信息；否则为 <see langword="null"/>。
+    /// </summary>
+    public PolymorphicTypeInfo? PolymorphicInfo { get; init; }
 
     /// <summary>
     /// 获取属性类型的所有公共属性的 Schema 信息。
@@ -104,7 +109,7 @@ public record JsonPropertySchemaInfo(ITypeSymbol PropertyType)
         return properties.ToArray();
     }
 
-    public string? GetJsonSchemaTypeExpression() => IsNullableValue switch
+    public string? GetJsonSchemaTypeExpression() => IsNullableType switch
     {
         true => $"{G.JsonSerializer}.SerializeToElement(new[] {{ \"{JsonSchemaType}\", \"null\" }}, jsonContext.StringArray)",
         false => $"{G.JsonSerializer}.SerializeToElement(\"{JsonSchemaType}\", jsonContext.String)",
@@ -145,6 +150,30 @@ public record JsonPropertySchemaInfo(ITypeSymbol PropertyType)
     }
 
     /// <summary>
+    /// 检查当前类型是否为多态类型。
+    /// </summary>
+    public bool IsPolymorphic() => PolymorphicInfo is not null;
+
+    /// <summary>
+    /// 获取多态类型的所有派生类型的 Schema 列表。
+    /// </summary>
+    public IReadOnlyList<JsonPropertySchemaInfo> GetPolymorphicDerivedTypesOrDefault()
+    {
+        if (PolymorphicInfo is null)
+        {
+            return [];
+        }
+
+        return PolymorphicInfo.DerivedTypes
+            .Select(d => From(d.Type, JsonPropertyName) with
+            {
+                // 为每个派生类型添加鉴别器属性约束
+                PolymorphicInfo = null, // 派生类型不需要多态信息
+            })
+            .ToList();
+    }
+
+    /// <summary>
     /// 获取所有必需属性的集合表达式语法代码。
     /// </summary>
     public string? GetJsonRequiredPropertiesExpressionOrDefault()
@@ -167,7 +196,7 @@ public record JsonPropertySchemaInfo(ITypeSymbol PropertyType)
         {
             JsonPropertyName = model.Name, // 仅为结构相同，实际不会被使用。
             JsonSchemaType = "object", // 顶层模型一定是对象。
-            IsNullableValue = false, // 顶层模型一定不是可空值类型。
+            IsNullableType = false, // 顶层模型一定不是可空值类型。
             Description = null, // 顶层模型有其他描述位置。
             IsRequired = true, //  顶层模型一定是必需的。
             DefaultValueJsonElement = null, // 顶层模型没有默认值。
@@ -180,14 +209,18 @@ public record JsonPropertySchemaInfo(ITypeSymbol PropertyType)
     /// </summary>
     public static JsonPropertySchemaInfo From(IPropertySymbol property)
     {
+        var isNullable = property.Type.IsNullableValueType ||
+                        (!property.Type.IsValueType && property.Type.NullableAnnotation == NullableAnnotation.Annotated);
+
         return new JsonPropertySchemaInfo(property.Type)
         {
             JsonPropertyName = NamingHelper.MakeCamelCase(property.Name),
             JsonSchemaType = property.Type.ToJsonSchemaTypeString(),
-            IsNullableValue = property.Type.IsNullableValueType,
+            IsNullableType = property.Type.IsNullableType,
             Description = property.GetSummaryFromSymbol(),
-            IsRequired = property.IsRequired || property.Type.IsNullableType,
+            IsRequired = property.IsRequired && !isNullable, // 可空类型不是必需的
             DefaultValueJsonElement = null, // 暂时不知道如何获取属性的默认值。
+            PolymorphicInfo = PolymorphicTypeInfo.FromTypeSymbol(property.Type),
         };
     }
 
@@ -200,10 +233,11 @@ public record JsonPropertySchemaInfo(ITypeSymbol PropertyType)
         {
             JsonPropertyName = NamingHelper.MakeCamelCase(parameter.Name),
             JsonSchemaType = parameter.Type.ToJsonSchemaTypeString(),
-            IsNullableValue = parameter.Type.IsNullableValueType,
+            IsNullableType = parameter.Type.IsNullableType,
             Description = parameter.GetParameterDescription(),
             IsRequired = !parameter.HasExplicitDefaultValue,
             DefaultValueJsonElement = GetJsonSchemaDefaultValueExpression(parameter),
+            PolymorphicInfo = PolymorphicTypeInfo.FromTypeSymbol(parameter.Type),
         };
     }
 
@@ -216,10 +250,11 @@ public record JsonPropertySchemaInfo(ITypeSymbol PropertyType)
         {
             JsonPropertyName = NamingHelper.MakeCamelCase(propertyName),
             JsonSchemaType = typeSymbol.ToJsonSchemaTypeString(),
-            IsNullableValue = typeSymbol.IsNullableValueType,
+            IsNullableType = typeSymbol.IsNullableType,
             Description = null,
             IsRequired = true,
             DefaultValueJsonElement = null,
+            PolymorphicInfo = PolymorphicTypeInfo.FromTypeSymbol(typeSymbol),
         };
     }
 

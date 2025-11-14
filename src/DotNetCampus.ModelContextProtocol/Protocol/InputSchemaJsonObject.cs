@@ -9,10 +9,12 @@ namespace DotNetCampus.ModelContextProtocol.Protocol;
 public sealed record InputSchemaJsonObject
 {
     /// <summary>
-    /// Schema 类型（可能是字符串或数组，数组用于表示可空类型）。
+    /// Schema 类型（可能是字符串或数组，数组用于表示可空类型）。<br/>
+    /// 仅类型鉴别器此字段是 <see langword="null"/>，且需显式赋值。
     /// </summary>
     [JsonPropertyName("type")]
-    public required JsonElement RawType { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public required JsonElement? RawType { get; init; }
 
     /// <summary>
     /// 枚举值列表（仅用于枚举类型）。
@@ -20,6 +22,13 @@ public sealed record InputSchemaJsonObject
     [JsonPropertyName("enum")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public IReadOnlyList<string>? Enum { get; init; }
+
+    /// <summary>
+    /// 常量值（用于约束属性必须等于特定值，如多态鉴别器）。
+    /// </summary>
+    [JsonPropertyName("const")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Const { get; init; }
 
     /// <summary>
     /// 枚举值的显示名称列表（与 Enum 对应，仅用于枚举类型）。
@@ -62,4 +71,11 @@ public sealed record InputSchemaJsonObject
     [JsonPropertyName("items")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public InputSchemaJsonObject? Items { get; init; }
+
+    /// <summary>
+    /// 多态类型的可能子类型列表。
+    /// </summary>
+    [JsonPropertyName("anyOf")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyList<InputSchemaJsonObject>? AnyOf { get; init; }
 }
