@@ -111,36 +111,9 @@ internal static class McpServerToolSourceBuilder
                     )
                 )
                 .Condition(properties.Any(p => p.IsRequired), req => req
-                    .AddPropertyAssignment("Required", GetRequiredPropertiesExcludingNullable(properties)))
+                    .AddPropertyAssignment("Required", derivedType.GetJsonRequiredPropertiesExpressionOrDefault()))
                 .EndCondition()
             );
-    }
-
-    /// <summary>
-    /// 获取必需属性列表（不包含可空属性）。
-    /// </summary>
-    private static string? GetRequiredPropertiesExcludingNullable(
-        IReadOnlyList<JsonPropertySchemaInfo> properties)
-    {
-        var requiredNames = properties
-            .Where(p => p.IsRequired && !IsNullableReferenceType(p))
-            .Select(p => p.JsonPropertyName)
-            .ToList();
-
-        return requiredNames.Count == 0
-            ? null
-            : $"[ {string.Join(", ", requiredNames.Select(x => $"\"{x}\""))} ]";
-    }
-
-    /// <summary>
-    /// 判断是否为可空引用类型。
-    /// </summary>
-    private static bool IsNullableReferenceType(JsonPropertySchemaInfo info)
-    {
-        // 可空值类型已经在 IsNullableValue 中处理
-        // 这里检查引用类型的可空性
-        return !info.PropertyType.IsValueType &&
-               info.PropertyType.NullableAnnotation == NullableAnnotation.Annotated;
     }
 
     /// <summary>
