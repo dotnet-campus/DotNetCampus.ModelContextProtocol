@@ -5,7 +5,7 @@ namespace DotNetCampus.ModelContextProtocol.Messages;
 /// <summary>
 /// JSON-RPC 2.0 消息基类
 /// </summary>
-public abstract class JsonRpcMessage
+public abstract record JsonRpcMessage
 {
     /// <summary>
     /// JSON-RPC 协议版本，必须为 "2.0"
@@ -17,7 +17,7 @@ public abstract class JsonRpcMessage
 /// <summary>
 /// JSON-RPC 请求
 /// </summary>
-public class JsonRpcRequest : JsonRpcMessage
+public record JsonRpcRequest : JsonRpcMessage
 {
     /// <summary>
     /// 请求 ID（字符串或数字）
@@ -42,7 +42,7 @@ public class JsonRpcRequest : JsonRpcMessage
 /// <summary>
 /// JSON-RPC 响应
 /// </summary>
-public class JsonRpcResponse : JsonRpcMessage
+public record JsonRpcResponse : JsonRpcMessage
 {
     /// <summary>
     /// 请求 ID
@@ -68,7 +68,7 @@ public class JsonRpcResponse : JsonRpcMessage
 /// <summary>
 /// JSON-RPC 通知（不需要响应）
 /// </summary>
-public class JsonRpcNotification : JsonRpcMessage
+public record JsonRpcNotification : JsonRpcMessage
 {
     /// <summary>
     /// 方法名
@@ -87,7 +87,7 @@ public class JsonRpcNotification : JsonRpcMessage
 /// <summary>
 /// JSON-RPC 错误
 /// </summary>
-public class JsonRpcError
+public record JsonRpcError
 {
     /// <summary>
     /// 错误代码
@@ -108,3 +108,44 @@ public class JsonRpcError
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public object? Data { get; set; }
 }
+
+/// <summary>
+/// JSON-RPC 2.0 错误码定义
+/// 参考: https://www.jsonrpc.org/specification#error_object
+/// </summary>
+public enum JsonRpcErrorCode
+{
+    /// <summary>
+    /// 解析错误 - 服务端接收到无效的 JSON
+    /// </summary>
+    ParseError = -32700,
+
+    /// <summary>
+    /// 无效请求 - 发送的 JSON 不是一个有效的请求对象
+    /// </summary>
+    InvalidRequest = -32600,
+
+    /// <summary>
+    /// 方法不存在 - 请求的方法不存在或不可用
+    /// </summary>
+    MethodNotFound = -32601,
+
+    /// <summary>
+    /// 无效参数 - 无效的方法参数
+    /// </summary>
+    InvalidParams = -32602,
+
+    /// <summary>
+    /// 内部错误 - JSON-RPC 内部错误
+    /// </summary>
+    InternalError = -32603,
+
+    // -32000 到 -32099 为服务器错误保留
+    // MCP 协议使用 -32001 作为通用错误码
+
+    /// <summary>
+    /// MCP 协议通用错误
+    /// </summary>
+    McpError = -32001,
+}
+

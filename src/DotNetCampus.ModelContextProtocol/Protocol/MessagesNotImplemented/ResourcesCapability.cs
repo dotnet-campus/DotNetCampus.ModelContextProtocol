@@ -2,7 +2,7 @@ using System.Text.Json.Serialization;
 
 namespace DotNetCampus.ModelContextProtocol.Protocol;
 
-public class ResourcesCapability
+public record ResourcesCapability
 {
     [JsonPropertyName("listChanged")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]

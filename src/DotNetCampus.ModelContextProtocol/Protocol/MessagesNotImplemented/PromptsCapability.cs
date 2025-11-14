@@ -2,7 +2,7 @@ using System.Text.Json.Serialization;
 
 namespace DotNetCampus.ModelContextProtocol.Protocol;
 
-public class ToolsCapability
+public record PromptsCapability
 {
     [JsonPropertyName("listChanged")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]

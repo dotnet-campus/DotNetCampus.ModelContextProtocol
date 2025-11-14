@@ -7,16 +7,10 @@ namespace DotNetCampus.ModelContextProtocol.CompilerServices;
 /// <summary>
 /// MCP 服务返回的工具调用结果，包含一个可以被延迟序列化的结果。
 /// </summary>
-/// <param name="result">要包含的结果。</param>
+/// <param name="Result">要包含的结果。</param>
 /// <typeparam name="T">结果的类型。</typeparam>
-public sealed class CallToolResult<T>(T result) : CallToolResult, ICallToolResultJsonSerializer
+public sealed record CallToolResult<T>([property: JsonIgnore] T Result) : CallToolResult, ICallToolResultJsonSerializer
 {
-    /// <summary>
-    /// 获取包含的结果。
-    /// </summary>
-    [JsonIgnore]
-    public T Result { get; } = result;
-
     /// <summary>
     /// 获取一个用了延迟序列化结果的工厂方法。
     /// </summary>

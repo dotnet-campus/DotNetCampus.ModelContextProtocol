@@ -2,7 +2,7 @@
 
 namespace DotNetCampus.ModelContextProtocol.Protocol;
 
-public sealed class Icon
+public sealed record Icon
 {
     [JsonPropertyName("src")]
     public required string Source { get; set; }

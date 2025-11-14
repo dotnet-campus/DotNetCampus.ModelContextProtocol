@@ -2,7 +2,7 @@ using System.Text.Json.Serialization;
 
 namespace DotNetCampus.ModelContextProtocol.Protocol;
 
-public sealed class ToolAnnotations
+public sealed record ToolAnnotations
 {
     [JsonPropertyName("title")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]

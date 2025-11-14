@@ -5,7 +5,7 @@ namespace DotNetCampus.ModelContextProtocol.Protocol;
 /// <summary>
 /// 服务端能力
 /// </summary>
-public class ServerCapabilities
+public record ServerCapabilities
 {
     [JsonPropertyName("resources")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]

@@ -5,7 +5,7 @@ namespace DotNetCampus.ModelContextProtocol.Protocol;
 /// <summary>
 /// 服务端信息
 /// </summary>
-public class ServerInfo
+public record ServerInfo
 {
     [JsonPropertyName("name")]
     public required string Name { get; init; }

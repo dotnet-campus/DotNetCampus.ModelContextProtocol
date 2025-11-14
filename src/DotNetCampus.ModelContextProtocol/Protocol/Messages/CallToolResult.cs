@@ -8,7 +8,7 @@ namespace DotNetCampus.ModelContextProtocol.Protocol;
 /// <summary>
 /// MCP 服务返回的工具调用结果。
 /// </summary>
-public class CallToolResult
+public record CallToolResult
 {
     /// <summary>
     /// 获取或设置 MCP 工具响应工具调用所返回的内容。
@@ -93,7 +93,7 @@ public class CallToolResult
 [JsonDerivedType(typeof(AudioContentBlock), typeDiscriminator: "audio")]
 [JsonDerivedType(typeof(ResourceLinkContentBlock), typeDiscriminator: "resource_link")]
 [JsonDerivedType(typeof(EmbeddedResourceContentBlock), typeDiscriminator: "resource")]
-public abstract class ContentBlock
+public abstract record ContentBlock
 {
     /// <summary>
     /// 可选的客户端注解。
@@ -113,7 +113,7 @@ public abstract class ContentBlock
 /// <summary>
 /// 工具调用结果为文本时的内容块。
 /// </summary>
-public sealed class TextContentBlock : ContentBlock
+public sealed record TextContentBlock : ContentBlock
 {
     /// <summary>
     /// 获取或设置文本内容。
@@ -125,7 +125,7 @@ public sealed class TextContentBlock : ContentBlock
 /// <summary>
 /// 图像内容块。
 /// </summary>
-public sealed class ImageContentBlock : ContentBlock
+public sealed record ImageContentBlock : ContentBlock
 {
     /// <summary>
     /// Base64 编码的图像数据。
@@ -143,7 +143,7 @@ public sealed class ImageContentBlock : ContentBlock
 /// <summary>
 /// 音频内容块。
 /// </summary>
-public sealed class AudioContentBlock : ContentBlock
+public sealed record AudioContentBlock : ContentBlock
 {
     /// <summary>
     /// Base64 编码的音频数据。
@@ -161,7 +161,7 @@ public sealed class AudioContentBlock : ContentBlock
 /// <summary>
 /// 资源链接内容块。
 /// </summary>
-public sealed class ResourceLinkContentBlock : ContentBlock
+public sealed record ResourceLinkContentBlock : ContentBlock
 {
     /// <summary>
     /// 资源的 URI。
@@ -207,7 +207,7 @@ public sealed class ResourceLinkContentBlock : ContentBlock
 /// <summary>
 /// 嵌入资源内容块。
 /// </summary>
-public sealed class EmbeddedResourceContentBlock : ContentBlock
+public sealed record EmbeddedResourceContentBlock : ContentBlock
 {
     /// <summary>
     /// 嵌入的资源数据（文本或二进制）。
@@ -222,7 +222,7 @@ public sealed class EmbeddedResourceContentBlock : ContentBlock
 [JsonPolymorphic]
 [JsonDerivedType(typeof(TextResourceContents), typeDiscriminator: "text")]
 [JsonDerivedType(typeof(BlobResourceContents), typeDiscriminator: "blob")]
-public abstract class ResourceContents
+public abstract record ResourceContents
 {
     /// <summary>
     /// 资源的 URI。
@@ -248,7 +248,7 @@ public abstract class ResourceContents
 /// <summary>
 /// 文本资源内容。
 /// </summary>
-public sealed class TextResourceContents : ResourceContents
+public sealed record TextResourceContents : ResourceContents
 {
     /// <summary>
     /// 文本内容。
@@ -260,7 +260,7 @@ public sealed class TextResourceContents : ResourceContents
 /// <summary>
 /// 二进制资源内容（Base64 编码）。
 /// </summary>
-public sealed class BlobResourceContents : ResourceContents
+public sealed record BlobResourceContents : ResourceContents
 {
     /// <summary>
     /// Base64 编码的二进制数据。
