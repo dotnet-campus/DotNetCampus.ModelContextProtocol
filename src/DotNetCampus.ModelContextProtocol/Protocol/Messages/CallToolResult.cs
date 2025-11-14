@@ -6,25 +6,41 @@ using DotNetCampus.ModelContextProtocol.CompilerServices;
 namespace DotNetCampus.ModelContextProtocol.Protocol.Messages;
 
 /// <summary>
-/// MCP 服务返回的工具调用结果。
+/// 工具调用结果<br/>
+/// The server's response to a tool call.
 /// </summary>
 public record CallToolResult
 {
     /// <summary>
-    /// 获取或设置 MCP 工具响应工具调用所返回的内容。
+    /// 表示工具调用非结构化结果的内容对象列表。<br/>
+    /// A list of content objects that represent the unstructured result of the tool call.
     /// </summary>
     [JsonPropertyName("content")]
     public IReadOnlyList<ContentBlock> Content { get; init; } = [];
 
     /// <summary>
-    /// 获取或设置一个可选的 JSON 对象，表示工具调用的结构化结果。
+    /// 可选的 JSON 对象，表示工具调用的结构化结果。<br/>
+    /// An optional JSON object that represents the structured result of the tool call.
     /// </summary>
     [JsonPropertyName("structuredContent")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public JsonNode? StructuredContent { get; init; }
 
     /// <summary>
-    /// 获取或设置一个值，该值指示工具调用是否失败。
+    /// 工具调用是否以错误结束。<br/>
+    /// 如果未设置，则假定为 false（调用成功）。<br/>
+    /// 源自工具的任何错误都应该在结果对象内报告，并将 isError 设置为 true，
+    /// 而不是作为 MCP 协议级别的错误响应。<br/>
+    /// 否则，LLM 将无法看到发生了错误并进行自我纠正。<br/>
+    /// 但是，在查找工具时出现的任何错误、表示服务器不支持工具调用的错误或任何其他异常情况，
+    /// 都应作为 MCP 错误响应报告。<br/>
+    /// Whether the tool call ended in an error.<br/>
+    /// If not set, this is assumed to be false (the call was successful).<br/>
+    /// Any errors that originate from the tool SHOULD be reported inside the result object,
+    /// with isError set to true, _not_ as an MCP protocol-level error response.
+    /// Otherwise, the LLM would not be able to see that an error occurred and self-correct.<br/>
+    /// However, any errors in _finding_ the tool, an error indicating that the server does not
+    /// support tool calls, or any other exceptional conditions, should be reported as an MCP error response.
     /// </summary>
     [JsonPropertyName("isError")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]

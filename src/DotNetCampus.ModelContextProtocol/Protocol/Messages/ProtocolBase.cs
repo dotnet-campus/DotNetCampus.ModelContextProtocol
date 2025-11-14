@@ -4,7 +4,8 @@ using System.Text.Json.Serialization;
 namespace DotNetCampus.ModelContextProtocol.Protocol.Messages;
 
 /// <summary>
-/// MCP 请求参数基类
+/// MCP 请求参数基类<br/>
+/// Base class for MCP request parameters
 /// </summary>
 public abstract record RequestParams
 {
@@ -13,7 +14,9 @@ public abstract record RequestParams
     }
 
     /// <summary>
-    /// 元数据字段
+    /// 元数据字段<br/>
+    /// See <a href="https://modelcontextprotocol.io/specification/2025-06-18/basic/index#meta">
+    /// General fields: _meta</a> for notes on _meta usage.
     /// </summary>
     [JsonPropertyName("_meta")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
@@ -21,7 +24,8 @@ public abstract record RequestParams
 }
 
 /// <summary>
-/// MCP 响应结果基类
+/// MCP 响应结果基类<br/>
+/// Base class for MCP response results
 /// </summary>
 public abstract record Result
 {
@@ -30,7 +34,9 @@ public abstract record Result
     }
 
     /// <summary>
-    /// 元数据字段
+    /// 元数据字段<br/>
+    /// See <a href="https://modelcontextprotocol.io/specification/2025-06-18/basic/index#meta">
+    /// General fields: _meta</a> for notes on _meta usage.
     /// </summary>
     [JsonPropertyName("_meta")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
@@ -38,7 +44,8 @@ public abstract record Result
 }
 
 /// <summary>
-/// MCP 分页请求参数基类
+/// MCP 分页请求参数基类<br/>
+/// Base class for paginated MCP request parameters
 /// </summary>
 public abstract record PaginatedRequestParams : RequestParams
 {
@@ -47,7 +54,9 @@ public abstract record PaginatedRequestParams : RequestParams
     }
 
     /// <summary>
-    /// 用于分页的游标
+    /// 用于分页的游标<br/>
+    /// An opaque token representing the current pagination position.
+    /// If provided, the server should return results starting after this cursor.
     /// </summary>
     [JsonPropertyName("cursor")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
@@ -55,7 +64,8 @@ public abstract record PaginatedRequestParams : RequestParams
 }
 
 /// <summary>
-/// 支持分页的响应结果基类
+/// 支持分页的响应结果基类<br/>
+/// Base class for paginated response results
 /// </summary>
 public abstract record PaginatedResult : Result
 {
@@ -64,7 +74,9 @@ public abstract record PaginatedResult : Result
     }
 
     /// <summary>
-    /// 下一页的游标
+    /// 下一页的游标<br/>
+    /// An opaque token representing the pagination position after the last returned result.
+    /// If present, there may be more results available.
     /// </summary>
     [JsonPropertyName("nextCursor")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
