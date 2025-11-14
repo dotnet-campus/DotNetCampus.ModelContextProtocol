@@ -14,7 +14,7 @@ public sealed record ToolInputSchema
     /// </summary>
     [JsonPropertyName("type")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public required JsonElement? RawType { get; init; }
+    public required JsonElement? Type { get; init; }
 
     /// <summary>
     /// 枚举值列表（仅用于枚举类型）。

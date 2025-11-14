@@ -11,18 +11,18 @@ public record JsonRpcError
     /// 错误代码
     /// </summary>
     [JsonPropertyName("code")]
-    public int Code { get; set; }
+    public required int Code { get; init; }
 
     /// <summary>
     /// 错误消息
     /// </summary>
     [JsonPropertyName("message")]
-    public string Message { get; set; } = "";
+    public required string Message { get; init; }
 
     /// <summary>
     /// 额外的错误数据（可选）
     /// </summary>
     [JsonPropertyName("data")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public object? Data { get; set; }
+    public object? Data { get; init; }
 }

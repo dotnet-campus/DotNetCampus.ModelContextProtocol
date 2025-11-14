@@ -5,11 +5,11 @@ namespace DotNetCampus.ModelContextProtocol.Protocol.Messages;
 public sealed record InitializeRequestParams : RequestParams
 {
     [JsonPropertyName("protocolVersion")]
-    public required string ProtocolVersion { get; set; }
+    public required string ProtocolVersion { get; init; }
 
     [JsonPropertyName("capabilities")]
-    public required ClientCapabilities Capabilities { get; set; }
+    public required ClientCapabilities Capabilities { get; init; }
 
     [JsonPropertyName("clientInfo")]
-    public required Implementation ClientInfo { get; set; }
+    public required Implementation ClientInfo { get; init; }
 }

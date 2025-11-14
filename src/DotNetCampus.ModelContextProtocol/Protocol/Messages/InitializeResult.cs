@@ -18,5 +18,5 @@ public record InitializeResult : Result
 
     [JsonPropertyName("instructions")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public required string? Instructions { get; init; }
+    public string? Instructions { get; init; }
 }

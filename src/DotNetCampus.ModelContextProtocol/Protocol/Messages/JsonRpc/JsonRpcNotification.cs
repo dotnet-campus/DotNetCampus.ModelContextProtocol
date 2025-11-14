@@ -11,12 +11,12 @@ public record JsonRpcNotification : JsonRpcMessage
     /// 方法名
     /// </summary>
     [JsonPropertyName("method")]
-    public string Method { get; set; } = "";
+    public required string Method { get; init; }
 
     /// <summary>
     /// 参数（可选）
     /// </summary>
     [JsonPropertyName("params")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public object? Params { get; set; }
+    public object? Params { get; init; }
 }

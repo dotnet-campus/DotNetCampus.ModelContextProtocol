@@ -11,5 +11,5 @@ public abstract record JsonRpcMessage
     /// JSON-RPC 协议版本，必须为 "2.0"
     /// </summary>
     [JsonPropertyName("jsonrpc")]
-    public string JsonRpc { get; set; } = "2.0";
+    public string JsonRpc { get; init; } = "2.0";
 }

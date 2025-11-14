@@ -34,11 +34,11 @@ public abstract record Result
     /// </summary>
     [JsonPropertyName("_meta")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public JsonObject? Meta { get; set; }
+    public JsonObject? Meta { get; init; }
 }
 
 /// <summary>
-/// 支持分页的请求参数基类
+/// MCP 分页请求参数基类
 /// </summary>
 public abstract record PaginatedRequestParams : RequestParams
 {
@@ -47,11 +47,11 @@ public abstract record PaginatedRequestParams : RequestParams
     }
 
     /// <summary>
-    /// 分页游标
+    /// 用于分页的游标
     /// </summary>
     [JsonPropertyName("cursor")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public string? Cursor { get; set; }
+    public string? Cursor { get; init; }
 }
 
 /// <summary>
@@ -64,9 +64,9 @@ public abstract record PaginatedResult : Result
     }
 
     /// <summary>
-    /// 下一页游标
+    /// 下一页的游标
     /// </summary>
     [JsonPropertyName("nextCursor")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public string? NextCursor { get; set; }
+    public string? NextCursor { get; init; }
 }

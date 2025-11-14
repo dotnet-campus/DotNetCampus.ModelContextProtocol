@@ -11,19 +11,19 @@ public record JsonRpcResponse : JsonRpcMessage
     /// 请求 ID
     /// </summary>
     [JsonPropertyName("id")]
-    public object? Id { get; set; }
+    public object? Id { get; init; }
 
     /// <summary>
     /// 成功响应结果
     /// </summary>
     [JsonPropertyName("result")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public object? Result { get; set; }
+    public object? Result { get; init; }
 
     /// <summary>
     /// 错误信息（与 result 互斥）
     /// </summary>
     [JsonPropertyName("error")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public JsonRpcError? Error { get; set; }
+    public JsonRpcError? Error { get; init; }
 }

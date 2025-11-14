@@ -6,21 +6,21 @@ public sealed record ToolAnnotations
 {
     [JsonPropertyName("title")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public string? Title { get; set; }
+    public string? Title { get; init; }
 
     [JsonPropertyName("destructiveHint")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public bool? DestructiveHint { get; set; }
+    public bool? DestructiveHint { get; init; }
 
     [JsonPropertyName("idempotentHint")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public bool? IdempotentHint { get; set; }
+    public bool? IdempotentHint { get; init; }
 
     [JsonPropertyName("openWorldHint")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public bool? OpenWorldHint { get; set; }
+    public bool? OpenWorldHint { get; init; }
 
     [JsonPropertyName("readOnlyHint")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public bool? ReadOnlyHint { get; set; }
+    public bool? ReadOnlyHint { get; init; }
 }

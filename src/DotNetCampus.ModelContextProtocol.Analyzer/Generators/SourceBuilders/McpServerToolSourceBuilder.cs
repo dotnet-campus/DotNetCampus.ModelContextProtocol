@@ -52,7 +52,7 @@ internal static class McpServerToolSourceBuilder
 
         return builder
             .AddBracketScope($"new {G.ToolInputSchema}", "{", "}", true, bs => bs
-                .AddPropertyAssignment("RawType", info.GetJsonSchemaTypeExpression())
+                .AddPropertyAssignment("Type", info.GetJsonSchemaTypeExpression())
                 .AddPropertyAssignment("Default", info.DefaultValueJsonElement)
                 .AddStringAssignment("Description", info.Description)
                 .AddPropertyAssignment("Enum", info.GetJsonEnumNameExpressionOrDefault())
@@ -97,11 +97,11 @@ internal static class McpServerToolSourceBuilder
 
         return builder
             .AddBracketScope($"new {G.ToolInputSchema}", "{", "}", true, bs => bs
-                .AddPropertyAssignment("RawType", "null")
+                .AddPropertyAssignment("Type", "null")
                 .AddBracketScope($"Properties = new {G.Dictionary}<string, {G.ToolInputSchema}>", "{", "},", rbs => rbs
                     .AddStatement($"[ \"{discriminatorPropertyName}\" ] = ", ",", c => c
                         .AddBracketScope($"new {G.ToolInputSchema}", "{", "}", false, ds => ds
-                            .AddPropertyAssignment("RawType", "null")
+                            .AddPropertyAssignment("Type", "null")
                             .AddStringAssignment("Const", discriminatorValue)
                         ))
                     // 添加派生类型的所有属性
