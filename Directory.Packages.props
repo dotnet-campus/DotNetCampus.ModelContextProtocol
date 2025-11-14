@@ -1,6 +1,6 @@
 <Project>
   <ItemGroup>
-    <PackageVersion Include="DotNetCampus.CodeAnalysisUtils" Version="0.0.1-alpha.3" />
+    <PackageVersion Include="DotNetCampus.CodeAnalysisUtils" Version="0.0.1-alpha.6" />
     <PackageVersion Include="DotNetCampus.LatestCSharpFeatures" Version="13.0.1" />
     <PackageVersion Include="DotNetCampus.Logger" Version="1.3.0-alpha03" />
     <PackageVersion Include="Microsoft.CodeAnalysis.Analyzers" Version="3.3.4" />
