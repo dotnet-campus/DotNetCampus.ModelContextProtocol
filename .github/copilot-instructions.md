@@ -37,10 +37,15 @@ src/DotNetCampus.ModelContextProtocol/
 
 ### 2. 协议实现
 
-- **严格遵循 MCP 规范**：详见 [/docs/http-transport-guide.md](../docs/http-transport-guide.md)
+- **严格遵循 MCP 规范**：详见 [/docs/knowledge/http-transport-guide.md](../docs/knowledge/http-transport-guide.md)
 - **支持多版本协议**：
   - 代码主要以最新版本协议进行编写
   - 遇到需要兼容旧协议的部分，用 `Legacy` 命名相关代码并尽量减少代码量
+- **协议消息类型规范**：详见 [/docs/knowledge/protocol-messages-guide.md](../docs/knowledge/protocol-messages-guide.md)
+  - 所有 Protocol 消息类型必须添加中英双语注释
+  - 英文注释必须使用 MCP 官方 Schema 原文
+  - 当前使用协议版本：**2025-06-18**
+  - Schema 文件：[schema.ts](https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/schema/2025-06-18/schema.ts)
 
 ### 3. 源代码生成
 
@@ -65,11 +70,28 @@ src/DotNetCampus.ModelContextProtocol/
 详细的实现指南、完整代码示例和故障排查手册请参阅：
 
 - 📘 [HTTP 传输层开发指南](../docs/knowledge/http-transport-guide.md) - 完整协议实现细节
+- 📋 [Protocol 消息类型注释规范](../docs/knowledge/protocol-messages-guide.md) - 消息类型双语注释标准和协议更新流程
 - 🔧 [SourceTextBuilder API 使用指南](../docs/knowledge/sourcetextbuilder-guide.md) - 源代码生成器 API 详解
 
 ## 参考资源
 
-- [MCP 官方规范 (2025-06-18)](https://modelcontextprotocol.io/specification/2025-06-18/basic/transports)
-- [MCP 官方规范 (2024-11-05)](https://modelcontextprotocol.io/specification/2024-11-05/basic/transports)
+- [MCP 官方规范 (2025-06-18)](https://modelcontextprotocol.io/specification/2025-06-18/basic/transports) - **当前使用版本**
+- [MCP Schema (2025-06-18)](https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/schema/2025-06-18/schema.ts) - **官方消息类型定义**
+- [MCP 官方规范 (2024-11-05)](https://modelcontextprotocol.io/specification/2024-11-05/basic/transports) - 旧版本（兼容支持）
 - [JSON-RPC 2.0 规范](https://www.jsonrpc.org/specification)
 - [SSE 标准](https://html.spec.whatwg.org/multipage/server-sent-events.html)
+
+## AI 助手特别提醒
+
+### 更新 Protocol 消息时
+
+1. **必须阅读** [Protocol 消息类型注释规范](../docs/knowledge/protocol-messages-guide.md)
+2. **检查协议版本**：确认是否有新的 MCP 协议版本发布
+3. **注释格式**：
+   - 中文在前，使用中文标点（，（）。），末尾 `<br/>`
+   - 英文在后，**必须使用官方 Schema 原文**
+4. **命名约定**：
+   - 请求参数：`{功能}RequestParams`
+   - 响应结果：`{功能}Result`
+   - 继承正确的基类（`RequestParams`/`Result`/`PaginatedRequestParams`/`PaginatedResult`）
+5. **验证**：确保代码无编译错误，注释格式符合规范
