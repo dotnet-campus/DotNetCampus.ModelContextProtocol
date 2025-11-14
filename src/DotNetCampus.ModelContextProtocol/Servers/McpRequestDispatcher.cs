@@ -2,7 +2,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
 using DotNetCampus.ModelContextProtocol.Core;
-using DotNetCampus.ModelContextProtocol.Protocol.Messages;
+using DotNetCampus.ModelContextProtocol.Exceptions;
 using DotNetCampus.ModelContextProtocol.Protocol.Messages.JsonRpc;
 using McpServerRequestJsonContext = DotNetCampus.ModelContextProtocol.CompilerServices.McpServerRequestJsonContext;
 using McpServerResponseJsonContext = DotNetCampus.ModelContextProtocol.CompilerServices.McpServerResponseJsonContext;
@@ -24,16 +24,16 @@ internal static class McpRequestDispatcher
                 Message = "Json-RPC format error or missing method.",
             },
         },
-        Initialize => await request.HandleRequestAsync(handlers.InitializeHandler,
+        Initialize => await request.HandleRequestAsync(handlers.Initialize,
             McpServerRequestJsonContext.Default.InitializeRequestParams, McpServerResponseJsonContext.Default.InitializeResult,
             cancellationToken),
-        Ping => await request.HandleRequestAsync(handlers.PingHandler,
+        Ping => await request.HandleRequestAsync(handlers.Ping,
             McpServerRequestJsonContext.Default.PingRequestParams, McpServerResponseJsonContext.Default.EmptyResult,
             cancellationToken),
-        ToolsList => await request.HandleRequestAsync(handlers.ListToolsHandler,
+        ToolsList => await request.HandleRequestAsync(handlers.ListTools,
             McpServerRequestJsonContext.Default.ListToolsRequestParams, McpServerResponseJsonContext.Default.ListToolsResult,
             cancellationToken),
-        ToolsCall => await request.HandleRequestAsync(handlers.CallToolHandler,
+        ToolsCall => await request.HandleRequestAsync(handlers.CallTool,
             McpServerRequestJsonContext.Default.CallToolRequestParams, McpServerResponseJsonContext.Default.CallToolResult,
             cancellationToken),
         _ => new JsonRpcResponse
@@ -47,24 +47,6 @@ internal static class McpRequestDispatcher
         },
     };
 
-    public static async ValueTask<JsonRpcResponse> WriteErrorResponseAsync(this Stream stream,
-        int errorCode, string message, CancellationToken cancellationToken = default)
-    {
-        var errorResponse = new JsonRpcResponse
-        {
-            Error = new JsonRpcError
-            {
-                Code = errorCode,
-                Message = message,
-            },
-        };
-
-        await JsonSerializer.SerializeAsync(stream, errorResponse,
-            McpServerResponseJsonContext.Default.JsonRpcResponse, cancellationToken);
-
-        return errorResponse;
-    }
-
     private static async Task<JsonRpcResponse> HandleRequestAsync<TParams, TResult>(
         this JsonRpcRequest request,
         McpRequestHandler<TParams, TResult> handler,
@@ -76,33 +58,40 @@ internal static class McpRequestDispatcher
             return errorResponse;
         }
 
-        var initializeRequestParams = paramsElement.Deserialize(paramsTypeInfo);
-        var requestContext = new RequestContext<TParams>(initializeRequestParams);
-        var result = await handler(requestContext, cancellationToken);
+        var requestParams = paramsElement.Deserialize(paramsTypeInfo);
+        var requestContext = new RequestContext<TParams>(requestParams);
 
-        return result switch
+        try
         {
-            null or EmptyResult => new JsonRpcResponse
+            var result = await handler(requestContext, cancellationToken);
+            return result switch
             {
-                Id = request.Id,
-                // JSON-RPC 2.0 规范要求成功响应必须包含 result 字段，即使为空对象
-                Result = EmptyResult.JsonElement,
-            },
-            CallToolResult { IsError: true } errorResult => new JsonRpcResponse
+                null or EmptyResult => new JsonRpcResponse
+                {
+                    Id = request.Id,
+                    // JSON-RPC 2.0 规范要求成功响应必须包含 result 字段，即使为空对象
+                    Result = EmptyResult.JsonElement,
+                },
+                _ => new JsonRpcResponse
+                {
+                    Id = request.Id,
+                    Result = JsonSerializer.SerializeToElement(result, resultTypeInfo),
+                },
+            };
+        }
+        catch (ModelContextProtocolException ex)
+        {
+            return new JsonRpcResponse
             {
                 Id = request.Id,
                 Error = new JsonRpcError
                 {
-                    Code = (int)JsonRpcErrorCode.McpError,
-                    Message = errorResult.ToString(),
+                    Code = (int)JsonRpcErrorCode.InternalError,
+                    Message = ex.Message,
+                    Data = McpExceptionData.From(ex).ToJsonElement(),
                 },
-            },
-            _ => new JsonRpcResponse
-            {
-                Id = request.Id,
-                Result = JsonSerializer.SerializeToElement(result, resultTypeInfo),
-            },
-        };
+            };
+        }
     }
 
     private static bool EnsureParams(this JsonRpcRequest request,
@@ -121,7 +110,7 @@ internal static class McpRequestDispatcher
             Error = new JsonRpcError
             {
                 Code = (int)JsonRpcErrorCode.InvalidParams,
-                Message = $"{request.Method} 方法缺少必要的参数。",
+                Message = "The params field is missing or not a valid JSON object.",
             },
         };
         paramsElement = default;

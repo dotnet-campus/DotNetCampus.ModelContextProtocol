@@ -86,6 +86,20 @@ public record CallToolResult
     }
 
     /// <summary>
+    /// 创建一个表示错误的 <see cref="CallToolResult"/> 实例。
+    /// </summary>
+    /// <param name="errorMessage">错误消息。</param>
+    /// <returns>表示错误的 <see cref="CallToolResult"/> 实例。</returns>
+    public static CallToolResult FromError(string errorMessage)
+    {
+        return new CallToolResult
+        {
+            IsError = true,
+            Content = [new TextContentBlock { Text = errorMessage }],
+        };
+    }
+
+    /// <summary>
     /// 创建一个表示成功的，包含指定结果的 <see cref="CallToolResult{TResult}"/> 实例。
     /// </summary>
     /// <param name="result">要包含的结果。</param>

@@ -1,13 +1,10 @@
 using System.Diagnostics.CodeAnalysis;
 using DotNetCampus.ModelContextProtocol.Core;
+using DotNetCampus.ModelContextProtocol.Exceptions;
 using DotNetCampus.ModelContextProtocol.Protocol.Messages;
 using DotNetCampus.ModelContextProtocol.Protocol.Messages.JsonRpc;
 
 namespace DotNetCampus.ModelContextProtocol.Servers;
-
-public delegate ValueTask<TResult> McpRequestHandler<TParams, TResult>(
-    RequestContext<TParams> request,
-    CancellationToken cancellationToken);
 
 public class McpRequestHandlerRegistry(McpServer server)
 {
@@ -20,11 +17,35 @@ public class McpRequestHandlerRegistry(McpServer server)
         set;
     }
 
+    public async ValueTask<InitializeResult> Initialize(RequestContext<InitializeRequestParams> request, CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await InitializeHandler(request, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            throw new ModelContextProtocolException($"Initialization failed: {ex.Message}", ex);
+        }
+    }
+
     [NotNull]
     public McpRequestHandler<PingRequestParams, EmptyResult>? PingHandler
     {
         get => field ?? _default.Ping;
         set;
+    }
+
+    public async ValueTask<EmptyResult> Ping(RequestContext<PingRequestParams> request, CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await PingHandler(request, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            throw new ModelContextProtocolException($"Ping failed: {ex.Message}", ex);
+        }
     }
 
     [NotNull]
@@ -34,11 +55,51 @@ public class McpRequestHandlerRegistry(McpServer server)
         set;
     }
 
+    public async ValueTask<ListToolsResult> ListTools(RequestContext<ListToolsRequestParams> request, CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await ListToolsHandler(request, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            throw new ModelContextProtocolException("ListTools failed.", ex);
+        }
+    }
+
     [NotNull]
     public McpRequestHandler<CallToolRequestParams, CallToolResult>? CallToolHandler
     {
         get => field ?? _default.CallTool;
         set;
+    }
+
+    public async ValueTask<CallToolResult> CallTool(RequestContext<CallToolRequestParams> request, CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await CallToolHandler(request, cancellationToken);
+        }
+        catch (MissingRequiredArgumentException ex)
+        {
+            // 调用工具时缺少必要的参数。
+            return CallToolResult.FromError(ex.Message);
+        }
+        catch (McpToolUsageException ex)
+        {
+            // 业务端认为工具使用不正确，而且已经在 Message 中提供了 AI 可读的错误信息。
+            return CallToolResult.FromError(ex.Message);
+        }
+        catch (JsonTypeInfoNotGeneratedInJsonSerializerContextException ex)
+        {
+            // 给开发者查看的错误，提示开发者生成缺失的 JsonTypeInfo。
+            return CallToolResult.FromError(ex.Message);
+        }
+        catch (Exception ex)
+        {
+            // 其他未知错误。
+            return CallToolResult.FromError($"Unexpected error: {ex.Message}");
+        }
     }
 
     // public McpRequestHandler<ListPromptsRequestParams, ListPromptsResult>? ListPromptsHandler { get; set; }
@@ -61,3 +122,7 @@ public class McpRequestHandlerRegistry(McpServer server)
 
     public IEnumerable<KeyValuePair<string, Func<JsonRpcNotification, CancellationToken, ValueTask>>>? NotificationHandlers { get; set; }
 }
+
+public delegate ValueTask<TResult> McpRequestHandler<TParams, TResult>(
+    RequestContext<TParams> request,
+    CancellationToken cancellationToken);

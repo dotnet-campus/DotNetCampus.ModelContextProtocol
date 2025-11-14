@@ -25,7 +25,7 @@ public class BuiltInRequestHandlers(McpServer server)
                 Tools = hasTools
                     ? new ToolsCapability
                     {
-                        ListChanged = true,
+                        ListChanged = false,
                     }
                     : null,
                 // 暂不支持 prompts 和 resources
@@ -67,26 +67,15 @@ public class BuiltInRequestHandlers(McpServer server)
             };
         }
 
-        try
+        var arguments = request.Params?.Arguments ?? default;
+        var jsonSerializer = server.Context.JsonSerializer;
+        var jsonContext = jsonSerializer switch
         {
-            var arguments = request.Params?.Arguments ?? default;
-            var jsonSerializer = server.Context.JsonSerializer;
-            var jsonContext = jsonSerializer switch
-            {
-                McpServerToolJsonSerializer mcpSerializer => mcpSerializer.JsonSerializerContext ?? InputSchemaJsonContext.Default,
-                _ => InputSchemaJsonContext.Default,
-            };
+            McpServerToolJsonSerializer mcpSerializer => mcpSerializer.JsonSerializerContext ?? InputSchemaJsonContext.Default,
+            _ => InputSchemaJsonContext.Default,
+        };
 
-            return await tool.CallTool(arguments, jsonContext, cancellationToken);
-        }
-        catch (Exception ex)
-        {
-            return new CallToolResult
-            {
-                IsError = true,
-                Content = [new TextContentBlock { Text = $"Error calling tool '{toolName}': {ex.Message}" }],
-            };
-        }
+        return await tool.CallTool(arguments, jsonContext, cancellationToken);
     }
 
     public async ValueTask<EmptyResult> Ping(RequestContext<PingRequestParams> request, CancellationToken cancellationToken)
