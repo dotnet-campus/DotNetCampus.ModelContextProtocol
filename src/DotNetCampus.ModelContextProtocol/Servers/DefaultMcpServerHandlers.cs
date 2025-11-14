@@ -16,7 +16,7 @@ public class DefaultMcpServerHandlers(McpServer server)
             ServerInfo = new ServerInfo
             {
                 Name = server.ServerName,
-                Version = server.ServerVersion ?? "0.0.0",
+                Version = server.ServerVersion,
             },
             Instructions = server.Instructions,
             Capabilities = new ServerCapabilities

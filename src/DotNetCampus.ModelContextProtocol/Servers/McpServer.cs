@@ -18,7 +18,7 @@ public class McpServer
     /// <summary>
     /// 获取或初始化服务器版本。
     /// </summary>
-    public string? ServerVersion { get; init; }
+    public required string ServerVersion { get; init; }
 
     /// <summary>
     /// 获取或初始化服务器使用说明(可选)。

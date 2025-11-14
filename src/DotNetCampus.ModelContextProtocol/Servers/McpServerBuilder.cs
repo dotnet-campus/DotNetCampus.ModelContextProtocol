@@ -2,14 +2,13 @@ using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
 using System.Text.Json.Serialization;
 using DotNetCampus.ModelContextProtocol.CompilerServices;
-using DotNetCampus.ModelContextProtocol.Properties;
 
 namespace DotNetCampus.ModelContextProtocol.Servers;
 
 /// <summary>
 /// 用于构建 MCP 服务器的生成器。
 /// </summary>
-public class McpServerBuilder(string serverName)
+public class McpServerBuilder(string serverName, string serverVersion)
 {
     private McpServerContext? _context;
     private HttpServerTransportOptions? _httpOptions;
@@ -81,6 +80,7 @@ public class McpServerBuilder(string serverName)
         return new McpServer
         {
             ServerName = serverName,
+            ServerVersion = serverVersion,
             Context = context,
             Transports = transports,
             Tools = _tools,
