@@ -4,7 +4,7 @@ using DotNetCampus.ModelContextProtocol.Protocol.Messages;
 
 namespace DotNetCampus.ModelContextProtocol.Servers;
 
-public class DefaultMcpServerHandlers(McpServer server)
+public class BuiltInRequestHandlers(McpServer server)
 {
     public async ValueTask<InitializeResult> Initialize(RequestContext<InitializeRequestParams> request, CancellationToken cancellationToken)
     {

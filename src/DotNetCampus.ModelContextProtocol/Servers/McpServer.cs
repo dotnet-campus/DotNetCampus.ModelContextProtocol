@@ -7,7 +7,7 @@ public class McpServer
 {
     public McpServer()
     {
-        Handlers = new McpServerHandlers(this);
+        Handlers = new McpRequestHandlerRegistry(this);
     }
 
     /// <summary>
@@ -28,7 +28,7 @@ public class McpServer
     /// <summary>
     /// 获取 MCP 服务器的处理程序集合。
     /// </summary>
-    public McpServerHandlers Handlers { get; }
+    public McpRequestHandlerRegistry Handlers { get; }
 
     /// <summary>
     /// 获取 MCP 服务器的上下文信息。

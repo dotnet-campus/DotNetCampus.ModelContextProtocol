@@ -21,7 +21,7 @@ public record McpServerContext
     }
 
     [NotNull]
-    internal McpServerHandlers? Handlers
+    internal McpRequestHandlerRegistry? Handlers
     {
         get => field ?? throw new InvalidOperationException("Handlers 未被设置。");
         set => field = field switch

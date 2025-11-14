@@ -6,12 +6,13 @@ using DotNetCampus.ModelContextProtocol.Protocol.Messages;
 using DotNetCampus.ModelContextProtocol.Protocol.Messages.JsonRpc;
 using McpServerRequestJsonContext = DotNetCampus.ModelContextProtocol.CompilerServices.McpServerRequestJsonContext;
 using McpServerResponseJsonContext = DotNetCampus.ModelContextProtocol.CompilerServices.McpServerResponseJsonContext;
+using static DotNetCampus.ModelContextProtocol.Protocol.RequestMethods;
 
 namespace DotNetCampus.ModelContextProtocol.Servers;
 
-internal static class McpServerHandlingExtensions
+internal static class McpRequestDispatcher
 {
-    public static async Task<JsonRpcResponse> HandleRequestAsync(this McpServerHandlers handlers,
+    public static async Task<JsonRpcResponse> HandleRequestAsync(this McpRequestHandlerRegistry handlers,
         JsonRpcRequest? request, CancellationToken cancellationToken = default) => request?.Method switch
     {
         null => new JsonRpcResponse
@@ -23,16 +24,16 @@ internal static class McpServerHandlingExtensions
                 Message = "Json-RPC format error or missing method.",
             },
         },
-        "initialize" => await request.HandleRequestAsync(handlers.InitializeHandler,
+        Initialize => await request.HandleRequestAsync(handlers.InitializeHandler,
             McpServerRequestJsonContext.Default.InitializeRequestParams, McpServerResponseJsonContext.Default.InitializeResult,
             cancellationToken),
-        "ping" => await request.HandleRequestAsync(handlers.PingHandler,
+        Ping => await request.HandleRequestAsync(handlers.PingHandler,
             McpServerRequestJsonContext.Default.PingRequestParams, McpServerResponseJsonContext.Default.EmptyResult,
             cancellationToken),
-        "tools/list" => await request.HandleRequestAsync(handlers.ListToolsHandler,
+        ToolsList => await request.HandleRequestAsync(handlers.ListToolsHandler,
             McpServerRequestJsonContext.Default.ListToolsRequestParams, McpServerResponseJsonContext.Default.ListToolsResult,
             cancellationToken),
-        "tools/call" => await request.HandleRequestAsync(handlers.CallToolHandler,
+        ToolsCall => await request.HandleRequestAsync(handlers.CallToolHandler,
             McpServerRequestJsonContext.Default.CallToolRequestParams, McpServerResponseJsonContext.Default.CallToolResult,
             cancellationToken),
         _ => new JsonRpcResponse
