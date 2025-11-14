@@ -1,4 +1,6 @@
-﻿namespace DotNetCampus.ModelContextProtocol.Servers;
+﻿using System.Diagnostics;
+
+namespace DotNetCampus.ModelContextProtocol.Servers;
 
 /// <summary>
 /// MCP 服务器。
@@ -54,6 +56,16 @@ public class McpServer
     /// 获取 MCP 服务器工具集合。
     /// </summary>
     public required IReadOnlyDictionary<string, IMcpServerTool> Tools { get; init; }
+
+    /// <summary>
+    /// 启用调试模式。<br/>
+    /// 在调试模式下，服务器可能会记录更多的日志信息以帮助调试，同时也可能会通过 MCP 协议向客户端报告异常的详细信息。
+    /// </summary>
+    [Conditional("DEBUG")]
+    public void EnableDebugMode()
+    {
+        Context.IsDebugMode = true;
+    }
 
     /// <summary>
     /// 运行 MCP 服务器。此异步任务会一直运行，直到取消或程序退出为止。

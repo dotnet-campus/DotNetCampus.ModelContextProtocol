@@ -30,4 +30,6 @@ public record McpServerContext
             _ => throw new InvalidOperationException("Handlers 已经被设置，不能重复设置。"),
         };
     }
+
+    public bool IsDebugMode { get; internal set; }
 }

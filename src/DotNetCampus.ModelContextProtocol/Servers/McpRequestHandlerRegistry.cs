@@ -98,7 +98,9 @@ public class McpRequestHandlerRegistry(McpServer server)
         catch (Exception ex)
         {
             // 其他未知错误。
-            return CallToolResult.FromError($"Unexpected error: {ex.Message}");
+            return server.Context.IsDebugMode
+                ? CallToolResult.FromError(McpExceptionData.From(ex).ToJsonString())
+                : CallToolResult.FromError(ex.Message);
         }
     }
 

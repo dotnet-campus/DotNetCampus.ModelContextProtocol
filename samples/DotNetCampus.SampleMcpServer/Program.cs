@@ -30,7 +30,7 @@ internal class Program
             .WithHttp(5943, "mcp")
             .WithStdio()
             .Build();
-
+        mcpServer.EnableDebugMode();
         await mcpServer.RunAsync();
     }
 }
