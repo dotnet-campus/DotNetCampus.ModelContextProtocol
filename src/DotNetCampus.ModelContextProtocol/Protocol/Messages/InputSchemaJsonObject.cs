@@ -1,7 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace DotNetCampus.ModelContextProtocol.Protocol;
+namespace DotNetCampus.ModelContextProtocol.Protocol.Messages;
 
 /// <summary>
 /// 表示 MCP 工具的 inputSchema（JSON Schema 格式）。

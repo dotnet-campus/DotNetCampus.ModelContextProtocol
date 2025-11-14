@@ -1,7 +1,6 @@
 ﻿using System.Diagnostics.CodeAnalysis;
 using DotNetCampus.Logging;
 using DotNetCampus.ModelContextProtocol.CompilerServices;
-using DotNetCampus.ModelContextProtocol.Core;
 
 namespace DotNetCampus.ModelContextProtocol.Servers;
 

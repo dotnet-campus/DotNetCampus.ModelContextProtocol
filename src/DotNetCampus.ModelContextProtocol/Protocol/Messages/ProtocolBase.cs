@@ -1,7 +1,7 @@
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 
-namespace DotNetCampus.ModelContextProtocol.Protocol;
+namespace DotNetCampus.ModelContextProtocol.Protocol.Messages;
 
 /// <summary>
 /// MCP 请求参数基类

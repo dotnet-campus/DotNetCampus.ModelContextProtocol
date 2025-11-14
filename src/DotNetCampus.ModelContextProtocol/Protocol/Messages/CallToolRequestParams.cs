@@ -1,7 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace DotNetCampus.ModelContextProtocol.Protocol;
+namespace DotNetCampus.ModelContextProtocol.Protocol.Messages;
 
 /// <summary>
 /// MCP 工具调用请求参数。

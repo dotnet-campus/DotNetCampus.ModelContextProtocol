@@ -2,7 +2,7 @@ using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
 using System.Text.Json.Serialization;
 using DotNetCampus.ModelContextProtocol.CompilerServices;
-using DotNetCampus.ModelContextProtocol.Core;
+using DotNetCampus.ModelContextProtocol.Properties;
 
 namespace DotNetCampus.ModelContextProtocol.Servers;
 

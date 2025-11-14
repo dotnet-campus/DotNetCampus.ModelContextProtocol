@@ -2,7 +2,6 @@ using DotNetCampus.ModelContextProtocol.CodeAnalysis;
 using DotNetCampus.ModelContextProtocol.CompilerServices;
 using DotNetCampus.ModelContextProtocol.Utils;
 using Microsoft.CodeAnalysis;
-using G = DotNetCampus.ModelContextProtocol.GlobalTypeNames;
 
 namespace DotNetCampus.ModelContextProtocol.Generators.Models;
 

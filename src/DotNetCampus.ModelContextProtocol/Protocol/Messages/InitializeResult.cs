@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
 
-namespace DotNetCampus.ModelContextProtocol.Protocol;
+namespace DotNetCampus.ModelContextProtocol.Protocol.Messages;
 
 /// <summary>
 /// Initialize 响应结果

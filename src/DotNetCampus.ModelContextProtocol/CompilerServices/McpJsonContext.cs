@@ -2,8 +2,8 @@
 using System.Text.Json.Serialization;
 using System.Text.Json.Serialization.Metadata;
 using DotNetCampus.ModelContextProtocol.Core;
-using DotNetCampus.ModelContextProtocol.Messages;
-using DotNetCampus.ModelContextProtocol.Protocol;
+using DotNetCampus.ModelContextProtocol.Protocol.Messages;
+using DotNetCampus.ModelContextProtocol.Protocol.Messages.JsonRpc;
 
 namespace DotNetCampus.ModelContextProtocol.CompilerServices;
 

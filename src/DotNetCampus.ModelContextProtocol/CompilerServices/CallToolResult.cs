@@ -1,6 +1,6 @@
 ﻿using System.Text.Json.Serialization;
 using System.Text.Json.Serialization.Metadata;
-using DotNetCampus.ModelContextProtocol.Protocol;
+using DotNetCampus.ModelContextProtocol.Protocol.Messages;
 
 namespace DotNetCampus.ModelContextProtocol.CompilerServices;
 

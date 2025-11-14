@@ -1,7 +1,7 @@
 using System.Diagnostics.CodeAnalysis;
 using DotNetCampus.ModelContextProtocol.Core;
-using DotNetCampus.ModelContextProtocol.Messages;
-using DotNetCampus.ModelContextProtocol.Protocol;
+using DotNetCampus.ModelContextProtocol.Protocol.Messages;
+using DotNetCampus.ModelContextProtocol.Protocol.Messages.JsonRpc;
 
 namespace DotNetCampus.ModelContextProtocol.Servers;
 

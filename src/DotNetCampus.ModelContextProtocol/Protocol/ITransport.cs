@@ -1,5 +1,5 @@
 ﻿using System.Threading.Channels;
-using DotNetCampus.ModelContextProtocol.Messages;
+using DotNetCampus.ModelContextProtocol.Protocol.Messages.JsonRpc;
 
 namespace DotNetCampus.ModelContextProtocol.Protocol;
 

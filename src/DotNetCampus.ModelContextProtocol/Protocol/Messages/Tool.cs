@@ -2,7 +2,7 @@
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 
-namespace DotNetCampus.ModelContextProtocol.Protocol;
+namespace DotNetCampus.ModelContextProtocol.Protocol.Messages;
 
 public sealed record Tool
 {

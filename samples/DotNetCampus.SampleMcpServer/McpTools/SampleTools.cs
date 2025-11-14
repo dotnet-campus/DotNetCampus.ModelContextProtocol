@@ -1,5 +1,5 @@
 ﻿using DotNetCampus.ModelContextProtocol.CompilerServices;
-using DotNetCampus.ModelContextProtocol.Protocol;
+using DotNetCampus.ModelContextProtocol.Protocol.Messages;
 
 namespace DotNetCampus.SampleMcpServer.McpTools;
 

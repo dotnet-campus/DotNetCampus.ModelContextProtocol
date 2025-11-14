@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
 
-namespace DotNetCampus.ModelContextProtocol.Protocol;
+namespace DotNetCampus.ModelContextProtocol.Protocol.Messages;
 
 /// <summary>
 /// 客户端的可选注解。客户端可以使用注解来告知对象或数据的使用或显示方式。

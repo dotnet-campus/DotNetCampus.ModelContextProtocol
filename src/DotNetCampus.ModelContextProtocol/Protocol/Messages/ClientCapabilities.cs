@@ -1,7 +1,6 @@
 using System.Text.Json.Serialization;
-using DotNetCampus.ModelContextProtocol.Protocol;
 
-namespace DotNetCampus.ModelContextProtocol.Messages;
+namespace DotNetCampus.ModelContextProtocol.Protocol.Messages;
 
 public record ClientCapabilities
 {

@@ -1,3 +1,3 @@
-﻿namespace DotNetCampus.ModelContextProtocol.Protocol;
+﻿namespace DotNetCampus.ModelContextProtocol.Protocol.Messages;
 
 public sealed record ListToolsRequestParams : PaginatedRequestParams;

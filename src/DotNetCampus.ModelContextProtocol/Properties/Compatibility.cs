@@ -1,28 +1,24 @@
-﻿#pragma warning disable CS9113
+﻿namespace DotNetCampus.ModelContextProtocol.Properties;
+#pragma warning disable CS9113
 
 #if NET7_0_OR_GREATER
 #else
-namespace System.Diagnostics
+internal sealed class UnreachableException : Exception
 {
-    internal sealed class UnreachableException : Exception
+    public UnreachableException()
     {
-        public UnreachableException()
-        {
-        }
+    }
 
-        public UnreachableException(string? message) : base(message)
-        {
-        }
+    public UnreachableException(string? message) : base(message)
+    {
+    }
 
-        public UnreachableException(string? message, Exception? innerException) : base(message, innerException)
-        {
-        }
+    public UnreachableException(string? message, Exception? innerException) : base(message, innerException)
+    {
     }
 }
 
-namespace System.Diagnostics.CodeAnalysis
-{
-    [AttributeUsage(AttributeTargets.Parameter | AttributeTargets.Field | AttributeTargets.Property, AllowMultiple = false, Inherited = false)]
-    internal sealed class StringSyntaxAttribute(string syntax) : Attribute;
-}
+[AttributeUsage(AttributeTargets.Parameter | AttributeTargets.Field | AttributeTargets.Property, AllowMultiple = false, Inherited = false)]
+internal sealed class StringSyntaxAttribute(string syntax) : Attribute;
+
 #endif

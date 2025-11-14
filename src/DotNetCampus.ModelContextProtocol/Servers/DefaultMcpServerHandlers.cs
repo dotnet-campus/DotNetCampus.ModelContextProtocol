@@ -1,6 +1,6 @@
 ﻿using DotNetCampus.ModelContextProtocol.CompilerServices;
 using DotNetCampus.ModelContextProtocol.Core;
-using DotNetCampus.ModelContextProtocol.Protocol;
+using DotNetCampus.ModelContextProtocol.Protocol.Messages;
 
 namespace DotNetCampus.ModelContextProtocol.Servers;
 

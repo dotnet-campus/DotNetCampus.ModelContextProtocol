@@ -1,7 +1,7 @@
 ﻿using System.Text.Json;
 using System.Text.Json.Serialization;
 using DotNetCampus.ModelContextProtocol.CompilerServices;
-using DotNetCampus.ModelContextProtocol.Protocol;
+using DotNetCampus.ModelContextProtocol.Protocol.Messages;
 
 namespace DotNetCampus.ModelContextProtocol.Servers;
 

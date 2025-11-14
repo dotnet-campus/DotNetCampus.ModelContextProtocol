@@ -2,8 +2,8 @@
 using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
 using DotNetCampus.ModelContextProtocol.Core;
-using DotNetCampus.ModelContextProtocol.Messages;
-using DotNetCampus.ModelContextProtocol.Protocol;
+using DotNetCampus.ModelContextProtocol.Protocol.Messages;
+using DotNetCampus.ModelContextProtocol.Protocol.Messages.JsonRpc;
 using McpServerRequestJsonContext = DotNetCampus.ModelContextProtocol.CompilerServices.McpServerRequestJsonContext;
 using McpServerResponseJsonContext = DotNetCampus.ModelContextProtocol.CompilerServices.McpServerResponseJsonContext;
 

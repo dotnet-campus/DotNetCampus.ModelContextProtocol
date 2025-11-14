@@ -1,7 +1,6 @@
 ﻿using System.Text.Json.Serialization;
-using DotNetCampus.ModelContextProtocol.Messages;
 
-namespace DotNetCampus.ModelContextProtocol.Protocol;
+namespace DotNetCampus.ModelContextProtocol.Protocol.Messages;
 
 public sealed record InitializeRequestParams : RequestParams
 {
@@ -13,8 +12,4 @@ public sealed record InitializeRequestParams : RequestParams
 
     [JsonPropertyName("clientInfo")]
     public required Implementation ClientInfo { get; set; }
-}
-
-public sealed record PingRequestParams : RequestParams
-{
 }

@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
 
-namespace DotNetCampus.ModelContextProtocol.Protocol;
+namespace DotNetCampus.ModelContextProtocol.Protocol.Messages;
 
 /// <summary>
 /// 服务端能力
@@ -30,4 +30,36 @@ public record ServerCapabilities
     [JsonPropertyName("experimental")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public Dictionary<string, object>? Experimental { get; init; }
+}
+
+public record PromptsCapability
+{
+    [JsonPropertyName("listChanged")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public bool? ListChanged { get; init; }
+}
+
+public record ResourcesCapability
+{
+    [JsonPropertyName("listChanged")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public bool? ListChanged { get; init; }
+
+    [JsonPropertyName("subscribe")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public bool? Subscribe { get; init; }
+}
+
+public record RootsCapability
+{
+    [JsonPropertyName("listChanged")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public required bool? ListChanged { get; init; }
+}
+
+public record ToolsCapability
+{
+    [JsonPropertyName("listChanged")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public bool? ListChanged { get; init; }
 }
