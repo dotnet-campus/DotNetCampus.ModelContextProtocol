@@ -150,14 +150,9 @@ public record JsonPropertySchemaInfo(ITypeSymbol PropertyType)
     }
 
     /// <summary>
-    /// 检查当前类型是否为多态类型。
-    /// </summary>
-    public bool IsPolymorphic() => PolymorphicInfo is not null;
-
-    /// <summary>
     /// 获取多态类型的所有派生类型的 Schema 列表。
     /// </summary>
-    public IReadOnlyList<JsonPropertySchemaInfo> GetPolymorphicDerivedTypesOrDefault()
+    public IReadOnlyList<JsonPropertySchemaInfo> GetPolymorphicDerivedTypes()
     {
         if (PolymorphicInfo is null)
         {
@@ -210,7 +205,7 @@ public record JsonPropertySchemaInfo(ITypeSymbol PropertyType)
     public static JsonPropertySchemaInfo From(IPropertySymbol property)
     {
         var isNullable = property.Type.IsNullableValueType ||
-                        (!property.Type.IsValueType && property.Type.NullableAnnotation == NullableAnnotation.Annotated);
+                         (!property.Type.IsValueType && property.Type.NullableAnnotation == NullableAnnotation.Annotated);
 
         return new JsonPropertySchemaInfo(property.Type)
         {

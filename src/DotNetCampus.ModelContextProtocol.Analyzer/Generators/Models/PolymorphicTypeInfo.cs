@@ -1,37 +1,29 @@
 using Microsoft.CodeAnalysis;
-using System.Collections.Immutable;
 
 namespace DotNetCampus.ModelContextProtocol.Generators.Models;
 
 /// <summary>
 /// 多态类型的信息，包含基类/接口和所有派生类型。
 /// </summary>
-public sealed class PolymorphicTypeInfo
+public sealed class PolymorphicTypeInfo(
+    ITypeSymbol baseType,
+    string discriminatorPropertyName,
+    IReadOnlyList<DerivedTypeInfo> derivedTypes)
 {
-    public PolymorphicTypeInfo(
-        ITypeSymbol baseType,
-        string discriminatorPropertyName,
-        ImmutableArray<DerivedTypeInfo> derivedTypes)
-    {
-        BaseType = baseType;
-        DiscriminatorPropertyName = discriminatorPropertyName;
-        DerivedTypes = derivedTypes;
-    }
-
     /// <summary>
     /// 基类或接口类型。
     /// </summary>
-    public ITypeSymbol BaseType { get; }
+    public ITypeSymbol BaseType { get; } = baseType;
 
     /// <summary>
-    /// 类型鉴别器属性名称（对应 JsonPolymorphicAttribute.TypeDiscriminatorPropertyName）。
+    /// 类型鉴别器属性名称，即 [JsonPolymorphic(TypeDiscriminatorPropertyName = "type")] 中的 type。
     /// </summary>
-    public string DiscriminatorPropertyName { get; }
+    public string DiscriminatorPropertyName { get; } = discriminatorPropertyName;
 
     /// <summary>
     /// 所有派生类型的信息列表。
     /// </summary>
-    public ImmutableArray<DerivedTypeInfo> DerivedTypes { get; }
+    public IReadOnlyList<DerivedTypeInfo> DerivedTypes { get; } = derivedTypes;
 
     /// <summary>
     /// 从类型符号中提取多态信息，如果不是多态类型则返回 null。
@@ -62,7 +54,7 @@ public sealed class PolymorphicTypeInfo
             return null;
         }
 
-        var derivedTypes = ImmutableArray.CreateBuilder<DerivedTypeInfo>();
+        var derivedTypes = new List<DerivedTypeInfo>();
 
         foreach (var attr in derivedTypeAttrs)
         {
@@ -80,7 +72,7 @@ public sealed class PolymorphicTypeInfo
                 {
                     string s => s,
                     int i => i.ToString(),
-                    _ => null
+                    _ => null,
                 };
             }
 
@@ -90,28 +82,22 @@ public sealed class PolymorphicTypeInfo
             derivedTypes.Add(new DerivedTypeInfo(derivedType, discriminator));
         }
 
-        return new PolymorphicTypeInfo(typeSymbol, discriminatorPropertyName, derivedTypes.ToImmutable());
+        return new PolymorphicTypeInfo(typeSymbol, discriminatorPropertyName, derivedTypes);
     }
 }
 
 /// <summary>
 /// 派生类型的信息。
 /// </summary>
-public sealed class DerivedTypeInfo
+public sealed class DerivedTypeInfo(ITypeSymbol type, string discriminatorValue)
 {
-    public DerivedTypeInfo(ITypeSymbol type, string discriminatorValue)
-    {
-        Type = type;
-        DiscriminatorValue = discriminatorValue;
-    }
-
     /// <summary>
     /// 派生类型。
     /// </summary>
-    public ITypeSymbol Type { get; }
+    public ITypeSymbol Type { get; } = type;
 
     /// <summary>
     /// 类型鉴别器的值。
     /// </summary>
-    public string DiscriminatorValue { get; }
+    public string DiscriminatorValue { get; } = discriminatorValue;
 }

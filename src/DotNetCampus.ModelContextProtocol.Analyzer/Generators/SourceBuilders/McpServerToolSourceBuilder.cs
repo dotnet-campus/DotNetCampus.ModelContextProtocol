@@ -48,7 +48,7 @@ internal static class McpServerToolSourceBuilder
     {
         var itemSchema = info.GetItemSchemaOfArrayOrDefault();
         var properties = info.GetProperties();
-        var polymorphicDerivedTypes = info.GetPolymorphicDerivedTypesOrDefault();
+        var polymorphicDerivedTypes = info.GetPolymorphicDerivedTypes();
 
         return builder
             .AddBracketScope($"new {G.InputSchemaJsonObject}", "{", "}", true, bs => bs
@@ -59,15 +59,15 @@ internal static class McpServerToolSourceBuilder
                 .Condition(itemSchema is not null, i => i
                     .AddStatement("Items = ", null, c => c.AddInputSchemaExpression(itemSchema!)))
                 .EndCondition()
-                // 如果是多态类型，只输出 required 和 anyOf，不输出 properties
+                // 如果是多态类型，只输出 Required 和 AnyOf，不输出 Properties
                 .Condition(polymorphicDerivedTypes.Count > 0, poly => poly
                     .AddPropertyAssignment("Required", $"[ \"{info.PolymorphicInfo!.DiscriminatorPropertyName}\" ]")
                     .AddBracketScope("AnyOf = ", "[", "],", rbs => rbs
                         .AddStatements(polymorphicDerivedTypes, (d, derivedType) => d
                             .AddStatement("", ",", c => c.AddPolymorphicDerivedTypeSchema(derivedType, info))
                         )))
+                // 非多态类型，正常处理
                 .Otherwise(nonPoly => nonPoly
-                    // 非多态类型的正常处理
                     .AddPropertyAssignment("Required", info.GetJsonRequiredPropertiesExpressionOrDefault())
                     .Condition(properties.Count > 0, i => i
                         .AddBracketScope($"Properties = new {G.Dictionary}<string, {G.InputSchemaJsonObject}>", "{", "},", rbs => rbs
