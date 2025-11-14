@@ -67,3 +67,12 @@ public class Bar : IFooBar
     public string? BarValue { get; init; }
 }
 ```
+
+请注意，Json 序列化器必须标注 `AllowOutOfOrderMetadataProperties`，因为 AI 不一定会按顺序传：
+
+```csharp
+[JsonSerializable(typeof(IFooBar))]
+[JsonSourceGenerationOptions(
+    AllowOutOfOrderMetadataProperties = true)]
+internal partial class McpToolJsonContext : JsonSerializerContext;
+```

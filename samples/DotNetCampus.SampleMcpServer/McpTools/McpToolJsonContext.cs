@@ -9,5 +9,6 @@ namespace DotNetCampus.SampleMcpServer.McpTools;
     PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,
     DictionaryKeyPolicy = JsonKnownNamingPolicy.Unspecified,
     NumberHandling = JsonNumberHandling.AllowReadingFromString,
-    UseStringEnumConverter = true)]
+    UseStringEnumConverter = true,
+    AllowOutOfOrderMetadataProperties = true)]
 internal partial class McpToolJsonContext : JsonSerializerContext;
