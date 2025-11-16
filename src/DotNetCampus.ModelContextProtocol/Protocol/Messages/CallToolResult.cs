@@ -1,5 +1,4 @@
 ﻿using System.Text.Json;
-using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using DotNetCampus.ModelContextProtocol.CompilerServices;
 
@@ -24,7 +23,7 @@ public record CallToolResult
     /// </summary>
     [JsonPropertyName("structuredContent")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public JsonNode? StructuredContent { get; init; }
+    public JsonElement? StructuredContent { get; init; }
 
     /// <summary>
     /// 工具调用是否以错误结束。<br/>
@@ -100,6 +99,40 @@ public record CallToolResult
     }
 
     /// <summary>
+    /// 创建一个表示成功的，包含指定文本内容的 <see cref="CallToolResult"/> 实例。
+    /// </summary>
+    /// <param name="textContent">要包含的文本内容。</param>
+    /// <returns>表示成功的 <see cref="CallToolResult"/> 实例。</returns>
+    public static CallToolResult FromResult(string textContent)
+    {
+        return new CallToolResult
+        {
+            Content = [new TextContentBlock { Text = textContent }],
+        };
+    }
+
+    /// <summary>
+    /// 直接返回 <paramref name="result"/> 实例本身。本方法存在的唯一作用，是让源生成器生成的代码能具有完全统一的调用形式。
+    /// </summary>
+    /// <param name="result">要返回的结果实例。</param>
+    /// <returns>传入的结果实例本身。</returns>
+    public static CallToolResult FromResult(CallToolResult result)
+    {
+        return result;
+    }
+
+    /// <summary>
+    /// 直接返回 <paramref name="result"/> 实例本身。本方法存在的唯一作用，是让源生成器生成的代码能具有完全统一的调用形式。
+    /// </summary>
+    /// <param name="result">要返回的结果实例。</param>
+    /// <typeparam name="TResult">结果的类型。</typeparam>
+    /// <returns>传入的结果实例本身。</returns>
+    public static CallToolResult<TResult> FromResult<TResult>(CallToolResult<TResult> result)
+    {
+        return result;
+    }
+
+    /// <summary>
     /// 创建一个表示成功的，包含指定结果的 <see cref="CallToolResult{TResult}"/> 实例。
     /// </summary>
     /// <param name="result">要包含的结果。</param>
@@ -109,7 +142,21 @@ public record CallToolResult
     {
         return new CallToolResult<TResult>(result)
         {
-            ResultFactory = (r, t) => JsonSerializer.Serialize(r, t),
+            ResultFactory = (r, t) =>
+            {
+                var json = JsonSerializer.SerializeToElement(r, t);
+                return new CallToolResult
+                {
+                    Content =
+                    [
+                        new TextContentBlock
+                        {
+                            Text = json.ToString(),
+                        },
+                    ],
+                    StructuredContent = json,
+                };
+            },
         };
     }
 }

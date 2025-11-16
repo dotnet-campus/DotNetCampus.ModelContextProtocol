@@ -197,7 +197,7 @@ var {parameter.Name} = jsonArguments.TryGetProperty("{jsonName}", out var {param
             .Otherwise(sync => sync
                 .AddRawStatements(
                     $"var result = {callMethodExpression};",
-                    $"return {G.ValueTask}.FromResult((({G.CallToolResult})result).Structure(jsonSerializerContext));"
+                    $"return {G.ValueTask}.FromResult(({G.CallToolResult}.FromResult(result)).Structure(jsonSerializerContext));"
                 ));
 
         return builder;
