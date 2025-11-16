@@ -97,11 +97,11 @@ internal static class McpServerToolSourceBuilder
 
         return builder
             .AddBracketScope($"new {G.ToolInputSchema}", "{", "}", true, bs => bs
-                .AddPropertyAssignment("Type", "null")
+                .AddPropertyAssignment("Type", null)
                 .AddBracketScope($"Properties = new {G.Dictionary}<string, {G.ToolInputSchema}>", "{", "},", rbs => rbs
                     .AddStatement($"[ \"{discriminatorPropertyName}\" ] = ", ",", c => c
                         .AddBracketScope($"new {G.ToolInputSchema}", "{", "}", false, ds => ds
-                            .AddPropertyAssignment("Type", "null")
+                            .AddPropertyAssignment("Type", null)
                             .AddStringAssignment("Const", discriminatorValue)
                         ))
                     // 添加派生类型的所有属性
@@ -156,7 +156,7 @@ var {parameter.Name} = context.TryGetMcpToolService<{parameter.Type.ToUsingStrin
             ToolParameterType.Injected => $"""
 var {parameter.Name} = context.GetRequiredMcpToolService<{parameter.Type.ToUsingString()}>("{parameter.Type.ToDisplayString()}");
 """,
-            ToolParameterType.JsonObject => $"""
+            ToolParameterType.JsonElement => $"""
 var {parameter.Name} = jsonArguments.TryGetProperty("{jsonName}", out var {parameter.Name}Property)
     ? {parameter.Name}Property
     : {(hasDefault ? parameter.GetDefaultValueExpression() : $"throw new {G.McpToolMissingRequiredArgumentException}(\"{jsonName}\")")};

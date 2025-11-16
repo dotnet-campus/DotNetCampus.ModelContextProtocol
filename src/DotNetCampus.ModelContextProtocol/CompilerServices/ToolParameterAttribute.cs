@@ -86,17 +86,16 @@ public enum ToolParameterType
 
     /// <summary>
     /// 表示这个参数是一个任意的 JSON 元素，可以是任何有效的 JSON 数据类型（字符串、数字、布尔值、对象、数组或 null）。<br/>
-    /// 当参数被标记为 <see cref="JsonObject"/> 时，源生成器将不会尝试将其反序列化为特定的 .NET 类型，而是将其作为通用的 JSON 元素处理。<br/>
-    /// 类型为 <see cref="object"/>、<see cref="System.Text.Json.JsonElement"/>、<see cref="System.Text.Json.Nodes.JsonObject"/> 的参数会自动被视为此类型。<br/>
+    /// 当参数被标记为 <see cref="JsonElement"/> 时，源生成器将不会尝试将其反序列化为特定的 .NET 类型，而是将其作为通用的 JSON 元素处理。<br/>
+    /// 类型为 <see cref="object"/>、<see cref="System.Text.Json.JsonElement"/> 的参数会自动被视为此类型。<br/>
     /// Indicates that this parameter is an arbitrary JSON element,
     /// which can be any valid JSON data type (string, number, boolean, object, array, or null).<br/>
-    /// When a parameter is marked as <see cref="JsonObject"/>,
+    /// When a parameter is marked as <see cref="JsonElement"/>,
     /// the source generator will not attempt to deserialize it into a specific .NET type,
     /// but will treat it as a generic JSON element.<br/>
-    /// Parameters of type <see cref="object"/>, <see cref="System.Text.Json.JsonElement"/>,
-    /// or <see cref="System.Text.Json.Nodes.JsonObject"/> are automatically treated as this type.
+    /// Parameters of type <see cref="object"/>, <see cref="System.Text.Json.JsonElement"/> are automatically treated as this type.
     /// </summary>
-    JsonObject,
+    JsonElement,
 
     /// <summary>
     /// 表示这个参数是用于取消工具调用操作的取消令牌。无需显式设置，类型为 <see cref="CancellationToken"/> 的参数会自动被视为此类型。<br/>

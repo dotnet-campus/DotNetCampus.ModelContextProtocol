@@ -64,6 +64,12 @@ public record JsonPropertySchemaInfo(ITypeSymbol PropertyType)
             return Properties;
         }
 
+        // 如果是任意 JSON 元素类型（JsonElement、JsonNode 等），不需要展开属性
+        if (PropertyType.IsAnyJsonElementType())
+        {
+            return [];
+        }
+
         if (PropertyType.ToJsonSchemaTypeInfo().SpecialKind is not JsonSpecialType.Object)
         {
             // 非对象类型没有属性。
@@ -109,10 +115,11 @@ public record JsonPropertySchemaInfo(ITypeSymbol PropertyType)
         return properties.ToArray();
     }
 
-    public string GetJsonSchemaTypeExpression() => IsNullableType switch
+    public string GetJsonSchemaTypeExpression() => (PropertyType.IsAnyJsonElementType(), IsNullableType) switch
     {
-        true => $"{G.JsonSerializer}.SerializeToElement(new[] {{ \"{JsonSchemaType}\", \"null\" }}, jsonContext.StringArray)",
-        false => $"{G.JsonSerializer}.SerializeToElement(\"{JsonSchemaType}\", jsonContext.String)",
+        (true, _) => $"{G.JsonSerializer}.SerializeToElement(new[] {{ \"string\", \"number\", \"boolean\", \"object\", \"array\", \"null\" }}, jsonContext.StringArray)",
+        (_, true) => $"{G.JsonSerializer}.SerializeToElement(new[] {{ \"{JsonSchemaType}\", \"null\" }}, jsonContext.StringArray)",
+        (_, false) => $"{G.JsonSerializer}.SerializeToElement(\"{JsonSchemaType}\", jsonContext.String)",
     };
 
     /// <summary>

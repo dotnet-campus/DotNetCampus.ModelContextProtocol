@@ -29,16 +29,9 @@ public static class ToolSymbolExtensions
         }
 
         /// <summary>
-        /// 判断参数是否为 IMcpServerCallToolContext 类型。
+        /// 判断参数是否为任意 JSON 类型。
         /// </summary>
-        public bool IsJsonObjectParameter()
-        {
-            return parameter.Type.ToGlobalDisplayString()
-                is "object"
-                or "global::System.Object"
-                or "global::System.Text.Json.JsonElement"
-                or "global::System.Text.Json.Nodes.JsonObject";
-        }
+        public bool IsJsonElementParameter() => parameter.Type.IsAnyJsonElementType();
 
         /// <summary>
         /// 获取参数的 ToolParameterType。
@@ -71,9 +64,9 @@ public static class ToolSymbolExtensions
                 return ToolParameterType.Context;
             }
 
-            if (parameter.IsJsonObjectParameter())
+            if (parameter.IsJsonElementParameter())
             {
-                return ToolParameterType.JsonObject;
+                return ToolParameterType.JsonElement;
             }
 
             return ToolParameterType.Parameter;
@@ -135,6 +128,21 @@ public static class ToolSymbolExtensions
             }
 
             return parameter.GetParameterDescription();
+        }
+    }
+
+    extension(ITypeSymbol type)
+    {
+        /// <summary>
+        /// 判断参数是否为任意 JSON 对象类型。
+        /// </summary>
+        public bool IsAnyJsonElementType()
+        {
+            return type.ToGlobalDisplayString()
+                is "object"
+                or "global::System.Object"
+                or "global::System.Text.Json.JsonElement"
+                or "global::System.Text.Json.Nodes.JsonNode";
         }
     }
 }
