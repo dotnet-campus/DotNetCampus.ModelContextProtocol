@@ -1,4 +1,7 @@
-﻿namespace DotNetCampus.ModelContextProtocol.Servers;
+﻿using System.Text.Json;
+using System.Text.Json.Serialization;
+
+namespace DotNetCampus.ModelContextProtocol.Servers;
 
 /// <summary>
 /// 包含 MCP 服务器收到来自客户端的工具调用时，服务端调用工具具体实现可能会用到的各种上下文信息。<br/>
@@ -7,5 +10,35 @@
 /// </summary>
 public interface IMcpServerCallToolContext
 {
-    // AI 提示：此接口暂时无需实现，以后再说。
+    /// <summary>
+    /// 用于解析和获取服务的服务提供者。<br/>
+    /// Service provider used to resolve and obtain services.
+    /// </summary>
+    IServiceProvider Services { get; }
+
+    /// <summary>
+    /// 可用于反序列化 MCP 工具调用输入参数的 JSON 序列化上下文。<br/>
+    /// JSON serialization context that can be used to deserialize MCP tool invocation input parameters.
+    /// </summary>
+    JsonSerializerContext JsonSerializerContext { get; }
+
+    /// <summary>
+    /// 来自 MCP 协议中 tools/call 请求中 arguments 字段的 JSON 元素。<br/>
+    /// JSON element from the arguments field in the tools/call request in the MCP protocol.
+    /// </summary>
+    JsonElement InputJsonArguments { get; }
+
+    /// <summary>
+    /// 用于取消工具调用操作的取消令牌。<br/>
+    /// Cancellation token used to cancel the tool invocation operation.
+    /// </summary>
+    CancellationToken CancellationToken { get; }
+}
+
+internal sealed class McpServerCallToolContext : IMcpServerCallToolContext
+{
+    public required IServiceProvider Services { get; init; }
+    public required JsonSerializerContext JsonSerializerContext { get; init; }
+    public required JsonElement InputJsonArguments { get; init; }
+    public required CancellationToken CancellationToken { get; init; }
 }

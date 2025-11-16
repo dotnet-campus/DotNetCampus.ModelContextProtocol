@@ -75,7 +75,14 @@ public class BuiltInRequestHandlers(McpServer server)
             _ => InputSchemaJsonContext.Default,
         };
 
-        return await tool.CallTool(arguments, jsonContext, cancellationToken);
+        var context = new McpServerCallToolContext
+        {
+            Services = new EmptyServiceProvider(),
+            JsonSerializerContext = jsonContext,
+            InputJsonArguments = arguments,
+            CancellationToken = cancellationToken,
+        };
+        return await tool.CallTool(context);
     }
 
     public async ValueTask<EmptyResult> Ping(RequestContext<PingRequestParams> request, CancellationToken cancellationToken)
@@ -94,5 +101,13 @@ public class BuiltInRequestHandlers(McpServer server)
         server.Context.LoggingLevel = request.Params.Level;
 
         return default;
+    }
+
+    private sealed class EmptyServiceProvider : IServiceProvider
+    {
+        public object? GetService(Type serviceType)
+        {
+            return null;
+        }
     }
 }

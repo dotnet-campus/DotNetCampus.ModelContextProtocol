@@ -1,6 +1,4 @@
-﻿using System.Text.Json;
-using System.Text.Json.Serialization;
-using DotNetCampus.ModelContextProtocol.CompilerServices;
+﻿using DotNetCampus.ModelContextProtocol.CompilerServices;
 using DotNetCampus.ModelContextProtocol.Protocol.Messages;
 
 namespace DotNetCampus.ModelContextProtocol.Servers;
@@ -24,9 +22,7 @@ public interface IMcpServerTool
     /// <summary>
     /// 调用 MCP 服务器工具的方法。
     /// </summary>
-    /// <param name="jsonArguments">来自 MCP 协议中 tools/call 请求中 arguments 字段的 JSON 元素。</param>
-    /// <param name="jsonSerializerContext">用于反序列化参数和序列化结果的 JSON 序列化上下文。</param>
-    /// <param name="cancellationToken">用于取消操作的取消令牌。</param>
+    /// <param name="context">调用工具时的上下文信息。</param>
     /// <returns>表示工具调用结果的 JSON 元素。</returns>
-    ValueTask<CallToolResult> CallTool(JsonElement jsonArguments, JsonSerializerContext jsonSerializerContext, CancellationToken cancellationToken);
+    ValueTask<CallToolResult> CallTool(IMcpServerCallToolContext context);
 }

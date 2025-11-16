@@ -123,16 +123,13 @@ internal static class McpServerToolSourceBuilder
         this IAllowMemberDeclaration builder,
         McpServerToolGeneratingModel model)
     {
-        var signature = $"""
-             public {(model.GetIsAsync() ? "async " : "")}{G.ValueTask}<{G.CallToolResult}> CallTool(
-                 {G.JsonElement} jsonArguments,
-                 {G.JsonSerializerContext} jsonSerializerContext,
-                 {G.CancellationToken} cancellationToken)
-             """;
+        var signature = $"public {(model.GetIsAsync() ? "async " : "")}{G.ValueTask}<{G.CallToolResult}> CallTool({G.IMcpServerCallToolContext} context)";
 
-        var methodParameters = model.GetParameters();
         return builder.AddMethodDeclaration(signature, m => m
             .WithRawDocumentationComment("/// <inheritdoc />")
+            .AddRawStatement($"{G.JsonElement} jsonArguments = context.InputJsonArguments;")
+            .AddRawStatement($"{G.JsonSerializerContext} jsonSerializerContext = context.JsonSerializerContext;")
+            .AddRawStatement($"{G.CancellationToken} cancellationToken = context.CancellationToken;")
             .AddRawStatements(model.GetParameters().Select(GenerateParameterDeserializationStatements))
             .AddInvokeTargetMethodStatements(model)
         );

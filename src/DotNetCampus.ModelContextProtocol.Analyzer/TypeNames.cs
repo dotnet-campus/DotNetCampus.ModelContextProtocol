@@ -8,6 +8,7 @@ internal static class GlobalTypeNames
     public const string Tool = "global::DotNetCampus.ModelContextProtocol.Protocol.Messages.Tool";
     public const string InputSchemaJsonContext = "global::DotNetCampus.ModelContextProtocol.CompilerServices.InputSchemaJsonContext";
     public const string ToolInputSchema = "global::DotNetCampus.ModelContextProtocol.Protocol.Schema.ToolInputSchema";
+    public const string IMcpServerCallToolContext = "global::DotNetCampus.ModelContextProtocol.Servers.IMcpServerCallToolContext";
     public const string JsonSerializer = "global::System.Text.Json.JsonSerializer";
     public const string JsonDocument = "global::System.Text.Json.JsonDocument";
     public const string IMcpServerTool = "global::DotNetCampus.ModelContextProtocol.Servers.IMcpServerTool";
