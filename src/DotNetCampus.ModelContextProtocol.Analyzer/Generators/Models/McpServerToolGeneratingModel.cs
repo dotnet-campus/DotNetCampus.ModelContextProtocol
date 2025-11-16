@@ -19,6 +19,14 @@ public record McpServerToolGeneratingModel
 
     public required string? Description { get; init; }
 
+    public required bool? Destructive { get; init; }
+
+    public required bool? Idempotent { get; init; }
+
+    public required bool? OpenWorld { get; init; }
+
+    public required bool? ReadOnly { get; init; }
+
     public IReadOnlyList<IParameterSymbol> GetParameters(bool includeAll = false)
     {
         return Method.Parameters
@@ -57,11 +65,15 @@ public record McpServerToolGeneratingModel
             Namespace = methodSymbol.ContainingType.ContainingNamespace.ToDisplayString(),
             ContainingType = methodSymbol.ContainingType,
             Method = methodSymbol,
-            Name = attribute.NamedArguments.GetValueOrDefault<string>(nameof(McpServerToolAttribute.Name))
+            Name = attribute.NamedArguments.GetObjectOrDefault<string>(nameof(McpServerToolAttribute.Name))
                    ?? NamingHelper.MakeSnakeCase(methodSymbol.Name, true, true),
-            Title = attribute.NamedArguments.GetValueOrDefault<string>(nameof(McpServerToolAttribute.Title)),
-            Description = attribute.NamedArguments.GetValueOrDefault<string>(nameof(McpServerToolAttribute.Description))
+            Title = attribute.NamedArguments.GetObjectOrDefault<string>(nameof(McpServerToolAttribute.Title)),
+            Description = attribute.NamedArguments.GetObjectOrDefault<string>(nameof(McpServerToolAttribute.Description))
                           ?? methodSymbol.GetSummaryFromSymbol(),
+            Destructive = attribute.NamedArguments.GetValueOrDefault<bool>(nameof(McpServerToolAttribute.Destructive)),
+            Idempotent = attribute.NamedArguments.GetValueOrDefault<bool>(nameof(McpServerToolAttribute.Idempotent)),
+            OpenWorld = attribute.NamedArguments.GetValueOrDefault<bool>(nameof(McpServerToolAttribute.OpenWorld)),
+            ReadOnly = attribute.NamedArguments.GetValueOrDefault<bool>(nameof(McpServerToolAttribute.ReadOnly)),
         };
     }
 
@@ -184,5 +196,17 @@ public record McpServerToolGeneratingModel
             or "global::System.Threading.Tasks.ValueTask<TResult>"
             or "global::System.Threading.Tasks.Task"
             or "global::System.Threading.Tasks.ValueTask";
+    }
+
+    /// <summary>
+    /// 判断是否需要生成 ToolAnnotations。
+    /// </summary>
+    public bool ShouldGenerateAnnotations()
+    {
+        // 如果任何注解属性被显式设置，则生成 ToolAnnotations
+        return Destructive.HasValue ||
+               Idempotent.HasValue ||
+               OpenWorld.HasValue ||
+               ReadOnly.HasValue;
     }
 }

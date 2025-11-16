@@ -29,6 +29,9 @@ internal static class McpServerToolSourceBuilder
                             .AddRawStatement(
                                 $"OutputSchema = {G.JsonSerializer}.SerializeToElement(GetOutputSchema(jsonContext), jsonContext.CompiledJsonSchema),"))
                         .EndCondition()
+                        .Condition(model.ShouldGenerateAnnotations(), anno => anno
+                            .AddStatement("Annotations = ", ",", a => a.AddToolAnnotations(model)))
+                        .EndCondition()
                     )
             );
     }
@@ -330,5 +333,26 @@ var {parameter.Name} = jsonArguments.TryGetProperty("{jsonName}", out var {param
             builder.AddRawText($"{property} = {expression},");
         }
         return builder;
+    }
+
+    /// <summary>
+    /// 为 Tool 添加 ToolAnnotations 对象初始化表达式。
+    /// </summary>
+    private static IAllowStatement AddToolAnnotations(this IAllowStatement builder, McpServerToolGeneratingModel model)
+    {
+        return builder.AddBracketScope($"new {G.ToolAnnotations}", "{", "}", false, bs => bs
+            .Condition(model.ReadOnly.HasValue, ro => ro
+                .AddRawText($"ReadOnlyHint = {model.ReadOnly!.ToString().ToLowerInvariant()},"))
+            .EndCondition()
+            .Condition(model.Destructive.HasValue, dest => dest
+                .AddRawText($"DestructiveHint = {model.Destructive!.ToString().ToLowerInvariant()},"))
+            .EndCondition()
+            .Condition(model.Idempotent.HasValue, idem => idem
+                .AddRawText($"IdempotentHint = {model.Idempotent!.ToString().ToLowerInvariant()},"))
+            .EndCondition()
+            .Condition(model.OpenWorld.HasValue, ow => ow
+                .AddRawText($"OpenWorldHint = {model.OpenWorld!.ToString().ToLowerInvariant()},"))
+            .EndCondition()
+        );
     }
 }

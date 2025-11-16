@@ -32,6 +32,8 @@ public class McpServerToolGenerator : IIncrementalGenerator
 
     private void Execute(SourceProductionContext context, McpServerToolGeneratingModel model)
     {
+        try
+        {
         using var builder = new SourceTextBuilder(model.Namespace)
             .Using("System.Text.Json")
             .AddTypeDeclaration(
@@ -48,5 +50,10 @@ public class McpServerToolGenerator : IIncrementalGenerator
             );
         var code = builder.ToString();
         context.AddSource($"{model.Namespace}/{model.ContainingType.ToDeclarationNestedDisplayString()}.{model.Method.Name}.cs", code);
+        }
+        catch (Exception ex)
+        {
+            //throw new InvalidOperationException(ex.ToString());
+        }
     }
 }

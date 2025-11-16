@@ -21,6 +21,7 @@ internal static class GlobalTypeNames
     public const string McpToolMissingRequiredArgumentException = "global::DotNetCampus.ModelContextProtocol.Exceptions.McpToolMissingRequiredArgumentException";
     public const string ServiceProviderServiceExtensions = "global::Microsoft.Extensions.DependencyInjection.ServiceProviderServiceExtensions";
     public const string Tool = "global::DotNetCampus.ModelContextProtocol.Protocol.Messages.Tool";
+    public const string ToolAnnotations = "global::DotNetCampus.ModelContextProtocol.Protocol.Messages.ToolAnnotations";
     public const string CompiledJsonSchema = "global::DotNetCampus.ModelContextProtocol.CompilerServices.CompiledJsonSchema";
     public const string ValueTask = "global::System.Threading.Tasks.ValueTask";
 }

@@ -6,9 +6,16 @@ namespace DotNetCampus.ModelContextProtocol.CodeAnalysis;
 
 internal static class AttributeDataExtensions
 {
-    public static T? GetValueOrDefault<T>(this ImmutableArray<KeyValuePair<string, TypedConstant>> namedArguments, string name)
+    public static T? GetObjectOrDefault<T>(this ImmutableArray<KeyValuePair<string, TypedConstant>> namedArguments, string name)
+        where T : class
     {
-        return TryGetValue<T>(namedArguments, name, out var value) ? value : default;
+        return TryGetValue<T>(namedArguments, name, out var value) ? value : null;
+    }
+
+    public static T? GetValueOrDefault<T>(this ImmutableArray<KeyValuePair<string, TypedConstant>> namedArguments, string name)
+        where T : struct
+    {
+        return TryGetValue<T>(namedArguments, name, out var value) ? value : null;
     }
 
     public static bool TryGetValue<T>(this ImmutableArray<KeyValuePair<string, TypedConstant>> namedArguments, string name, [NotNullWhen(true)] out T? value)
