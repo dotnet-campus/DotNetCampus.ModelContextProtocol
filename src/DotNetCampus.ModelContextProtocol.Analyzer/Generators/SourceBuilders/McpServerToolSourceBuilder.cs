@@ -277,6 +277,13 @@ var {parameter.Name} = jsonArguments.TryGetProperty("{jsonName}", out var {param
             return "null";
         }
 
+        // 枚举类型需要转换为枚举值
+        if (parameter.Type.TypeKind == TypeKind.Enum)
+        {
+            var enumType = parameter.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+            return $"({enumType}){defaultValue}";
+        }
+
         return parameter.Type.SpecialType switch
         {
             SpecialType.System_String => $"\"{defaultValue}\"",
