@@ -63,7 +63,7 @@ public class BuiltInRequestHandlers(McpServer server)
             return new CallToolResult
             {
                 IsError = true,
-                Content = [new TextContentBlock { Text = $"Tool '{toolName}' not found." }],
+                Content = [new TextContentBlock { Text = $"Unknown tool: {toolName}" }],
             };
         }
 
