@@ -11,7 +11,7 @@ namespace DotNetCampus.SampleMcpServer.McpTools;
 public class ParameterTool
 {
     /// <summary>
-    /// [ForAI] 演示使用上下文参数的工具
+    /// 演示使用上下文参数的工具
     /// </summary>
     /// <param name="context">传递过来的 MCP 工具调用上下文</param>
     /// <param name="message">工具会原样返回这个字符串</param>
@@ -28,7 +28,7 @@ public class ParameterTool
     }
 
     /// <summary>
-    /// [ForAI] 演示使用 InputObject 参数的工具（接收整个 JSON 对象）
+    /// 演示使用 InputObject 参数的工具（接收整个 JSON 对象）
     /// </summary>
     /// <param name="input">整个工具调用的输入对象</param>
     /// <returns></returns>
@@ -45,7 +45,7 @@ public class ParameterTool
     }
 
     /// <summary>
-    /// [ForAI] 演示使用注入参数的工具
+    /// 演示使用注入参数的工具
     /// </summary>
     /// <param name="logger1">注入的日志记录器</param>
     /// <param name="logger2">可空注入的日志记录器</param>
@@ -62,7 +62,7 @@ public class ParameterTool
     }
 
     /// <summary>
-    /// [ForAI] 演示使用传递任意 JSON 元素参数的工具
+    /// 演示使用传递任意 JSON 元素参数的工具
     /// </summary>
     /// <param name="id">传递过来的标识</param>
     /// <param name="payload">
@@ -84,7 +84,7 @@ public class ParameterTool
     }
 
     /// <summary>
-    /// [ForAI] 演示使用 JsonElement 参数的工具（直接接收 JSON 元素）
+    /// 演示使用 JsonElement 参数的工具（直接接收 JSON 元素）
     /// </summary>
     /// <param name="id">传递过来的标识</param>
     /// <param name="data">传递过来的 JSON 元素</param>

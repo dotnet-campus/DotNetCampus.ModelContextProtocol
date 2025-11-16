@@ -8,7 +8,16 @@ namespace DotNetCampus.SampleMcpServer.McpTools;
 public class ReturnTool
 {
     /// <summary>
-    /// 获取当前本地时间。
+    /// 什么都不做
+    /// </summary>
+    /// <returns></returns>
+    [McpServerTool]
+    public void DoNothing()
+    {
+    }
+
+    /// <summary>
+    /// 获取当前本地时间
     /// </summary>
     /// <returns></returns>
     [McpServerTool]
