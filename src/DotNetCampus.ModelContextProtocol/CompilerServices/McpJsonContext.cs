@@ -5,7 +5,6 @@ using DotNetCampus.ModelContextProtocol.Core;
 using DotNetCampus.ModelContextProtocol.Exceptions;
 using DotNetCampus.ModelContextProtocol.Protocol.Messages;
 using DotNetCampus.ModelContextProtocol.Protocol.Messages.JsonRpc;
-using DotNetCampus.ModelContextProtocol.Protocol.Schema;
 
 namespace DotNetCampus.ModelContextProtocol.CompilerServices;
 
@@ -65,9 +64,9 @@ internal sealed class McpServerToolCompositeJsonContext(JsonSerializerContext ex
 [JsonSerializable(typeof(string))]
 [JsonSerializable(typeof(string[]))]
 // 协议类型
-[JsonSerializable(typeof(ToolInputSchema))]
+[JsonSerializable(typeof(CompiledJsonSchema))]
 [JsonSourceGenerationOptions(GenerationMode = JsonSourceGenerationMode.Serialization)]
-public partial class InputSchemaJsonContext : JsonSerializerContext;
+public partial class CompiledSchemaJsonContext : JsonSerializerContext;
 
 /// <summary>
 /// 与业务自己定义的 MCP 工具一起合并成 <see cref="McpServerToolJsonSerializer"/> 以序列化和反序列化业务定义的 MCP 工具参数、返回值和相关类型。
@@ -131,7 +130,7 @@ internal partial class McpServerRequestJsonContext : JsonSerializerContext;
 [JsonSerializable(typeof(JsonElement))]
 [JsonSerializable(typeof(JsonRpcResponse))]
 [JsonSerializable(typeof(InitializeResult))]
-[JsonSerializable(typeof(ToolInputSchema))]
+[JsonSerializable(typeof(CompiledJsonSchema))]
 [JsonSerializable(typeof(EmptyResult))]
 [JsonSerializable(typeof(ListToolsResult))]
 [JsonSerializable(typeof(CallToolResult))]

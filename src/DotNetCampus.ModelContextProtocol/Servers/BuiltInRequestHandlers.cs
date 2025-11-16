@@ -41,7 +41,7 @@ public class BuiltInRequestHandlers(McpServer server)
     {
         return new ListToolsResult
         {
-            Tools = server.Tools.Select(x => x.GetToolDefinition(InputSchemaJsonContext.Default)).ToList(),
+            Tools = server.Tools.Select(x => x.GetToolDefinition(CompiledSchemaJsonContext.Default)).ToList(),
         };
     }
 
@@ -71,8 +71,8 @@ public class BuiltInRequestHandlers(McpServer server)
         var jsonSerializer = server.Context.JsonSerializer;
         var jsonContext = jsonSerializer switch
         {
-            McpServerToolJsonSerializer mcpSerializer => mcpSerializer.JsonSerializerContext ?? InputSchemaJsonContext.Default,
-            _ => InputSchemaJsonContext.Default,
+            McpServerToolJsonSerializer mcpSerializer => mcpSerializer.JsonSerializerContext ?? CompiledSchemaJsonContext.Default,
+            _ => CompiledSchemaJsonContext.Default,
         };
 
         var context = new McpServerCallToolContext

@@ -15,6 +15,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Folder Include="Protocol\Schema\" />
     <Folder Include="Transports\" />
   </ItemGroup>
 

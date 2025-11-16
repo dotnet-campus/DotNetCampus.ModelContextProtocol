@@ -23,7 +23,7 @@
   <ItemGroup>
     <Compile Include="..\DotNetCampus.ModelContextProtocol\**\*Attribute.cs" LinkBase="." />
     <Compile Include="..\DotNetCampus.ModelContextProtocol\Servers\McpServerToolCreationMode.cs" LinkBase="Servers" />
-    <Compile Include="..\DotNetCampus.ModelContextProtocol\Protocol\Schema\ToolInputSchema.cs" LinkBase="Protocol\Schema" />
+    <Compile Include="..\DotNetCampus.ModelContextProtocol\CompilerServices\CompiledJsonSchema.cs" LinkBase="CompilerServices" />
   </ItemGroup>
 
 </Project>

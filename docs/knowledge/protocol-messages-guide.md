@@ -100,8 +100,6 @@ src/DotNetCampus.ModelContextProtocol/Protocol/
 │   ├── ListToolsResult.cs
 │   ├── PingRequestParams.cs
 │   └── ContentBlock.cs           # 内容块及相关类型（多个类）
-├── Schema/                        # JSON Schema 相关
-│   └── ToolInputSchema.cs
 ├── ITransport.cs                  # 传输层接口
 └── RequestMethods.cs              # 请求方法常量
 ```

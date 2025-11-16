@@ -10,7 +10,7 @@ internal static class GlobalTypeNames
     public const string Func = "global::System.Func";
     public const string IMcpServerCallToolContext = "global::DotNetCampus.ModelContextProtocol.Servers.IMcpServerCallToolContext";
     public const string IMcpServerTool = "global::DotNetCampus.ModelContextProtocol.Servers.IMcpServerTool";
-    public const string InputSchemaJsonContext = "global::DotNetCampus.ModelContextProtocol.CompilerServices.InputSchemaJsonContext";
+    public const string CompiledSchemaJsonContext = "global::DotNetCampus.ModelContextProtocol.CompilerServices.CompiledSchemaJsonContext";
     public const string JsonDocument = "global::System.Text.Json.JsonDocument";
     public const string JsonElement = "global::System.Text.Json.JsonElement";
     public const string JsonSerializer = "global::System.Text.Json.JsonSerializer";
@@ -21,6 +21,6 @@ internal static class GlobalTypeNames
     public const string McpToolMissingRequiredArgumentException = "global::DotNetCampus.ModelContextProtocol.Exceptions.McpToolMissingRequiredArgumentException";
     public const string ServiceProviderServiceExtensions = "global::Microsoft.Extensions.DependencyInjection.ServiceProviderServiceExtensions";
     public const string Tool = "global::DotNetCampus.ModelContextProtocol.Protocol.Messages.Tool";
-    public const string ToolInputSchema = "global::DotNetCampus.ModelContextProtocol.Protocol.Schema.ToolInputSchema";
+    public const string CompiledJsonSchema = "global::DotNetCampus.ModelContextProtocol.CompilerServices.CompiledJsonSchema";
     public const string ValueTask = "global::System.Threading.Tasks.ValueTask";
 }
