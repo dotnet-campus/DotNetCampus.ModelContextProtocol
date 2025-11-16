@@ -1,6 +1,5 @@
 ﻿using DotNetCampus.ModelContextProtocol.CompilerServices;
 using DotNetCampus.ModelContextProtocol.Protocol.Messages;
-using DotNetCampus.ModelContextProtocol.Servers;
 
 namespace DotNetCampus.SampleMcpServer.McpTools;
 
@@ -23,7 +22,15 @@ public class SampleTools
         EchoExtraData? extraData = null,
         bool isError = false)
     {
-        return text;
+        var result = $"""
+            Echoing text: {text}
+            Options: {options}
+            Count: {count}
+            ExtraData: {extraData}
+            """;
+        return isError
+            ? CallToolResult.FromError(result)
+            : result;
     }
 
     /// <summary>
@@ -32,6 +39,7 @@ public class SampleTools
     /// <param name="minutes">等待的分钟数</param>
     /// <param name="seconds">等待的秒数</param>
     /// <param name="milliseconds">等待的毫秒数</param>
+    /// <param name="description">等待的描述信息</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns></returns>
     [McpServerTool]
@@ -39,6 +47,7 @@ public class SampleTools
         int minutes = 0,
         int seconds = 0,
         int milliseconds = 0,
+        string? description = null,
         CancellationToken cancellationToken = default)
     {
         var totalMilliseconds = (minutes * 60 + seconds) * 1000 + milliseconds;
@@ -49,60 +58,12 @@ public class SampleTools
         try
         {
             await Task.Delay(totalMilliseconds, cancellationToken);
-            return "Delay completed.";
+            return description ?? "Delay completed.";
         }
         catch (OperationCanceledException)
         {
             return "Delay was canceled.";
         }
-    }
-
-    /// <summary>
-    /// [ForAI] 演示使用 IMcpServerCallToolContext 参数的工具
-    /// </summary>
-    /// <param name="message">要处理的消息</param>
-    /// <param name="context">MCP 服务器工具调用上下文</param>
-    /// <returns></returns>
-    [McpServerTool(ReadOnly = true)]
-    public CallToolResult ProcessWithContext(
-        string message,
-        IMcpServerCallToolContext context)
-    {
-        // 可以从 context 访问各种上下文信息
-        var hasServices = context.Services != null;
-        var hasJsonContext = context.JsonSerializerContext != null;
-        
-        return new CallToolResult
-        {
-            Content = [new TextContentBlock
-            {
-                Text = $"消息: {message}\n" +
-                       $"服务提供者可用: {hasServices}\n" +
-                       $"JSON 序列化上下文可用: {hasJsonContext}"
-            }]
-        };
-    }
-
-    /// <summary>
-    /// [ForAI] 演示使用 InputObject 参数的工具（接收整个 JSON 对象）
-    /// </summary>
-    /// <param name="input">整个工具调用的输入对象</param>
-    /// <returns></returns>
-    [McpServerTool(ReadOnly = true)]
-    public CallToolResult ProcessInputObject(
-        [ToolParameter(Type = ToolParameterType.InputObject)]
-        EchoInputObject input)
-    {
-        return new CallToolResult
-        {
-            Content = [new TextContentBlock
-            {
-                Text = $"接收到输入对象:\n" +
-                       $"文本: {input.Text}\n" +
-                       $"次数: {input.Count}\n" +
-                       $"选项: {input.Options}"
-            }]
-        };
     }
 }
 
@@ -132,17 +93,4 @@ public record EchoExtraData(string Data1)
     /// 可供保存的第 2 个值
     /// </summary>
     public string Data2 { get; init; } = "";
-}
-
-/// <summary>
-/// InputObject 类型的输入对象示例
-/// </summary>
-/// <param name="Text">要处理的文本</param>
-/// <param name="Options">如何处理文本</param>
-public record EchoInputObject(string Text, EchoOptions Options)
-{
-    /// <summary>
-    /// 重复次数
-    /// </summary>
-    public int Count { get; init; } = 1;
 }
