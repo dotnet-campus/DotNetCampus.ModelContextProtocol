@@ -58,5 +58,5 @@ public enum LoggingLevel
     /// 系统不可用<br/>
     /// System is unusable
     /// </summary>
-    Emergency
+    Emergency,
 }

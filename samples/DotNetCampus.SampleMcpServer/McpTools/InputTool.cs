@@ -100,7 +100,7 @@ public class InputTool
             JsonValueKind.Object => $"Object with {data.EnumerateObject().Count()} properties",
             JsonValueKind.Array => $"Array with {data.GetArrayLength()} items",
             JsonValueKind.Null => "Null",
-            _ => "Undefined"
+            _ => "Undefined",
         };
 
         return $"""

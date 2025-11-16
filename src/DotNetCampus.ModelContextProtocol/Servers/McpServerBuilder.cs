@@ -102,6 +102,22 @@ public class McpServerToolsBuilder
 
     public IMcpServerToolsProvider Tools => _tools;
 
+    public McpServerToolsBuilder WithServiceProvider(IServiceProvider serviceProvider)
+    {
+        Context = Context switch
+        {
+            null => new McpServerContext
+            {
+                ServiceProvider = serviceProvider,
+            },
+            var c => c with
+            {
+                ServiceProvider = serviceProvider,
+            },
+        };
+        return this;
+    }
+
     public McpServerToolsBuilder WithJsonSerializer(IMcpServerToolJsonSerializer jsonSerializer)
     {
         Context = Context switch

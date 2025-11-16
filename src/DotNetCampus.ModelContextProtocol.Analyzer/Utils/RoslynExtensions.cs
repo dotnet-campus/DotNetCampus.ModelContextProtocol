@@ -228,7 +228,7 @@ internal static class RoslynExtensions
             StructDeclarationSyntax structSyntax => structSyntax.GetDocumentationCommentTriviaSyntax(),
             RecordDeclarationSyntax recordSyntax => recordSyntax.GetDocumentationCommentTriviaSyntax(),
             EnumDeclarationSyntax enumSyntax => enumSyntax.GetDocumentationCommentTriviaSyntax(),
-            _ => null
+            _ => null,
         };
 
         return docComment?.GetSummary();
