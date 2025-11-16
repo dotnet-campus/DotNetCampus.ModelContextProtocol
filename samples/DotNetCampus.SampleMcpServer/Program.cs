@@ -27,6 +27,7 @@ internal class Program
                 .WithJsonSerializer(McpToolJsonContext.Default)
                 .WithTool(() => new SampleTools())
                 .WithTool(() => new ParameterTool())
+                .WithTool(() => new ResourceTool())
             )
             .WithHttp(5943, "mcp")
             .WithStdio()
