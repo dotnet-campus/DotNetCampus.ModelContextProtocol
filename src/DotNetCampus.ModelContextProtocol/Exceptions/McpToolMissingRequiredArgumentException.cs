@@ -3,9 +3,9 @@
 /// <summary>
 /// 当 MCP 服务器收到调用 MCP 工具的请求时，如果缺少必需的参数，则抛出此异常。
 /// </summary>
-public class MissingRequiredArgumentException : ModelContextProtocolException
+public class McpToolMissingRequiredArgumentException : ModelContextProtocolException
 {
-    public MissingRequiredArgumentException(string argumentName)
+    public McpToolMissingRequiredArgumentException(string argumentName)
         : base($"Missing required argument: {argumentName}")
     {
     }

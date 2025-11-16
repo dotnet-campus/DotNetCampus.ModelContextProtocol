@@ -1,4 +1,5 @@
 ﻿using DotNetCampus.ModelContextProtocol.CompilerServices;
+using DotNetCampus.ModelContextProtocol.Utils;
 using Microsoft.CodeAnalysis;
 
 namespace DotNetCampus.ModelContextProtocol.Generators.Models;
@@ -8,7 +9,7 @@ namespace DotNetCampus.ModelContextProtocol.Generators.Models;
 /// </summary>
 public static class ToolSymbolExtensions
 {
-    /// <param name="parameter">参数符号。</param>
+    /// <param name="parameter">要扩展的参数符号。</param>
     extension(IParameterSymbol parameter)
     {
         /// <summary>
@@ -69,6 +70,50 @@ public static class ToolSymbolExtensions
         {
             var parameterType = parameter.GetParameterType();
             return parameterType != ToolParameterType.Parameter && parameterType != ToolParameterType.InputObject;
+        }
+
+        /// <summary>
+        /// 获取参数在 JSON 中的属性名称。优先使用 ToolParameterAttribute.Name，否则使用 camelCase 形式的参数名。
+        /// </summary>
+        public string GetJsonPropertyName()
+        {
+            var attribute = parameter.GetAttributes()
+                .FirstOrDefault(a => a.AttributeClass?.ToDisplayString() == typeof(ToolParameterAttribute).FullName);
+
+            if (attribute != null)
+            {
+                foreach (var namedArg in attribute.NamedArguments)
+                {
+                    if (namedArg.Key == nameof(ToolParameterAttribute.Name) && namedArg.Value.Value is string name)
+                    {
+                        return name;
+                    }
+                }
+            }
+
+            return NamingHelper.MakeCamelCase(parameter.Name);
+        }
+
+        /// <summary>
+        /// 获取参数的描述。优先使用 ToolParameterAttribute.Description，否则从 XML 注释中提取。
+        /// </summary>
+        public string? GetParameterDescriptionWithAttribute()
+        {
+            var attribute = parameter.GetAttributes()
+                .FirstOrDefault(a => a.AttributeClass?.ToDisplayString() == typeof(ToolParameterAttribute).FullName);
+
+            if (attribute != null)
+            {
+                foreach (var namedArg in attribute.NamedArguments)
+                {
+                    if (namedArg.Key == nameof(ToolParameterAttribute.Description) && namedArg.Value.Value is string description)
+                    {
+                        return description;
+                    }
+                }
+            }
+
+            return parameter.GetParameterDescription();
         }
     }
 }

@@ -226,10 +226,10 @@ public record JsonPropertySchemaInfo(ITypeSymbol PropertyType)
     {
         return new JsonPropertySchemaInfo(parameter.Type)
         {
-            JsonPropertyName = NamingHelper.MakeCamelCase(parameter.Name),
+            JsonPropertyName = parameter.GetJsonPropertyName(),
             JsonSchemaType = parameter.Type.ToJsonSchemaTypeString(),
             IsNullableType = parameter.Type.IsNullableType,
-            Description = parameter.GetParameterDescription(),
+            Description = parameter.GetParameterDescriptionWithAttribute(),
             IsRequired = !parameter.HasExplicitDefaultValue,
             DefaultValueJsonElement = GetJsonSchemaDefaultValueExpression(parameter),
             PolymorphicInfo = PolymorphicTypeInfo.FromTypeSymbol(parameter.Type),

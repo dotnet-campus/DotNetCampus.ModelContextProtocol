@@ -17,8 +17,9 @@ internal static class GlobalTypeNames
     public const string JsonElement = "global::System.Text.Json.JsonElement";
     public const string JsonSerializerContext = "global::System.Text.Json.Serialization.JsonSerializerContext";
     public const string JsonTypeInfo = "global::System.Text.Json.Serialization.Metadata.JsonTypeInfo";
-    public const string MissingRequiredArgumentException = "global::DotNetCampus.ModelContextProtocol.Exceptions.MissingRequiredArgumentException";
+    public const string McpToolMissingRequiredArgumentException = "global::DotNetCampus.ModelContextProtocol.Exceptions.McpToolMissingRequiredArgumentException";
     public const string CancellationToken = "global::System.Threading.CancellationToken";
     public const string Dictionary = "global::System.Collections.Generic.Dictionary";
-    public const string JsonTypeInfoNotGeneratedException = "global::DotNetCampus.ModelContextProtocol.Exceptions.JsonTypeInfoNotGeneratedInJsonSerializerContextException";
+    public const string McpToolJsonTypeInfoNotFoundException = "global::DotNetCampus.ModelContextProtocol.Exceptions.McpToolJsonTypeInfoNotFoundException";
+    public const string ServiceProviderServiceExtensions = "global::Microsoft.Extensions.DependencyInjection.ServiceProviderServiceExtensions";
 }

@@ -60,7 +60,8 @@ public record McpServerToolGeneratingModel
             Name = attribute.NamedArguments.GetValueOrDefault<string>(nameof(McpServerToolAttribute.Name))
                    ?? NamingHelper.MakeSnakeCase(methodSymbol.Name, true, true),
             Title = attribute.NamedArguments.GetValueOrDefault<string>(nameof(McpServerToolAttribute.Title)),
-            Description = methodSymbol.GetSummaryFromSymbol(),
+            Description = attribute.NamedArguments.GetValueOrDefault<string>(nameof(McpServerToolAttribute.Description))
+                          ?? methodSymbol.GetSummaryFromSymbol(),
         };
     }
 

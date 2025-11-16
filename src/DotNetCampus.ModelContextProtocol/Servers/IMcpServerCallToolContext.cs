@@ -1,5 +1,6 @@
 ﻿using System.Text.Json;
 using System.Text.Json.Serialization;
+using DotNetCampus.ModelContextProtocol.Exceptions;
 
 namespace DotNetCampus.ModelContextProtocol.Servers;
 
@@ -33,6 +34,19 @@ public interface IMcpServerCallToolContext
     /// Cancellation token used to cancel the tool invocation operation.
     /// </summary>
     CancellationToken CancellationToken { get; }
+
+    /// <summary>
+    /// 从依赖注入容器中解析并获取指定类型的服务实例。
+    /// </summary>
+    /// <param name="sourceGeneratedServiceTypeName">由源生成器提供的要解析的服务类型名称。</param>
+    /// <typeparam name="T">要解析的服务类型。</typeparam>
+    /// <returns>指定类型的服务实例。</returns>
+    /// <exception cref="McpToolServiceNotFoundException">当指定类型的服务在依赖注入容器中未找到时引发。</exception>
+    T GetRequiredMcpToolService<T>(string sourceGeneratedServiceTypeName)
+    {
+        return (T?)Services.GetService(typeof(T))
+               ?? throw new McpToolServiceNotFoundException(sourceGeneratedServiceTypeName);
+    }
 }
 
 internal sealed class McpServerCallToolContext : IMcpServerCallToolContext
