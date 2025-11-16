@@ -50,10 +50,15 @@ public sealed record ToolAnnotations
     public bool? IdempotentHint { get; init; }
 
     /// <summary>
-    /// 如果为 true，则工具可能产生不在 outputSchema 中定义的输出。<br/>
-    /// 默认值：false<br/>
-    /// If true, the tool may produce output not defined in the outputSchema.<br/>
-    /// Default: false
+    /// 如果为 true，则此工具可能与外部实体的"开放世界"交互。<br/>
+    /// 如果为 false，则工具的交互域是封闭的。<br/>
+    /// 例如，网络搜索工具的世界是开放的，而内存工具的世界不是。<br/>
+    /// 默认值：true<br/>
+    /// If true, this tool may interact with an "open world" of external<br/>
+    /// entities. If false, the tool's domain of interaction is closed.<br/>
+    /// For example, the world of a web search tool is open, whereas that<br/>
+    /// of a memory tool is not.<br/>
+    /// Default: true
     /// </summary>
     [JsonPropertyName("openWorldHint")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
