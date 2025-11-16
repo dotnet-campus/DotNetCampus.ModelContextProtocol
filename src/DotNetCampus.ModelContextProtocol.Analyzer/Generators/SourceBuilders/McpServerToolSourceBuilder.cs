@@ -1,4 +1,5 @@
-﻿using DotNetCampus.ModelContextProtocol.CompilerServices;
+﻿using DotNetCampus.ModelContextProtocol.CodeAnalysis;
+using DotNetCampus.ModelContextProtocol.CompilerServices;
 using DotNetCampus.ModelContextProtocol.Generators.Builders;
 using DotNetCampus.ModelContextProtocol.Generators.Models;
 using Microsoft.CodeAnalysis;
@@ -146,13 +147,13 @@ internal static class McpServerToolSourceBuilder
         return parameterType == ToolParameterType.InputObject
             // InputObject 类型：直接反序列化整个 jsonArguments
             ? $"""
-var {parameter.Name} = jsonArguments.Deserialize({G.McpToolJsonTypeInfoNotFoundException}.EnsureTypeInfo<{parameter.Type.ToUsingString()}>(jsonSerializerContext, "{parameter.Type.ToDisplayString()}"));
+var {parameter.Name} = jsonArguments.Deserialize({G.McpToolJsonTypeInfoNotFoundException}.EnsureTypeInfo<{parameter.Type.ToUsingString()}>(context, "{parameter.Type.ToSimpleDisplayString()}", "{parameter.Type.ToDisplayString()}"));
 """
             :
             // Parameter 类型：从 jsonArguments 中提取对应属性
             $"""
 var {parameter.Name} = jsonArguments.TryGetProperty("{jsonName}", out var {parameter.Name}Property)
-    ? {parameter.Name}Property.Deserialize({G.McpToolJsonTypeInfoNotFoundException}.EnsureTypeInfo<{parameter.Type.ToUsingString()}>(jsonSerializerContext, "{parameter.Type.ToDisplayString()}"))
+    ? {parameter.Name}Property.Deserialize({G.McpToolJsonTypeInfoNotFoundException}.EnsureTypeInfo<{parameter.Type.ToUsingString()}>(context, "{parameter.Type.ToSimpleDisplayString()}", "{parameter.Type.ToDisplayString()}"))
     : {(hasDefault ? parameter.GetDefaultValueExpression() : $"throw new {G.McpToolMissingRequiredArgumentException}(\"{jsonName}\")")};
 """;
     }

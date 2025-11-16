@@ -21,6 +21,8 @@ public record McpServerContext
         init;
     }
 
+    public string? JsonSerializerTypeName { get; init; }
+
     [NotNull]
     internal McpRequestHandlerRegistry? Handlers
     {

@@ -1,5 +1,6 @@
 ﻿using System.Text.Json.Serialization;
 using System.Text.Json.Serialization.Metadata;
+using DotNetCampus.ModelContextProtocol.Servers;
 
 namespace DotNetCampus.ModelContextProtocol.Exceptions;
 
@@ -9,20 +10,33 @@ namespace DotNetCampus.ModelContextProtocol.Exceptions;
 /// </summary>
 public class McpToolJsonTypeInfoNotFoundException : ModelContextProtocolException
 {
-    public McpToolJsonTypeInfoNotFoundException(string jsonTypeName)
-        : base($"Please add [JsonSerializable(typeof({jsonTypeName}))] to your JsonSerializerContext derived class.")
+    public McpToolJsonTypeInfoNotFoundException(string jsonTypeName, string jsonTypeFullName) : base($"""
+        The type "{jsonTypeFullName}" is not registered for deserialization.
+        Add [JsonSerializable(typeof({jsonTypeName}))] to your JsonSerializerContext derived class.
+        """)
+    {
+    }
+
+    public McpToolJsonTypeInfoNotFoundException(string jsonTypeName, string jsonTypeFullName, string jsonSerializerContextTypeName) : base($"""
+        The type "{jsonTypeFullName}" is not registered for deserialization.
+        Add [JsonSerializable(typeof({jsonTypeName}))] to {jsonSerializerContextTypeName}.
+        """)
     {
     }
 
     /// <summary>
     /// 确保在指定的 <see cref="JsonSerializerContext"/> 中存在所需的 <see cref="JsonTypeInfo{T}"/>。
     /// </summary>
-    /// <param name="jsonSerializerContext">Json 序列化上下文。</param>
+    /// <param name="context">调用工具的上下文。</param>
     /// <param name="sourceGeneratedJsonTypeName">由源生成器提供的要被反序列化的类型名称。</param>
+    /// <param name="sourceGeneratedJsonTypeFullName">由源生成器提供的要被反序列化的类型完整名称。</param>
     /// <typeparam name="T">要获取其 JsonTypeInfo 的类型。</typeparam>
     /// <returns>对应类型的 JsonTypeInfo。</returns>
     /// <exception cref="McpToolJsonTypeInfoNotFoundException">如果未生成所需的 JsonTypeInfo。</exception>
-    public static JsonTypeInfo<T> EnsureTypeInfo<T>(JsonSerializerContext jsonSerializerContext, string sourceGeneratedJsonTypeName) =>
-        jsonSerializerContext.GetTypeInfo(typeof(T)) as JsonTypeInfo<T>
-        ?? throw new McpToolJsonTypeInfoNotFoundException(sourceGeneratedJsonTypeName);
+    public static JsonTypeInfo<T> EnsureTypeInfo<T>(IMcpServerCallToolContext context,
+        string sourceGeneratedJsonTypeName, string sourceGeneratedJsonTypeFullName) =>
+        context.JsonSerializerContext.GetTypeInfo(typeof(T)) as JsonTypeInfo<T>
+        ?? (context.McpServer.Context.JsonSerializerTypeName is { } serializerName
+            ? throw new McpToolJsonTypeInfoNotFoundException(sourceGeneratedJsonTypeName, sourceGeneratedJsonTypeFullName, serializerName)
+            : throw new McpToolJsonTypeInfoNotFoundException(sourceGeneratedJsonTypeName, sourceGeneratedJsonTypeFullName));
 }

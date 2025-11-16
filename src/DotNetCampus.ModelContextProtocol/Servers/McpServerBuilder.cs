@@ -110,7 +110,21 @@ public class McpServerToolsBuilder(McpServerContext? originalContext, Dictionary
 
     public McpServerToolsBuilder WithJsonSerializer(JsonSerializerContext generatedJsonSerializerContext)
     {
-        return WithJsonSerializer(new McpServerToolJsonSerializer(generatedJsonSerializerContext));
+        var jsonSerializer = new McpServerToolJsonSerializer(generatedJsonSerializerContext);
+        Context = Context switch
+        {
+            null => new McpServerContext
+            {
+                JsonSerializer = jsonSerializer,
+                JsonSerializerTypeName = generatedJsonSerializerContext.GetType().FullName,
+            },
+            var c => c with
+            {
+                JsonSerializer = jsonSerializer,
+                JsonSerializerTypeName = generatedJsonSerializerContext.GetType().FullName,
+            },
+        };
+        return this;
     }
 
     public McpServerToolsBuilder WithTool<TMcpServerToolType>(Func<TMcpServerToolType> toolFactory,

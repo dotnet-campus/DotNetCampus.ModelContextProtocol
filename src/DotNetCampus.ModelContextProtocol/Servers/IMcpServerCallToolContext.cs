@@ -12,6 +12,12 @@ namespace DotNetCampus.ModelContextProtocol.Servers;
 public interface IMcpServerCallToolContext
 {
     /// <summary>
+    /// 调用工具的 MCP 服务器实例。<br/>
+    /// MCP server instance invoking the tool.
+    /// </summary>
+    McpServer McpServer { get; }
+
+    /// <summary>
     /// 用于解析和获取服务的服务提供者。<br/>
     /// Service provider used to resolve and obtain services.
     /// </summary>
@@ -51,6 +57,7 @@ public interface IMcpServerCallToolContext
 
 internal sealed class McpServerCallToolContext : IMcpServerCallToolContext
 {
+    public required McpServer McpServer { get; init; }
     public required IServiceProvider Services { get; init; }
     public required JsonSerializerContext JsonSerializerContext { get; init; }
     public required JsonElement InputJsonArguments { get; init; }

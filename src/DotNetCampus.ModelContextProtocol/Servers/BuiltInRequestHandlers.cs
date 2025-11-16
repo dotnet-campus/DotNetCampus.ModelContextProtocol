@@ -77,6 +77,7 @@ public class BuiltInRequestHandlers(McpServer server)
 
         var context = new McpServerCallToolContext
         {
+            McpServer = server,
             Services = new EmptyServiceProvider(),
             JsonSerializerContext = jsonContext,
             InputJsonArguments = arguments,
