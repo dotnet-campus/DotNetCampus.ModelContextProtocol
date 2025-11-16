@@ -29,6 +29,18 @@ public static class ToolSymbolExtensions
         }
 
         /// <summary>
+        /// 判断参数是否为 IMcpServerCallToolContext 类型。
+        /// </summary>
+        public bool IsJsonObjectParameter()
+        {
+            return parameter.Type.ToGlobalDisplayString()
+                is "object"
+                or "global::System.Object"
+                or "global::System.Text.Json.JsonElement"
+                or "global::System.Text.Json.Nodes.JsonObject";
+        }
+
+        /// <summary>
         /// 获取参数的 ToolParameterType。
         /// </summary>
         public ToolParameterType GetParameterType()
@@ -41,7 +53,7 @@ public static class ToolSymbolExtensions
             {
                 foreach (var namedArg in attribute.NamedArguments)
                 {
-                    if (namedArg.Key == nameof(ToolParameterAttribute.Type) && namedArg.Value.Value is int typeValue)
+                    if (namedArg is { Key: nameof(ToolParameterAttribute.Type), Value.Value: int typeValue })
                     {
                         return (ToolParameterType)typeValue;
                     }
@@ -59,6 +71,11 @@ public static class ToolSymbolExtensions
                 return ToolParameterType.Context;
             }
 
+            if (parameter.IsJsonObjectParameter())
+            {
+                return ToolParameterType.JsonObject;
+            }
+
             return ToolParameterType.Parameter;
         }
 
@@ -69,7 +86,11 @@ public static class ToolSymbolExtensions
         public bool IsSpecialParameter()
         {
             var parameterType = parameter.GetParameterType();
-            return parameterType != ToolParameterType.Parameter && parameterType != ToolParameterType.InputObject;
+            return parameterType switch
+            {
+                ToolParameterType.Context or ToolParameterType.Injected or ToolParameterType.CancellationToken => true,
+                _ => false,
+            };
         }
 
         /// <summary>

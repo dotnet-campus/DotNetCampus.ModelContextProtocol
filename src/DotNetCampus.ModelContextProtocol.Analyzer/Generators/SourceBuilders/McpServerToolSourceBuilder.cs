@@ -130,7 +130,7 @@ internal static class McpServerToolSourceBuilder
             .AddRawStatement($"{G.JsonElement} jsonArguments = context.InputJsonArguments;")
             .AddRawStatement($"{G.JsonSerializerContext} jsonSerializerContext = context.JsonSerializerContext;")
             .AddRawStatement($"{G.CancellationToken} cancellationToken = context.CancellationToken;")
-            .AddRawStatements(model.GetParameters().Select(GenerateParameterDeserializationStatement))
+            .AddRawStatements(model.GetParameters(true).Select(GenerateParameterDeserializationStatement).OfType<string>())
             .AddInvokeTargetMethodStatements(model)
         );
     }
@@ -138,24 +138,37 @@ internal static class McpServerToolSourceBuilder
     /// <summary>
     /// 生成参数反序列化语句。
     /// </summary>
-    private static string GenerateParameterDeserializationStatement(IParameterSymbol parameter)
+    private static string? GenerateParameterDeserializationStatement(IParameterSymbol parameter)
     {
         var parameterType = parameter.GetParameterType();
         var jsonName = parameter.GetJsonPropertyName();
         var hasDefault = parameter.HasExplicitDefaultValue;
 
-        return parameterType == ToolParameterType.InputObject
+        return parameterType switch
+        {
             // InputObject 类型：直接反序列化整个 jsonArguments
-            ? $"""
+            ToolParameterType.InputObject => $"""
 var {parameter.Name} = jsonArguments.Deserialize({G.McpToolJsonTypeInfoNotFoundException}.EnsureTypeInfo<{parameter.Type.ToUsingString()}>(context, "{parameter.Type.ToSimpleDisplayString()}", "{parameter.Type.ToDisplayString()}"));
-"""
-            :
+""",
+            ToolParameterType.Injected when parameter.Type.IsNullableType => $"""
+var {parameter.Name} = context.TryGetMcpToolService<{parameter.Type.ToUsingString()}>();
+""",
+            ToolParameterType.Injected => $"""
+var {parameter.Name} = context.GetRequiredMcpToolService<{parameter.Type.ToUsingString()}>("{parameter.Type.ToDisplayString()}");
+""",
+            ToolParameterType.JsonObject => $"""
+var {parameter.Name} = jsonArguments.TryGetProperty("{jsonName}", out var {parameter.Name}Property)
+    ? {parameter.Name}Property
+    : {(hasDefault ? parameter.GetDefaultValueExpression() : $"throw new {G.McpToolMissingRequiredArgumentException}(\"{jsonName}\")")};
+""",
             // Parameter 类型：从 jsonArguments 中提取对应属性
-            $"""
+            ToolParameterType.Parameter => $"""
 var {parameter.Name} = jsonArguments.TryGetProperty("{jsonName}", out var {parameter.Name}Property)
     ? {parameter.Name}Property.Deserialize({G.McpToolJsonTypeInfoNotFoundException}.EnsureTypeInfo<{parameter.Type.ToUsingString()}>(context, "{parameter.Type.ToSimpleDisplayString()}", "{parameter.Type.ToDisplayString()}"))
     : {(hasDefault ? parameter.GetDefaultValueExpression() : $"throw new {G.McpToolMissingRequiredArgumentException}(\"{jsonName}\")")};
-""";
+""",
+            _ => null,
+        };
     }
 
     /// <summary>
@@ -171,7 +184,6 @@ var {parameter.Name} = jsonArguments.TryGetProperty("{jsonName}", out var {param
             {
                 ToolParameterType.CancellationToken => "cancellationToken",
                 ToolParameterType.Context => "context",
-                ToolParameterType.Injected => $"context.GetRequiredMcpToolService<{x.Type.ToUsingString()}>(\"{x.Type.ToDisplayString()}\")",
                 _ => x.RequireNullForgiving() ? $"{x.Name}!" : x.Name,
             });
         var callMethodExpression = $"Target.{model.Method.Name}({string.Join(", ", arguments)})";

@@ -162,6 +162,8 @@ internal class JsonSchemaTypeInfo
             case SpecialType.System_Collections_Generic_IReadOnlyList_T:
             case SpecialType.System_Collections_Generic_IReadOnlyCollection_T:
                 return JsonSpecialType.Array;
+            case SpecialType.System_Object:
+                return JsonSpecialType.Object;
             case SpecialType.None:
                 // 其他类型，进行后续分析。
                 break;

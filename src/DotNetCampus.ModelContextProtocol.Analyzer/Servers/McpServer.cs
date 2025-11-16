@@ -5,3 +5,5 @@ public class McpServer;
 public class McpServerBuilder;
 
 public class McpServerToolsBuilder;
+
+public interface IMcpServerCallToolContext;

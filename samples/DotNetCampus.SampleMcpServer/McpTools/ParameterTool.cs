@@ -46,15 +46,32 @@ public class ParameterTool
     /// <summary>
     /// [ForAI] 演示使用注入参数的工具
     /// </summary>
-    /// <param name="logger">注入的日志记录器</param>
+    /// <param name="logger1">注入的日志记录器</param>
+    /// <param name="logger2">可空注入的日志记录器</param>
     /// <returns></returns>
     [McpServerTool(ReadOnly = true)]
     public string TestParameterInjection(
         [ToolParameter(Type = ToolParameterType.Injected)]
-        ILogger logger)
+        ILogger logger1,
+        [ToolParameter(Type = ToolParameterType.Injected)]
+        ILogger? logger2)
     {
-        logger.Info("[ParameterTool] injected logger works!");
+        logger1.Info($"[ParameterTool] injected logger works! logger2 is {(logger2 == null ? "null" : "not null")}");
         return "Logger 注入成功！";
+    }
+
+    /// <summary>
+    /// [ForAI] 演示使用传递任意 JSON 元素参数的工具
+    /// </summary>
+    /// <param name="id">传递过来的标识</param>
+    /// <param name="payload">传递过来的任意 JSON 元素</param>
+    /// <returns></returns>
+    [McpServerTool(ReadOnly = true)]
+    public string TestParameterAny(string id, object payload)
+    {
+        return $"""
+            Received JSON element, "{id}" = {payload}
+            """;
     }
 }
 

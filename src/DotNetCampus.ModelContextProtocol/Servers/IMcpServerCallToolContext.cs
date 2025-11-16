@@ -42,6 +42,16 @@ public interface IMcpServerCallToolContext
     CancellationToken CancellationToken { get; }
 
     /// <summary>
+    /// 尝试从依赖注入容器中解析并获取指定类型的服务实例。
+    /// </summary>
+    /// <typeparam name="T">要解析的服务类型。</typeparam>
+    /// <returns>指定类型的服务实例。</returns>
+    T? TryGetMcpToolService<T>()
+    {
+        return (T?)Services.GetService(typeof(T));
+    }
+
+    /// <summary>
     /// 从依赖注入容器中解析并获取指定类型的服务实例。
     /// </summary>
     /// <param name="sourceGeneratedServiceTypeName">由源生成器提供的要解析的服务类型名称。</param>

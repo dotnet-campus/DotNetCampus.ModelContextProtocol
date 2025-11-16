@@ -109,7 +109,7 @@ public record JsonPropertySchemaInfo(ITypeSymbol PropertyType)
         return properties.ToArray();
     }
 
-    public string? GetJsonSchemaTypeExpression() => IsNullableType switch
+    public string GetJsonSchemaTypeExpression() => IsNullableType switch
     {
         true => $"{G.JsonSerializer}.SerializeToElement(new[] {{ \"{JsonSchemaType}\", \"null\" }}, jsonContext.StringArray)",
         false => $"{G.JsonSerializer}.SerializeToElement(\"{JsonSchemaType}\", jsonContext.String)",
