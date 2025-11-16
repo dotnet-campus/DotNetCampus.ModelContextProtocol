@@ -17,4 +17,10 @@
     <ProjectReference Include="..\..\src\DotNetCampus.ModelContextProtocol\DotNetCampus.ModelContextProtocol.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Update="mcp-simple-diagram.avif">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
 </Project>

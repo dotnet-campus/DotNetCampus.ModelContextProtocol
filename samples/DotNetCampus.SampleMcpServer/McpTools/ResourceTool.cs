@@ -6,23 +6,26 @@ namespace DotNetCampus.SampleMcpServer.McpTools;
 public class ResourceTool
 {
     [McpServerTool]
-    public CallToolResult GetEmbeddedResourceContent()
+    public string HandleResource(string resourceUri)
     {
+        return resourceUri;
+    }
+
+    [McpServerTool]
+    public CallToolResult GetResource()
+    {
+        var image = File.ReadAllBytes(Path.Join(AppContext.BaseDirectory, "mcp-simple-diagram.avif"));
         return new CallToolResult
         {
             Content =
             [
                 new EmbeddedResourceContentBlock
                 {
-                    Resource = new TextResourceContents
+                    Resource = new BlobResourceContents
                     {
-                        Uri = "resource://DotNetCampus.SampleMcpServer.Resources.SampleTextResource.txt",
-                        Text = """
-这是一个嵌入的文本资源示例。
-它包含多行文本内容，用于演示嵌入资源的功能。
-你可以在 MCP 客户端中访问和使用这个资源。
-""",
-                        MimeType = "text/plain",
+                        Uri = "resource://mcp-simple-diagram.avif",
+                        MimeType = "image/avif",
+                        Blob = Convert.ToBase64String(image),
                     },
                 },
             ],
