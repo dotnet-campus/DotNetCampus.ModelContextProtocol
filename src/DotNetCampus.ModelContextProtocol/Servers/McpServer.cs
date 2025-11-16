@@ -55,7 +55,7 @@ public class McpServer
     /// <summary>
     /// 获取 MCP 服务器工具集合。
     /// </summary>
-    public required IReadOnlyDictionary<string, IMcpServerTool> Tools { get; init; }
+    public required IMcpServerToolsProvider Tools { get; init; }
 
     /// <summary>
     /// 启用调试模式。<br/>

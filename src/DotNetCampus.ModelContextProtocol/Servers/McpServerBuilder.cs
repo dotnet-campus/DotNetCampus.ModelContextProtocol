@@ -12,7 +12,7 @@ public class McpServerBuilder(string serverName, string serverVersion)
 {
     private McpServerContext? _context;
     private HttpServerTransportOptions? _httpOptions;
-    private readonly Dictionary<string, IMcpServerTool> _tools = [];
+    private readonly McpServerToolsProvider _tools = new();
 
     /// <summary>
     /// 配置 MCP 服务器的工具和相关选项。
@@ -88,9 +88,19 @@ public class McpServerBuilder(string serverName, string serverVersion)
     }
 }
 
-public class McpServerToolsBuilder(McpServerContext? originalContext, Dictionary<string, IMcpServerTool> tools)
+public class McpServerToolsBuilder
 {
-    internal McpServerContext? Context { get; private set; } = originalContext;
+    private readonly McpServerToolsProvider _tools;
+
+    internal McpServerToolsBuilder(McpServerContext? originalContext, McpServerToolsProvider tools)
+    {
+        Context = originalContext;
+        _tools = tools;
+    }
+
+    internal McpServerContext? Context { get; private set; }
+
+    public IMcpServerToolsProvider Tools => _tools;
 
     public McpServerToolsBuilder WithJsonSerializer(IMcpServerToolJsonSerializer jsonSerializer)
     {
@@ -139,7 +149,7 @@ public class McpServerToolsBuilder(McpServerContext? originalContext, Dictionary
         where TMcpServerToolType : class
     {
         var name = tool.ToolName;
-        if (!tools.TryAdd(name, tool))
+        if (!_tools.TryAdd(name, tool))
         {
             throw new InvalidOperationException($"已存在名称为 \"{name}\" 的 MCP 服务器工具，无法重复添加同名工具。");
         }

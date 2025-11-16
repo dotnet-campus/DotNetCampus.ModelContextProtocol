@@ -6,6 +6,7 @@ using DotNetCampus.ModelContextProtocol.Utils;
 using Microsoft.CodeAnalysis;
 using System.Collections.Immutable;
 using DotNetCampus.ModelContextProtocol.Generators.ModelProviders;
+using G = DotNetCampus.ModelContextProtocol.GlobalTypeNames;
 
 namespace DotNetCampus.ModelContextProtocol.Generators;
 
@@ -98,10 +99,15 @@ file static class Extensions
             """;
 
         return builder.AddMethodDeclaration(signature, m => m
-            .WithSummaryComment(
-                $"拦截 <see cref=\"global::DotNetCampus.ModelContextProtocol.Servers.McpServerToolsBuilder.WithTool{{{toolType.ToDisplayString()}}}\"/> 方法调用。")
+            .WithSummaryComment($"拦截 WithTool&lt;{{{toolType.Name}}}&gt; 方法调用。")
             .AddAttributes(models.Select(GenerateInterceptsLocationAttribute))
-            .AddRawStatement($"var typedFactory = () => (({toolType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)})(object)toolFactory()!);")
+            .AddRawStatement($$"""
+                {{G.Func}}<{{toolType.ToUsingString()}}> typedFactory = creationMode switch
+                {
+                    {{G.McpServerToolCreationMode}}.Singleton => () => builder.Tools.GetOrAddSingleton<{{toolType.ToUsingString()}}>("{{toolType.ToDisplayString()}}", () => ({{toolType.ToUsingString()}})(object)toolFactory()),
+                    _ => () => ({{toolType.ToUsingString()}})(object)toolFactory(),
+                };
+                """)
             .AddRawStatements(firstModel.ToolModels.SelectMany(toolModel => GenerateToolBridgeCreation(toolModel, toolType)))
             .AddRawStatement("return builder;")
         );

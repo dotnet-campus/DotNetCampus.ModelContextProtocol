@@ -41,7 +41,7 @@ public class BuiltInRequestHandlers(McpServer server)
     {
         return new ListToolsResult
         {
-            Tools = server.Tools.Select(x => x.Value.GetToolDefinition(InputSchemaJsonContext.Default)).ToList(),
+            Tools = server.Tools.Select(x => x.GetToolDefinition(InputSchemaJsonContext.Default)).ToList(),
         };
     }
 
@@ -58,7 +58,7 @@ public class BuiltInRequestHandlers(McpServer server)
             };
         }
 
-        if (!server.Tools.TryGetValue(toolName, out var tool))
+        if (!server.Tools.TryGet(toolName, out var tool))
         {
             return new CallToolResult
             {
