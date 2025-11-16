@@ -1,6 +1,7 @@
 ﻿using System.Text.Json;
 using System.Text.Json.Serialization;
 using DotNetCampus.ModelContextProtocol.CompilerServices;
+using DotNetCampus.ModelContextProtocol.Servers;
 
 namespace DotNetCampus.ModelContextProtocol.Protocol.Messages;
 
@@ -63,11 +64,14 @@ public record CallToolResult
     /// 使用指定的 JSON 序列化上下文将当前实例序列化为结构化的 <see cref="CallToolResult"/> 实例。
     /// 当然，如果当前实例不是结构化实例，则会原样返回当前实例。
     /// </summary>
-    /// <param name="jsonSerializerContext">用于序列化的 JSON 序列化上下文。</param>
+    /// <param name="context">调用工具的上下文。</param>
+    /// <param name="sourceGeneratedJsonTypeName">由源生成器提供的要被反序列化的类型名称。</param>
+    /// <param name="sourceGeneratedJsonTypeFullName">由源生成器提供的要被反序列化的类型完整名称。</param>
     /// <returns>结构化的 <see cref="CallToolResult"/> 实例，或者当前实例本身（如果它不是结构化实例）。</returns>
-    public CallToolResult Structure(JsonSerializerContext jsonSerializerContext) => this switch
+    public CallToolResult Structure(IMcpServerCallToolContext context,
+        string sourceGeneratedJsonTypeName, string sourceGeneratedJsonTypeFullName) => this switch
     {
-        ICallToolResultJsonSerializer s => s.SerializeToCallToolResult(jsonSerializerContext),
+        ICallToolResultJsonSerializer s => s.SerializeToCallToolResult(context, sourceGeneratedJsonTypeName, sourceGeneratedJsonTypeFullName),
         _ => this,
     };
 

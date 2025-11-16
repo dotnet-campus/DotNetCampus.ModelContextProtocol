@@ -190,15 +190,15 @@ var {parameter.Name} = jsonArguments.TryGetProperty("{jsonName}", out var {param
 
         builder
             .Condition(model.GetIsAsync(), async => async
-                .AddRawStatements(
-                    $"var result = await {callMethodExpression}.ConfigureAwait(false);",
-                    $"return (({G.CallToolResult})result).Structure(jsonSerializerContext);"
-                ))
+                .AddRawStatement($"""
+                    var result = await {callMethodExpression}.ConfigureAwait(false);
+                    return (({G.CallToolResult})result).Structure(context, null, null);
+                    """))
             .Otherwise(sync => sync
-                .AddRawStatements(
-                    $"var result = {callMethodExpression};",
-                    $"return {G.ValueTask}.FromResult(({G.CallToolResult}.FromResult(result)).Structure(jsonSerializerContext));"
-                ));
+                .AddRawStatement($"""
+                    var result = {callMethodExpression};
+                    return {G.ValueTask}.FromResult(({G.CallToolResult}.FromResult(result)).Structure(context, null, null));
+                    """));
 
         return builder;
     }

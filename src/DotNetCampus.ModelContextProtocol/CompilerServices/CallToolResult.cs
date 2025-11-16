@@ -1,6 +1,8 @@
 ﻿using System.Text.Json.Serialization;
 using System.Text.Json.Serialization.Metadata;
+using DotNetCampus.ModelContextProtocol.Exceptions;
 using DotNetCampus.ModelContextProtocol.Protocol.Messages;
+using DotNetCampus.ModelContextProtocol.Servers;
 
 namespace DotNetCampus.ModelContextProtocol.CompilerServices;
 
@@ -18,10 +20,9 @@ public sealed record CallToolResult<T>([property: JsonIgnore] T Result) : CallTo
     public required Func<T, JsonTypeInfo<T>, CallToolResult> ResultFactory { get; init; }
 
     /// <inheritdoc />
-    public CallToolResult SerializeToCallToolResult(JsonSerializerContext jsonSerializerContext)
-    {
-        return ResultFactory(Result, (JsonTypeInfo<T>)jsonSerializerContext.GetTypeInfo(typeof(T))!);
-    }
+    public CallToolResult SerializeToCallToolResult(IMcpServerCallToolContext context,
+        string sourceGeneratedJsonTypeName, string sourceGeneratedJsonTypeFullName) => ResultFactory(Result,
+        McpToolJsonTypeInfoNotFoundException.EnsureTypeInfo<T>(context, sourceGeneratedJsonTypeName, sourceGeneratedJsonTypeFullName));
 }
 
 /// <summary>
@@ -32,7 +33,10 @@ public interface ICallToolResultJsonSerializer
     /// <summary>
     /// 将结果序列化为 <see cref="CallToolResult"/> 实例。
     /// </summary>
-    /// <param name="jsonSerializerContext">用于序列化结果的 JSON 序列化上下文。</param>
+    /// <param name="context">调用工具的上下文。</param>
+    /// <param name="sourceGeneratedJsonTypeName">由源生成器提供的要被反序列化的类型名称。</param>
+    /// <param name="sourceGeneratedJsonTypeFullName">由源生成器提供的要被反序列化的类型完整名称。</param>
     /// <returns>序列化后的 <see cref="CallToolResult"/> 实例。</returns>
-    CallToolResult SerializeToCallToolResult(JsonSerializerContext jsonSerializerContext);
+    CallToolResult SerializeToCallToolResult(IMcpServerCallToolContext context,
+        string sourceGeneratedJsonTypeName, string sourceGeneratedJsonTypeFullName);
 }

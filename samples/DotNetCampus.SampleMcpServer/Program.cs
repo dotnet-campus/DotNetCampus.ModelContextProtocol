@@ -28,6 +28,7 @@ internal class Program
                 .WithTool(() => new SampleTools())
                 .WithTool(() => new ParameterTool())
                 .WithTool(() => new ResourceTool())
+                .WithTool(() => new ReturnTool())
             )
             .WithHttp(5943, "mcp")
             .WithStdio()
