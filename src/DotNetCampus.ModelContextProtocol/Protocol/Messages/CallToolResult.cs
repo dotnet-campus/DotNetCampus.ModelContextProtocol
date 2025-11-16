@@ -12,6 +12,15 @@ namespace DotNetCampus.ModelContextProtocol.Protocol.Messages;
 public record CallToolResult
 {
     /// <summary>
+    /// 表示空的工具调用结果。<br/>
+    /// An empty tool call result.
+    /// </summary>
+    public static CallToolResult Empty { get; } = new CallToolResult
+    {
+        Content = [],
+    };
+
+    /// <summary>
     /// 表示工具调用非结构化结果的内容对象列表。<br/>
     /// A list of content objects that represent the unstructured result of the tool call.
     /// </summary>

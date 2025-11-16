@@ -213,22 +213,37 @@ var {parameter.Name} = jsonArguments.TryGetProperty("{jsonName}", out var {param
         var typeName = model.GetReturnTypeName(false);
         var typeFullName = model.GetReturnTypeName(true);
         var hasStructureReturn = typeName is not null && typeFullName is not null;
+        var isVoid = model.GetReturnType() is null;
 
-        builder.AddRawStatement((isAsync, hasStructureReturn) switch
+        builder.AddRawStatement((isAsync, isVoid, hasStructureReturn) switch
         {
-            (true, true) => $"""
+            // async void (Task/ValueTask without result)
+            (true, true, _) => $"""
+                await {callMethodExpression}.ConfigureAwait(false);
+                return {G.CallToolResult}.Empty;
+                """,
+            // async with structured return
+            (true, false, true) => $"""
                 var result = await {callMethodExpression}.ConfigureAwait(false);
                 return (({G.CallToolResult})result).Structure(context, "{typeName}", "{typeFullName}");
                 """,
-            (true, false) => $"""
+            // async without structured return
+            (true, false, false) => $"""
                 var result = await {callMethodExpression}.ConfigureAwait(false);
                 return (({G.CallToolResult})result).Structure(jsonSerializerContext);
                 """,
-            (false, true) => $"""
+            // sync void
+            (false, true, _) => $"""
+                {callMethodExpression};
+                return {G.ValueTask}.FromResult({G.CallToolResult}.Empty);
+                """,
+            // sync with structured return
+            (false, false, true) => $"""
                 var result = {callMethodExpression};
                 return {G.ValueTask}.FromResult(({G.CallToolResult}.FromResult(result)).Structure(context, "{typeName}", "{typeFullName}"));
                 """,
-            (false, false) => $"""
+            // sync without structured return
+            (false, false, false) => $"""
                 var result = {callMethodExpression};
                 return {G.ValueTask}.FromResult(({G.CallToolResult}.FromResult(result)).Structure(jsonSerializerContext));
                 """,

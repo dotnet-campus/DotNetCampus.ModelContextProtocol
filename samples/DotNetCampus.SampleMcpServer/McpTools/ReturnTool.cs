@@ -12,6 +12,16 @@ public class ReturnTool
     /// </summary>
     /// <returns></returns>
     [McpServerTool]
+    public async Task DoNothingAsync()
+    {
+        await Task.Yield();
+    }
+
+    /// <summary>
+    /// 什么都不做
+    /// </summary>
+    /// <returns></returns>
+    [McpServerTool]
     public void DoNothing()
     {
     }
