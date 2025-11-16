@@ -22,14 +22,23 @@ public record McpServerToolGeneratingModel
     public IReadOnlyList<IParameterSymbol> GetParameters(bool includeAll = false)
     {
         return Method.Parameters
-            .Where(p => includeAll || !p.IsCancellationTokenParameter())
+            .Where(p => includeAll || !p.IsSpecialParameter())
             .ToList();
     }
 
     public IReadOnlyList<JsonPropertySchemaInfo> GetProperties()
     {
+        // 检查是否有 InputObject 类型的参数
+        var inputObjectParam = Method.Parameters.FirstOrDefault(p => p.GetParameterType() == ToolParameterType.InputObject);
+        if (inputObjectParam != null)
+        {
+            // 如果有 InputObject 参数，直接返回该对象类型的所有属性，不是参数本身
+            var inputObjectInfo = JsonPropertySchemaInfo.From(inputObjectParam.Type, "inputObject");
+            return inputObjectInfo.GetProperties();
+        }
+
         return Method.Parameters
-            .Where(p => !p.IsCancellationTokenParameter())
+            .Where(p => !p.IsSpecialParameter())
             .Select(JsonPropertySchemaInfo.From)
             .ToList();
     }

@@ -99,12 +99,4 @@ public static class SymbolExtensions
         /// <returns></returns>
         public string ToNullableDisabledGlobalDisplayString() => typeSymbol.ToDisplayString(NullableDisabledGlobalDisplayFormat);
     }
-
-    /// <summary>
-    /// 判断参数是否为 CancellationToken 类型。
-    /// </summary>
-    public static bool IsCancellationTokenParameter(this IParameterSymbol parameter)
-    {
-        return parameter.Type.ToGlobalDisplayString() == "global::System.Threading.CancellationToken";
-    }
 }

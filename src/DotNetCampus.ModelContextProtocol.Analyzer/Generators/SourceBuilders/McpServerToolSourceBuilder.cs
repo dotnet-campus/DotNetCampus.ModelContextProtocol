@@ -1,4 +1,5 @@
 ﻿using DotNetCampus.ModelContextProtocol.CodeAnalysis;
+using DotNetCampus.ModelContextProtocol.CompilerServices;
 using DotNetCampus.ModelContextProtocol.Generators.Builders;
 using DotNetCampus.ModelContextProtocol.Generators.Models;
 using DotNetCampus.ModelContextProtocol.Utils;
@@ -130,7 +131,7 @@ internal static class McpServerToolSourceBuilder
             .AddRawStatement($"{G.JsonElement} jsonArguments = context.InputJsonArguments;")
             .AddRawStatement($"{G.JsonSerializerContext} jsonSerializerContext = context.JsonSerializerContext;")
             .AddRawStatement($"{G.CancellationToken} cancellationToken = context.CancellationToken;")
-            .AddRawStatements(model.GetParameters().Select(GenerateParameterDeserializationStatements))
+            .AddRawStatements(model.GetParameters().Select(GenerateParameterDeserializationStatement))
             .AddInvokeTargetMethodStatements(model)
         );
     }
@@ -138,9 +139,19 @@ internal static class McpServerToolSourceBuilder
     /// <summary>
     /// 生成参数反序列化语句。
     /// </summary>
-    private static string GenerateParameterDeserializationStatements(IParameterSymbol parameter)
+    private static string GenerateParameterDeserializationStatement(IParameterSymbol parameter)
     {
-        var jsonName = NamingHelper.MakeCamelCase(parameter.Name);
+        var parameterType = parameter.GetParameterType();
+
+        // InputObject 类型：直接反序列化整个 jsonArguments
+        if (parameterType == ToolParameterType.InputObject)
+        {
+            return
+                $"var {parameter.Name} = jsonArguments.Deserialize({G.JsonTypeInfoNotGeneratedException}.EnsureTypeInfo<{parameter.Type.ToUsingString()}>(jsonSerializerContext));";
+        }
+
+        // Parameter 类型：从 jsonArguments 中提取对应属性
+        var jsonName = parameter.Name;
         var hasDefault = parameter.HasExplicitDefaultValue;
         return $"""
             var {parameter.Name} = jsonArguments.TryGetProperty("{jsonName}", out var {parameter.Name}Property)
@@ -158,11 +169,23 @@ internal static class McpServerToolSourceBuilder
         where TBuilder : IAllowStatement
     {
         var arguments = model.GetParameters(true)
-            .Select(x => x.IsCancellationTokenParameter()
-                ? "cancellationToken"
-                : x.RequireNullForgiving()
-                    ? $"{x.Name}!"
-                    : x.Name);
+            .Select(x =>
+            {
+                if (x.IsCancellationTokenParameter())
+                {
+                    return "cancellationToken";
+                }
+                else if (x.IsContextParameter())
+                {
+                    return "context";
+                }
+                else
+                {
+                    return x.RequireNullForgiving()
+                        ? $"{x.Name}!"
+                        : x.Name;
+                }
+            });
         var callMethodExpression = $"Target.{model.Method.Name}({string.Join(", ", arguments)})";
 
         builder
