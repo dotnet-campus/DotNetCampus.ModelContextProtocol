@@ -17,7 +17,7 @@ public class SampleTools
     [McpServerTool(ReadOnly = true)]
     public CallToolResult Echo(
         string text,
-        EchoOptions options,
+        EchoOptions options = EchoOptions.JsonObject,
         int count = 1,
         EchoExtraData? extraData = null,
         bool isError = false)

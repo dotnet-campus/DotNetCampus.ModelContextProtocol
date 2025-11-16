@@ -6,9 +6,9 @@ using DotNetCampus.ModelContextProtocol.Servers;
 namespace DotNetCampus.SampleMcpServer.McpTools;
 
 /// <summary>
-/// 本 MCP 工具用于测试各种不同类型的参数传递功能。
+/// 本 MCP 工具用于测试各种不同输入类型的参数传递功能。
 /// </summary>
-public class ParameterTool
+public class InputTool
 {
     /// <summary>
     /// 演示使用上下文参数的工具
