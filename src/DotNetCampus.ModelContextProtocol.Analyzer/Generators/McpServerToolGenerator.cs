@@ -43,6 +43,7 @@ public class McpServerToolGenerator : IIncrementalGenerator
                     .AddRawText($"/// <inheritdoc />\npublic string ToolName {{ get; }} = \"{model.Name}\";")
                     .AddGetToolDefinitionMethod(model)
                     .AddGetInputSchemaMethod(model)
+                    .AddGetOutputSchemaMethod(model)
                     .AddCallToolMethod(model)
             );
         var code = builder.ToString();

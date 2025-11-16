@@ -89,6 +89,87 @@ public record McpServerToolGeneratingModel
     }
 
     /// <summary>
+    /// 获取方法返回值的实际类型（去除 Task/ValueTask 包装）。
+    /// </summary>
+    /// <returns>返回值的实际类型，如果是 void/Task/ValueTask 则返回 null。</returns>
+    public ITypeSymbol? GetReturnType()
+    {
+        var returnType = Method.ReturnType;
+
+        // 如果是 Task 或 ValueTask，提取其泛型参数
+        if (returnType is INamedTypeSymbol { IsGenericType: true } namedType)
+        {
+            var fullName = namedType.OriginalDefinition.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+            if (fullName is "global::System.Threading.Tasks.Task<TResult>"
+                or "global::System.Threading.Tasks.ValueTask<TResult>")
+            {
+                return namedType.TypeArguments[0];
+            }
+        }
+
+        // 如果是 void、Task 或 ValueTask（无返回值），返回 null
+        if (returnType.SpecialType == SpecialType.System_Void ||
+            IsTaskLikeReturnType(returnType))
+        {
+            return null;
+        }
+
+        return returnType;
+    }
+
+    /// <summary>
+    /// 获取返回值的 JsonPropertySchemaInfo，用于生成 OutputSchema。
+    /// </summary>
+    /// <returns>返回值的 Schema 信息，如果没有结构化返回则为 null。</returns>
+    public JsonPropertySchemaInfo? GetReturnTypeSchemaInfo()
+    {
+        var returnType = GetReturnType();
+        if (returnType is null)
+        {
+            return null;
+        }
+
+        var fullName = returnType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+
+        // 1. string - 没有结构化返回
+        if (returnType.SpecialType == SpecialType.System_String)
+        {
+            return null;
+        }
+
+        // 2. CallToolResult - 没有结构化返回
+        if (fullName == "global::DotNetCampus.ModelContextProtocol.Protocol.Messages.CallToolResult")
+        {
+            return null;
+        }
+
+        // 3. CallToolResult<T> - 使用 T 的结构化返回
+        if (returnType is INamedTypeSymbol { IsGenericType: true } genericType &&
+            genericType.OriginalDefinition.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat) ==
+            "global::DotNetCampus.ModelContextProtocol.CompilerServices.CallToolResult<T>")
+        {
+            var resultType = genericType.TypeArguments[0];
+            return JsonPropertySchemaInfo.From(resultType, "result");
+        }
+
+        // 4. 可序列化的对象 - 使用此对象的结构化返回
+        return JsonPropertySchemaInfo.From(returnType, "result");
+    }
+
+    /// <summary>
+    /// 获取用于传递给 Structure 方法的类型名称。
+    /// </summary>
+    /// <param name="fullName">获取完全限定名还是简单名称。</param>
+    /// <returns>类型名称，如果没有结构化返回则为 null。</returns>
+    public string? GetReturnTypeName(bool fullName)
+    {
+        var schemaInfo = GetReturnTypeSchemaInfo();
+        return fullName
+            ? schemaInfo?.PropertyType.ToDisplayString()
+            : schemaInfo?.PropertyType.ToSimpleDisplayString();
+    }
+
+    /// <summary>
     /// 判断返回类型是否为 Task 或 ValueTask。
     /// </summary>
     private static bool IsTaskLikeReturnType(ITypeSymbol returnType)

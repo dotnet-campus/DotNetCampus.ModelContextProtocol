@@ -4,6 +4,7 @@ namespace DotNetCampus.SampleMcpServer.McpTools;
 
 [JsonSerializable(typeof(EchoExtraData))]
 [JsonSerializable(typeof(EchoOptions))]
+[JsonSerializable(typeof(LocalTimeInfo))]
 [JsonSourceGenerationOptions(
     PropertyNameCaseInsensitive = true,
     PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,

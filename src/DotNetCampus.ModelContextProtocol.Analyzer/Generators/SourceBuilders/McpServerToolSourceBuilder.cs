@@ -23,8 +23,12 @@ internal static class McpServerToolSourceBuilder
                         .AddStringAssignment("Name", model.Name)
                         .AddStringAssignment("Title", model.Title)
                         .AddStringAssignment("Description", model.Description)
-                        .AddRawText(
+                        .AddRawStatement(
                             $"InputSchema = {G.JsonSerializer}.SerializeToElement(GetInputSchema(jsonContext), jsonContext.ToolInputSchema),")
+                        .Condition(model.GetReturnTypeSchemaInfo() is not null, output => output
+                            .AddRawStatement(
+                                $"OutputSchema = {G.JsonSerializer}.SerializeToElement(GetOutputSchema(jsonContext), jsonContext.ToolInputSchema),"))
+                        .EndCondition()
                     )
             );
     }
@@ -38,6 +42,23 @@ internal static class McpServerToolSourceBuilder
         return builder
             .AddMethodDeclaration($"private {G.ToolInputSchema} GetInputSchema({G.InputSchemaJsonContext} jsonContext)", true,
                 m => m.AddInputSchemaExpression(JsonPropertySchemaInfo.From(model))
+            );
+    }
+
+    /// <summary>
+    /// 为 MCP 工具桥接类添加 GetOutputSchema 方法。
+    /// </summary>
+    public static IAllowMemberDeclaration AddGetOutputSchemaMethod(this IAllowMemberDeclaration builder,
+        McpServerToolGeneratingModel model)
+    {
+        if (model.GetReturnTypeSchemaInfo() is not { } schemaInfo)
+        {
+            return builder;
+        }
+
+        return builder
+            .AddMethodDeclaration($"private {G.ToolInputSchema} GetOutputSchema({G.InputSchemaJsonContext} jsonContext)", true,
+                m => m.AddInputSchemaExpression(schemaInfo)
             );
     }
 
@@ -188,18 +209,30 @@ var {parameter.Name} = jsonArguments.TryGetProperty("{jsonName}", out var {param
             });
         var callMethodExpression = $"Target.{model.Method.Name}({string.Join(", ", arguments)})";
 
-        builder
-            .Condition(model.GetIsAsync(), async => async
-                .AddRawStatement($"""
-                    var result = await {callMethodExpression}.ConfigureAwait(false);
-                    return (({G.CallToolResult})result).Structure(context, null, null);
-                    """))
-            .Otherwise(sync => sync
-                .AddRawStatement($"""
-                    var result = {callMethodExpression};
-                    return {G.ValueTask}.FromResult(({G.CallToolResult}.FromResult(result)).Structure(context, null, null));
-                    """));
+        var isAsync = model.GetIsAsync();
+        var typeName = model.GetReturnTypeName(false);
+        var typeFullName = model.GetReturnTypeName(true);
+        var hasStructureReturn = typeName is not null && typeFullName is not null;
 
+        builder.AddRawStatement((isAsync, hasStructureReturn) switch
+        {
+            (true, true) => $"""
+                var result = await {callMethodExpression}.ConfigureAwait(false);
+                return (({G.CallToolResult})result).Structure(context, "{typeName}", "{typeFullName}");
+                """,
+            (true, false) => $"""
+                var result = await {callMethodExpression}.ConfigureAwait(false);
+                return (({G.CallToolResult})result).Structure(jsonSerializerContext);
+                """,
+            (false, true) => $"""
+                var result = {callMethodExpression};
+                return {G.ValueTask}.FromResult(({G.CallToolResult}.FromResult(result)).Structure(context, "{typeName}", "{typeFullName}"));
+                """,
+            (false, false) => $"""
+                var result = {callMethodExpression};
+                return {G.ValueTask}.FromResult(({G.CallToolResult}.FromResult(result)).Structure(jsonSerializerContext));
+                """,
+        });
         return builder;
     }
 
