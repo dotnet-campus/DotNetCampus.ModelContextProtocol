@@ -5,6 +5,10 @@
 /// </summary>
 public class McpToolMissingRequiredArgumentException : ModelContextProtocolException
 {
+    /// <summary>
+    /// 初始化 <see cref="McpToolMissingRequiredArgumentException"/> 类的新实例。
+    /// </summary>
+    /// <param name="argumentName">缺少的参数名称</param>
     public McpToolMissingRequiredArgumentException(string argumentName)
         : base($"Missing required argument: {argumentName}")
     {

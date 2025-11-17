@@ -50,18 +50,18 @@ public static class RequestMethods
 
     /// <summary>
     /// 从客户端发送以请求在特定资源更改时从服务器接收
-    /// <see cref="NotificationMethods.ResourceUpdatedNotification"/> 通知的请求方法名称。<br/>
+    /// notifications/resources/updated 通知的请求方法名称。<br/>
     /// The name of the request method sent from the client to request
-    /// <see cref="NotificationMethods.ResourceUpdatedNotification"/>
+    /// notifications/resources/updated
     /// notifications from the server whenever a particular resource changes.
     /// </summary>
     public const string ResourcesSubscribe = "resources/subscribe";
 
     /// <summary>
     /// 从客户端发送以请求取消订阅来自服务器的
-    /// <see cref="NotificationMethods.ResourceUpdatedNotification"/> 通知的请求方法名称。<br/>
+    /// notifications/resources/updated 通知的请求方法名称。<br/>
     /// The name of the request method sent from the client to request unsubscribing from
-    /// <see cref="NotificationMethods.ResourceUpdatedNotification"/> notifications from the server.
+    /// notifications/resources/updated notifications from the server.
     /// </summary>
     public const string ResourcesUnsubscribe = "resources/unsubscribe";
 
@@ -84,11 +84,11 @@ public static class RequestMethods
     /// <remarks>
     /// 此请求允许客户端通过设置最低严重性阈值来控制它们从服务器接收哪些日志消息。<br/>
     /// 处理此请求后，服务器将向客户端发送严重性达到或高于指定级别的日志消息，
-    /// 作为 <see cref="NotificationMethods.LoggingMessageNotification"/> 通知。<br/>
+    /// 作为 notifications/message 通知。<br/>
     /// This request allows clients to control which log messages they receive from the server
     /// by setting a minimum severity threshold. After processing this request, the server will
     /// send log messages with severity at or above the specified level to the client as
-    /// <see cref="NotificationMethods.LoggingMessageNotification"/> notifications.
+    /// notifications/message notifications.
     /// </remarks>
     public const string LoggingSetLevel = "logging/setLevel";
 

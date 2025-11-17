@@ -6,10 +6,17 @@ using DotNetCampus.ModelContextProtocol.Protocol.Messages.JsonRpc;
 
 namespace DotNetCampus.ModelContextProtocol.Servers;
 
+/// <summary>
+/// MCP 请求处理程序注册表。
+/// </summary>
+/// <param name="server">MCP 服务器实例</param>
 public class McpRequestHandlerRegistry(McpServer server)
 {
     private readonly BuiltInRequestHandlers _default = new(server);
 
+    /// <summary>
+    /// 获取或设置初始化请求处理程序。
+    /// </summary>
     [NotNull]
     public McpRequestHandler<InitializeRequestParams, InitializeResult>? InitializeHandler
     {
@@ -17,6 +24,9 @@ public class McpRequestHandlerRegistry(McpServer server)
         set;
     }
 
+    /// <summary>
+    /// 处理初始化请求。
+    /// </summary>
     public async ValueTask<InitializeResult> Initialize(RequestContext<InitializeRequestParams> request, CancellationToken cancellationToken)
     {
         try
@@ -29,6 +39,9 @@ public class McpRequestHandlerRegistry(McpServer server)
         }
     }
 
+    /// <summary>
+    /// 获取或设置 Ping 请求处理程序。
+    /// </summary>
     [NotNull]
     public McpRequestHandler<PingRequestParams, EmptyResult>? PingHandler
     {
@@ -36,6 +49,9 @@ public class McpRequestHandlerRegistry(McpServer server)
         set;
     }
 
+    /// <summary>
+    /// 处理 Ping 请求。
+    /// </summary>
     public async ValueTask<EmptyResult> Ping(RequestContext<PingRequestParams> request, CancellationToken cancellationToken)
     {
         try
@@ -48,6 +64,9 @@ public class McpRequestHandlerRegistry(McpServer server)
         }
     }
 
+    /// <summary>
+    /// 获取或设置列出工具请求处理程序。
+    /// </summary>
     [NotNull]
     public McpRequestHandler<ListToolsRequestParams, ListToolsResult>? ListToolsHandler
     {
@@ -55,6 +74,9 @@ public class McpRequestHandlerRegistry(McpServer server)
         set;
     }
 
+    /// <summary>
+    /// 处理列出工具请求。
+    /// </summary>
     public async ValueTask<ListToolsResult> ListTools(RequestContext<ListToolsRequestParams> request, CancellationToken cancellationToken)
     {
         try
@@ -67,6 +89,9 @@ public class McpRequestHandlerRegistry(McpServer server)
         }
     }
 
+    /// <summary>
+    /// 获取或设置调用工具请求处理程序。
+    /// </summary>
     [NotNull]
     public McpRequestHandler<CallToolRequestParams, CallToolResult>? CallToolHandler
     {
@@ -74,6 +99,9 @@ public class McpRequestHandlerRegistry(McpServer server)
         set;
     }
 
+    /// <summary>
+    /// 处理调用工具请求。
+    /// </summary>
     public async ValueTask<CallToolResult> CallTool(RequestContext<CallToolRequestParams> request, CancellationToken cancellationToken)
     {
         try
@@ -125,6 +153,9 @@ public class McpRequestHandlerRegistry(McpServer server)
     //
     // public McpRequestHandler<UnsubscribeRequestParams, EmptyResult>? UnsubscribeFromResourcesHandler { get; set; }
 
+    /// <summary>
+    /// 获取或设置日志级别设置请求处理程序
+    /// </summary>
     [NotNull]
     public McpRequestHandler<SetLevelRequestParams, EmptyResult>? SetLoggingLevelHandler
     {
@@ -132,6 +163,9 @@ public class McpRequestHandlerRegistry(McpServer server)
         set;
     }
 
+    /// <summary>
+    /// 处理设置日志级别请求。
+    /// </summary>
     public async ValueTask<EmptyResult> SetLoggingLevel(RequestContext<SetLevelRequestParams> request, CancellationToken cancellationToken)
     {
         try
@@ -144,9 +178,17 @@ public class McpRequestHandlerRegistry(McpServer server)
         }
     }
 
+    /// <summary>
+    /// 获取或设置通知处理程序列表。
+    /// </summary>
     public IEnumerable<KeyValuePair<string, Func<JsonRpcNotification, CancellationToken, ValueTask>>>? NotificationHandlers { get; set; }
 }
 
+/// <summary>
+/// MCP 请求处理程序委托。
+/// </summary>
+/// <typeparam name="TParams">请求参数类型</typeparam>
+/// <typeparam name="TResult">响应结果类型</typeparam>
 public delegate ValueTask<TResult> McpRequestHandler<TParams, TResult>(
     RequestContext<TParams> request,
     CancellationToken cancellationToken);

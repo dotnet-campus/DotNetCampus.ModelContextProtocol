@@ -1,5 +1,8 @@
 ﻿namespace DotNetCampus.ModelContextProtocol.Servers;
 
+/// <summary>
+/// HTTP 传输层配置选项。
+/// </summary>
 public record HttpServerTransportOptions
 {
     /// <summary>

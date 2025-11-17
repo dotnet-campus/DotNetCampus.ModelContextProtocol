@@ -5,6 +5,10 @@
 /// </summary>
 public class McpToolUsageException : ModelContextProtocolException
 {
+    /// <summary>
+    /// 初始化 <see cref="McpToolUsageException"/> 类的新实例。
+    /// </summary>
+    /// <param name="message">错误消息</param>
     public McpToolUsageException(string message)
         : base(message)
     {

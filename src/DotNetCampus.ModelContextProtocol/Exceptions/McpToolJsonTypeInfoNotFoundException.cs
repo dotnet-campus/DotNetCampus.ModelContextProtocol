@@ -10,6 +10,11 @@ namespace DotNetCampus.ModelContextProtocol.Exceptions;
 /// </summary>
 public class McpToolJsonTypeInfoNotFoundException : ModelContextProtocolException
 {
+    /// <summary>
+    /// 初始化 <see cref="McpToolJsonTypeInfoNotFoundException"/> 类的新实例。
+    /// </summary>
+    /// <param name="jsonTypeName">类型名称</param>
+    /// <param name="jsonTypeFullName">类型完整名称</param>
     public McpToolJsonTypeInfoNotFoundException(string jsonTypeName, string jsonTypeFullName) : base($"""
         The type "{jsonTypeFullName}" is not registered for deserialization.
         Add [JsonSerializable(typeof({jsonTypeName}))] to your JsonSerializerContext derived class.
@@ -17,6 +22,12 @@ public class McpToolJsonTypeInfoNotFoundException : ModelContextProtocolExceptio
     {
     }
 
+    /// <summary>
+    /// 初始化 <see cref="McpToolJsonTypeInfoNotFoundException"/> 类的新实例。
+    /// </summary>
+    /// <param name="jsonTypeName">类型名称</param>
+    /// <param name="jsonTypeFullName">类型完整名称</param>
+    /// <param name="jsonSerializerContextTypeName">JSON 序列化上下文类型名称</param>
     public McpToolJsonTypeInfoNotFoundException(string jsonTypeName, string jsonTypeFullName, string jsonSerializerContextTypeName) : base($"""
         The type "{jsonTypeFullName}" is not registered for deserialization.
         Add [JsonSerializable(typeof({jsonTypeName}))] to {jsonSerializerContextTypeName}.

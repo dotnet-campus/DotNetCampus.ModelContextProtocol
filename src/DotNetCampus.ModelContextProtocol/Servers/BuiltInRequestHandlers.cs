@@ -4,8 +4,15 @@ using DotNetCampus.ModelContextProtocol.Protocol.Messages;
 
 namespace DotNetCampus.ModelContextProtocol.Servers;
 
+/// <summary>
+/// MCP 服务器的内置请求处理程序。
+/// </summary>
+/// <param name="server">MCP 服务器实例</param>
 public class BuiltInRequestHandlers(McpServer server)
 {
+    /// <summary>
+    /// 处理初始化请求。
+    /// </summary>
     public async ValueTask<InitializeResult> Initialize(RequestContext<InitializeRequestParams> request, CancellationToken cancellationToken)
     {
         var hasTools = server.Tools.Count > 0;
@@ -37,6 +44,9 @@ public class BuiltInRequestHandlers(McpServer server)
         };
     }
 
+    /// <summary>
+    /// 处理列出工具请求。
+    /// </summary>
     public async ValueTask<ListToolsResult> ListTools(RequestContext<ListToolsRequestParams> request, CancellationToken cancellationToken)
     {
         return new ListToolsResult
@@ -45,6 +55,9 @@ public class BuiltInRequestHandlers(McpServer server)
         };
     }
 
+    /// <summary>
+    /// 处理调用工具请求。
+    /// </summary>
     public async ValueTask<CallToolResult> CallTool(RequestContext<CallToolRequestParams> request, CancellationToken cancellationToken)
     {
         var toolName = request.Params?.Name;
@@ -86,11 +99,17 @@ public class BuiltInRequestHandlers(McpServer server)
         return await tool.CallTool(context);
     }
 
+    /// <summary>
+    /// 处理 ping 请求。
+    /// </summary>
     public async ValueTask<EmptyResult> Ping(RequestContext<PingRequestParams> request, CancellationToken cancellationToken)
     {
         return default;
     }
 
+    /// <summary>
+    /// 处理设置日志级别请求。
+    /// </summary>
     public async ValueTask<EmptyResult> SetLoggingLevel(RequestContext<SetLevelRequestParams> request, CancellationToken cancellationToken)
     {
         if (request.Params is null)

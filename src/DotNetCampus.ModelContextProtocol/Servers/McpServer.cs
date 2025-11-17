@@ -7,6 +7,9 @@ namespace DotNetCampus.ModelContextProtocol.Servers;
 /// </summary>
 public class McpServer
 {
+    /// <summary>
+    /// 初始化 <see cref="McpServer"/> 类的新实例。
+    /// </summary>
     public McpServer()
     {
         Handlers = new McpRequestHandlerRegistry(this);

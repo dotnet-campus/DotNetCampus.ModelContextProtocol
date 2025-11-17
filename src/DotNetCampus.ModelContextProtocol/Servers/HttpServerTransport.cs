@@ -22,6 +22,11 @@ public class HttpServerTransport
     private readonly HttpListener _listener = new();
     private readonly ConcurrentDictionary<string, SseSession> _sseSessions = [];
 
+    /// <summary>
+    /// 初始化 <see cref="HttpServerTransport"/> 类的新实例。
+    /// </summary>
+    /// <param name="context">MCP 服务器上下文</param>
+    /// <param name="options">HTTP 传输层选项</param>
     public HttpServerTransport(McpServerContext context, HttpServerTransportOptions options)
     {
         _context = context;
@@ -46,6 +51,9 @@ public class HttpServerTransport
     /// </summary>
     private string LegacyMessagePath => $"{EndPoint}/messages";
 
+    /// <summary>
+    /// 启动 HTTP 服务器并开始监听请求。
+    /// </summary>
     public async Task StartAsync(CancellationToken cancellationToken = default)
     {
         _listener.Start();

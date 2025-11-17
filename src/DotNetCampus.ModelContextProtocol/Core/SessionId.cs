@@ -2,8 +2,20 @@
 
 namespace DotNetCampus.ModelContextProtocol.Core;
 
+/// <summary>
+/// 表示 MCP 会话的唯一标识符。
+/// </summary>
+/// <param name="Id">会话 ID 字符串</param>
 public readonly record struct SessionId(string Id)
 {
+    /// <summary>
+    /// 获取会话 ID 字符串。
+    /// </summary>
+    public string Id { get; } = Id;
+
+    /// <summary>
+    /// 返回会话 ID 的字符串表示形式。
+    /// </summary>
     public override string ToString()
     {
         return Id;
@@ -11,6 +23,9 @@ public readonly record struct SessionId(string Id)
 
     private const int StackAllocThreshold = 128;
 
+    /// <summary>
+    /// 生成一个新的会话 ID。
+    /// </summary>
     public static SessionId MakeNew()
     {
         Span<byte> input = stackalloc byte[16];
@@ -65,6 +80,10 @@ public readonly record struct SessionId(string Id)
         return charsWritten;
     }
 
+    /// <summary>
+    /// 计算编码指定字节数所需的数组大小。
+    /// </summary>
+    /// <param name="count">要编码的字节数</param>
     public static int GetArraySizeRequiredToEncode(int count)
     {
         var numWholeOrPartialInputBlocks = checked(count + 2) / 3;

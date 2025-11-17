@@ -5,6 +5,10 @@
 /// </summary>
 public class McpToolServiceNotFoundException : ModelContextProtocolException
 {
+    /// <summary>
+    /// 初始化 <see cref="McpToolServiceNotFoundException"/> 类的新实例。
+    /// </summary>
+    /// <param name="serviceName">服务名称</param>
     public McpToolServiceNotFoundException(string serviceName)
         : base($"MCP tool service not found: {serviceName}")
     {

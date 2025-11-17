@@ -51,20 +51,24 @@ public class McpServerBuilder(string serverName, string serverVersion)
         return this;
     }
 
-    public McpServerBuilder WithJsonSerializer(JsonSerializerContext generatedJsonSerializerContext)
+    /// <summary>
+    /// 配置自定义的 JSON 序列化上下文。
+    /// </summary>
+    /// <param name="jsonSerializerContext">JSON 序列化上下文</param>
+    public McpServerBuilder WithJsonSerializer(JsonSerializerContext jsonSerializerContext)
     {
-        var jsonSerializer = new McpServerToolJsonSerializer(generatedJsonSerializerContext);
+        var jsonSerializer = new McpServerToolJsonSerializer(jsonSerializerContext);
         _context = _context switch
         {
             null => new McpServerContext
             {
                 JsonSerializer = jsonSerializer,
-                JsonSerializerTypeName = generatedJsonSerializerContext.GetType().FullName,
+                JsonSerializerTypeName = jsonSerializerContext.GetType().FullName,
             },
             var c => c with
             {
                 JsonSerializer = jsonSerializer,
-                JsonSerializerTypeName = generatedJsonSerializerContext.GetType().FullName,
+                JsonSerializerTypeName = jsonSerializerContext.GetType().FullName,
             },
         };
         return this;
@@ -121,6 +125,9 @@ public class McpServerBuilder(string serverName, string serverVersion)
     }
 }
 
+/// <summary>
+/// MCP 服务器资源构建器。
+/// </summary>
 public class McpServerResourcesBuilder
 {
     private readonly McpServerResourcesProvider _resources;
@@ -133,8 +140,15 @@ public class McpServerResourcesBuilder
 
     internal McpServerContext? Context { get; private set; }
 
+    /// <summary>
+    /// 获取资源提供程序。
+    /// </summary>
     public IMcpServerResourcesProvider Resources => _resources;
 
+    /// <summary>
+    /// 配置服务提供程序。
+    /// </summary>
+    /// <param name="serviceProvider">服务提供程序</param>
     public McpServerResourcesBuilder WithServiceProvider(IServiceProvider serviceProvider)
     {
         Context = Context switch
@@ -151,6 +165,9 @@ public class McpServerResourcesBuilder
         return this;
     }
 
+    /// <summary>
+    /// 添加资源（由源生成器拦截）
+    /// </summary>
     public McpServerResourcesBuilder WithResource<TMcpServerResourceType>(Func<TMcpServerResourceType> resourceFactory,
         CreationMode creationMode = CreationMode.Singleton)
         where TMcpServerResourceType : class
@@ -158,6 +175,9 @@ public class McpServerResourcesBuilder
         throw new InvalidOperationException("源生成器本应该在编译时拦截了此方法的调用。请检查编译警告，查看 DotNetCampus.ModelContextProtocol 的源生成器是否正常工作。");
     }
 
+    /// <summary>
+    /// 添加资源（由源生成器调用）
+    /// </summary>
     [EditorBrowsable(EditorBrowsableState.Never)]
     public McpServerResourcesBuilder WithResource<TMcpServerResourceType>(IMcpServerResource resource)
         where TMcpServerResourceType : class
@@ -171,6 +191,9 @@ public class McpServerResourcesBuilder
     }
 }
 
+/// <summary>
+/// MCP 服务器工具构建器
+/// </summary>
 public class McpServerToolsBuilder
 {
     private readonly McpServerToolsProvider _tools;
@@ -183,8 +206,15 @@ public class McpServerToolsBuilder
 
     internal McpServerContext? Context { get; private set; }
 
+    /// <summary>
+    /// 获取工具提供程序。
+    /// </summary>
     public IMcpServerToolsProvider Tools => _tools;
 
+    /// <summary>
+    /// 配置服务提供程序。
+    /// </summary>
+    /// <param name="serviceProvider">服务提供程序</param>
     public McpServerToolsBuilder WithServiceProvider(IServiceProvider serviceProvider)
     {
         Context = Context switch
@@ -201,6 +231,9 @@ public class McpServerToolsBuilder
         return this;
     }
 
+    /// <summary>
+    /// 添加工具（由源生成器拦截）。
+    /// </summary>
     public McpServerToolsBuilder WithTool<TMcpServerToolType>(Func<TMcpServerToolType> toolFactory,
         CreationMode creationMode = CreationMode.Singleton)
         where TMcpServerToolType : class
@@ -208,6 +241,9 @@ public class McpServerToolsBuilder
         throw new InvalidOperationException("源生成器本应该在编译时拦截了此方法的调用。请检查编译警告，查看 DotNetCampus.ModelContextProtocol 的源生成器是否正常工作。");
     }
 
+    /// <summary>
+    /// 添加工具（由源生成器调用）。
+    /// </summary>
     [EditorBrowsable(EditorBrowsableState.Never)]
     public McpServerToolsBuilder WithTool<TMcpServerToolType>(IMcpServerTool tool)
         where TMcpServerToolType : class
