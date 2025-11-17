@@ -117,6 +117,11 @@ public class McpRequestHandlers(McpServer server)
             // 调用工具时缺少必要的参数。
             return CallToolResult.FromError(ex.Message);
         }
+        catch (McpToolMissingRequiredTypeDiscriminatorException ex)
+        {
+            // 调用工具时缺少必要的类型鉴别器。
+            return CallToolResult.FromError(ex.Message);
+        }
         catch (McpToolServiceNotFoundException ex)
         {
             // 调用工具时缺少必要的服务。

@@ -29,7 +29,8 @@ internal class Program
             .WithJsonSerializer(McpToolJsonContext.Default)
             .WithRequestHandlers((s, d) => new McpRequestHandlers(s)
             {
-                ListToolsHandler = (request, token) => d.Raw.ListTools(request, token),
+                ListToolsHandler = (request, token) => d.ListTools(request, token),
+                CallToolHandler = (request, token) => d.CallTool(request, token),
             })
             .WithTools(t => t
                 .WithTool(() => new SampleTool())

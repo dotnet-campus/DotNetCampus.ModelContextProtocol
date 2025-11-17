@@ -45,7 +45,7 @@ public class PolymorphicTool
 [JsonDerivedType(typeof(PolymorphicDerivedB), "b")]
 [JsonDerivedType(typeof(PolymorphicDerivedC), "c")]
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
-public record PolymorphicBase
+public abstract record PolymorphicBase
 {
 }
 
