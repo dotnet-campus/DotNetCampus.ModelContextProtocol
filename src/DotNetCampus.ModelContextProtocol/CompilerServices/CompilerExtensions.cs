@@ -47,6 +47,11 @@ public static class CompilerExtensions
                 // System.NotSupportedException: The JSON payload for polymorphic interface or abstract type 'DotNetCampus.SampleMcpServer.McpTools.PolymorphicBase' must specify a type discriminator.
                 throw new McpToolMissingRequiredTypeDiscriminatorException(typeDiscriminatorPropertyName!, expectedTypeDiscriminatorValues.ToArray());
             }
+            catch (JsonException ex)
+            {
+                // System.Text.Json.JsonException: Read unrecognized type discriminator id 'xxx'.
+                throw new McpToolMissingRequiredTypeDiscriminatorException(ex, typeDiscriminatorPropertyName!, expectedTypeDiscriminatorValues.ToArray());
+            }
         }
     }
 }

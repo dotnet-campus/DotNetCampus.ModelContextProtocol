@@ -11,7 +11,20 @@ public class McpToolMissingRequiredTypeDiscriminatorException : ModelContextProt
     /// <param name="typeDiscriminatorPropertyName">缺少的类型鉴别器。</param>
     /// <param name="availableValues">可用的类型鉴别器值。</param>
     public McpToolMissingRequiredTypeDiscriminatorException(string typeDiscriminatorPropertyName, params string[] availableValues)
-        : base($"Missing required type discriminator: {typeDiscriminatorPropertyName}. Available values: {string.Join(", ", availableValues)}")
+        : base($"Missing required type discriminator: {typeDiscriminatorPropertyName}. Available values: {string.Join(", ", availableValues)}.")
+    {
+    }
+
+    /// <summary>
+    /// 初始化 <see cref="McpToolMissingRequiredTypeDiscriminatorException"/> 类的新实例。
+    /// </summary>
+    /// <param name="innerException">导致此异常的内部异常。</param>
+    /// <param name="typeDiscriminatorPropertyName">缺少的类型鉴别器。</param>
+    /// <param name="availableValues">可用的类型鉴别器值。</param>
+    public McpToolMissingRequiredTypeDiscriminatorException(Exception innerException, string typeDiscriminatorPropertyName, params string[] availableValues)
+        : base(
+            $"Missing required type discriminator: {typeDiscriminatorPropertyName}. Available values: {string.Join(", ", availableValues)}. Details: {innerException.Message}",
+            innerException)
     {
     }
 }
