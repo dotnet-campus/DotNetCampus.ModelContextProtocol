@@ -25,9 +25,11 @@ internal class Program
             // 不过通常不建议同时启用 http 和 stdio，因为前者通常要求单例运行，后者则必须支持多实例运行
             // .WithStdio()
             .Build();
+#if DEBUG
         // 启用调试模式，这样当 MCP 服务遇到异常时，会把异常信息返回给客户端，方便调试
-        // 此方法在 Release 编译下不会生效
+        // 通常不建议在发布环境启用此模式，否则会暴露服务器的内部实现细节
         mcpServer.EnableDebugMode();
+#endif
         // 运行 MCP 服务器
         await mcpServer.RunAsync();
     }

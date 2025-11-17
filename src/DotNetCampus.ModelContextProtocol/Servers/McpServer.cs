@@ -61,7 +61,6 @@ public class McpServer
     /// 启用调试模式。<br/>
     /// 在调试模式下，服务器可能会记录更多的日志信息以帮助调试，同时也可能会通过 MCP 协议向客户端报告异常的详细信息。
     /// </summary>
-    [Conditional("DEBUG")]
     public void EnableDebugMode()
     {
         Context.IsDebugMode = true;
