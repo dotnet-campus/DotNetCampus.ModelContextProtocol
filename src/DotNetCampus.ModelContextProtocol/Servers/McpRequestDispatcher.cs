@@ -13,6 +13,7 @@ namespace DotNetCampus.ModelContextProtocol.Servers;
 internal static class McpRequestDispatcher
 {
     public static async Task<JsonRpcResponse> HandleRequestAsync(this McpRequestHandlerRegistry handlers,
+        ScopedServiceProvider services,
         JsonRpcRequest? request, CancellationToken cancellationToken = default) => request?.Method switch
     {
         null => new JsonRpcResponse
@@ -24,19 +25,19 @@ internal static class McpRequestDispatcher
                 Message = "Json-RPC format error or missing method.",
             },
         },
-        Initialize => await request.HandleRequestAsync(handlers.Initialize,
+        Initialize => await request.HandleRequestAsync(services, handlers.Initialize,
             McpServerRequestJsonContext.Default.InitializeRequestParams, McpServerResponseJsonContext.Default.InitializeResult,
             cancellationToken),
-        Ping => await request.HandleRequestAsync(handlers.Ping,
+        Ping => await request.HandleRequestAsync(services, handlers.Ping,
             McpServerRequestJsonContext.Default.PingRequestParams, McpServerResponseJsonContext.Default.EmptyResult,
             cancellationToken),
-        ToolsList => await request.HandleRequestAsync(handlers.ListTools,
+        ToolsList => await request.HandleRequestAsync(services, handlers.ListTools,
             McpServerRequestJsonContext.Default.ListToolsRequestParams, McpServerResponseJsonContext.Default.ListToolsResult,
             cancellationToken),
-        ToolsCall => await request.HandleRequestAsync(handlers.CallTool,
+        ToolsCall => await request.HandleRequestAsync(services, handlers.CallTool,
             McpServerRequestJsonContext.Default.CallToolRequestParams, McpServerResponseJsonContext.Default.CallToolResult,
             cancellationToken),
-        LoggingSetLevel => await request.HandleRequestAsync(handlers.SetLoggingLevel,
+        LoggingSetLevel => await request.HandleRequestAsync(services, handlers.SetLoggingLevel,
             McpServerRequestJsonContext.Default.SetLevelRequestParams, McpServerResponseJsonContext.Default.EmptyResult,
             cancellationToken),
         _ => new JsonRpcResponse
@@ -52,6 +53,7 @@ internal static class McpRequestDispatcher
 
     private static async Task<JsonRpcResponse> HandleRequestAsync<TParams, TResult>(
         this JsonRpcRequest request,
+        ScopedServiceProvider services,
         McpRequestHandler<TParams, TResult> handler,
         JsonTypeInfo<TParams> paramsTypeInfo, JsonTypeInfo<TResult> resultTypeInfo,
         CancellationToken cancellationToken)
@@ -62,7 +64,7 @@ internal static class McpRequestDispatcher
         }
 
         var requestParams = paramsElement.Deserialize(paramsTypeInfo);
-        var requestContext = new RequestContext<TParams>(requestParams);
+        var requestContext = new RequestContext<TParams>(services, requestParams);
 
         try
         {

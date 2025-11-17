@@ -1,6 +1,16 @@
+using DotNetCampus.ModelContextProtocol.Core;
+
 namespace DotNetCampus.ModelContextProtocol.Servers;
 
-public sealed class RequestContext<TParams>(TParams? @params)
+public sealed class RequestContext<TParams>
 {
-    public TParams? Params { get; } = @params;
+    internal RequestContext(ScopedServiceProvider services, TParams? @params)
+    {
+        Services = services;
+        Params = @params;
+    }
+
+    internal ScopedServiceProvider Services { get; }
+
+    public TParams? Params { get; }
 }

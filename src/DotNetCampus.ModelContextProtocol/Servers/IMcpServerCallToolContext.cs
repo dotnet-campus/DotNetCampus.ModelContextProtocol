@@ -73,3 +73,20 @@ internal sealed class McpServerCallToolContext : IMcpServerCallToolContext
     public required JsonElement InputJsonArguments { get; init; }
     public required CancellationToken CancellationToken { get; init; }
 }
+
+/// <summary>
+/// 扩展 <see cref="IMcpServerCallToolContext"/> 接口的扩展方法。<br/>
+/// Extension methods for the <see cref="IMcpServerCallToolContext"/> interface.
+/// </summary>
+public static class McpServerCallToolContextExtensions
+{
+    /// <param name="context">工具调用上下文。Tool invocation context.</param>
+    extension(IMcpServerCallToolContext context)
+    {
+        /// <summary>
+        /// 获取与 HTTP 传输相关的上下文信息（如果当前是通过 HTTP 传输的话）。<br/>
+        /// Gets the context information related to HTTP transport (if the current transport is HTTP).
+        /// </summary>
+        public HttpServerTransportContext? HttpTransportContext => (HttpServerTransportContext?)context.Services.GetService(typeof(HttpServerTransportContext));
+    }
+}

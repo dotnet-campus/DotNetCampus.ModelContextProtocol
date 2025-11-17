@@ -22,7 +22,8 @@ public class InputTool
         return $"""
             Received message: {message},
             Server name: {context.McpServer.ServerName},
-            Services: {context.Services},
+            SessionId: {context.HttpTransportContext?.SessionId},
+            Headers: {string.Join(", ", context.HttpTransportContext?.Headers)},
             InputJsonArguments: {context.InputJsonArguments},
             """;
     }

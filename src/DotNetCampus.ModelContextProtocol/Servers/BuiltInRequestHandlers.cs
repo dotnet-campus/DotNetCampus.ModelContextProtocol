@@ -78,7 +78,7 @@ public class BuiltInRequestHandlers(McpServer server)
         var context = new McpServerCallToolContext
         {
             McpServer = server,
-            Services = server.Context.ServiceProvider ?? EmptyServiceProvider.Instance,
+            Services = request.Services,
             JsonSerializerContext = jsonContext,
             InputJsonArguments = arguments,
             CancellationToken = cancellationToken,
@@ -102,15 +102,5 @@ public class BuiltInRequestHandlers(McpServer server)
         server.Context.ClientLoggingLevel = request.Params.Level;
 
         return default;
-    }
-
-    private sealed class EmptyServiceProvider : IServiceProvider
-    {
-        public static EmptyServiceProvider Instance { get; } = new EmptyServiceProvider();
-
-        public object? GetService(Type serviceType)
-        {
-            return null;
-        }
     }
 }

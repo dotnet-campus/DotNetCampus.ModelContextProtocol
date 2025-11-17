@@ -1,4 +1,5 @@
 ﻿using System.Collections.Concurrent;
+using System.Collections.Specialized;
 using System.Diagnostics;
 using System.Net;
 using System.Text;
@@ -202,7 +203,9 @@ public class HttpServerTransport
             }
 
             // 处理请求
-            var response = await _context.Handlers.HandleRequestAsync(request, CancellationToken.None);
+            var services = new ScopedServiceProvider(_context.ServiceProvider)
+                .AddHttpTransportServices(sessionId, ctx.Request.Headers);
+            var response = await _context.Handlers.HandleRequestAsync(services, request, CancellationToken.None);
 
             // Initialize 请求：创建新会话
             if (request.Method == "initialize")
@@ -353,7 +356,9 @@ public class HttpServerTransport
                 return;
             }
 
-            var response = await _context.Handlers.HandleRequestAsync(request, CancellationToken.None);
+            var services = new ScopedServiceProvider(_context.ServiceProvider)
+                .AddHttpTransportServices(sessionId, ctx.Request.Headers);
+            var response = await _context.Handlers.HandleRequestAsync(services, request, CancellationToken.None);
 
             // 通过 SSE 返回响应（SSE 格式需要特定的文本格式）
             await session.Writer.WriteAsync("event:message\n");
@@ -452,4 +457,19 @@ public class HttpServerTransport
     #endregion
 
     private readonly record struct SseSession(StreamWriter? Writer, CancellationTokenSource CancellationToken);
+}
+
+file static class Extensions
+{
+    internal static ScopedServiceProvider AddHttpTransportServices(this ScopedServiceProvider services,
+        string sessionId, NameValueCollection headers)
+    {
+        var context = new HttpServerTransportContext
+        {
+            SessionId = sessionId,
+            Headers = headers,
+        };
+        services.AddScoped(context);
+        return services;
+    }
 }
