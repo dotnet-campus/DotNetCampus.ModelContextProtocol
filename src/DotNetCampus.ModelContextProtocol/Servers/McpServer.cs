@@ -1,20 +1,10 @@
-﻿using System.Diagnostics;
-
-namespace DotNetCampus.ModelContextProtocol.Servers;
+﻿namespace DotNetCampus.ModelContextProtocol.Servers;
 
 /// <summary>
 /// MCP 服务器。
 /// </summary>
 public class McpServer
 {
-    /// <summary>
-    /// 初始化 <see cref="McpServer"/> 类的新实例。
-    /// </summary>
-    public McpServer()
-    {
-        Handlers = new McpRequestHandlerRegistry(this);
-    }
-
     /// <summary>
     /// 获取或初始化服务器名称。
     /// </summary>
@@ -31,24 +21,9 @@ public class McpServer
     public string? Instructions { get; init; }
 
     /// <summary>
-    /// 获取 MCP 服务器的处理程序集合。
-    /// </summary>
-    public McpRequestHandlerRegistry Handlers { get; }
-
-    /// <summary>
     /// 获取 MCP 服务器的上下文信息。
     /// </summary>
-    public required McpServerContext Context
-    {
-        get;
-        init
-        {
-            var oldContext = field;
-            oldContext?.Handlers = null;
-            field = value;
-            value.Handlers = Handlers;
-        }
-    }
+    public required McpServerContext Context { get; init; }
 
     /// <summary>
     /// 获取用于处理 MCP 请求的传输集合。

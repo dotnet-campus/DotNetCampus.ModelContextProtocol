@@ -5,10 +5,12 @@ using DotNetCampus.ModelContextProtocol.Protocol.Messages;
 namespace DotNetCampus.ModelContextProtocol.Servers;
 
 /// <summary>
-/// MCP 服务器的内置请求处理程序。
+/// MCP 服务器处理来自客户端所有请求的处理器方法合集。<br/>
+/// 与 <see cref="McpRequestHandlers"/> 不同，本类型只处理 MCP 请求的最初响应，不做任何异常处理。
+/// 因此，你可以通过调用它来实现自定义的异常处理逻辑。
 /// </summary>
-/// <param name="server">MCP 服务器实例</param>
-public class BuiltInRequestHandlers(McpServer server)
+/// <param name="server">MCP 服务器实例。</param>
+public class McpRawRequestHandlers(McpServer server)
 {
     /// <summary>
     /// 处理初始化请求。

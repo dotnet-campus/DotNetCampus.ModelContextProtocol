@@ -53,7 +53,7 @@ public record McpServerContext
     /// 处理 MCP 协议中的所有来自客户端请求的方法调用。
     /// </summary>
     [NotNull]
-    internal McpRequestHandlerRegistry? Handlers
+    internal McpRequestHandlers? Handlers
     {
         get => field ?? throw new InvalidOperationException("Handlers 未被设置。");
         set => field = field switch

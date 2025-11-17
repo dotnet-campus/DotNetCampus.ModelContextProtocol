@@ -12,7 +12,7 @@ namespace DotNetCampus.ModelContextProtocol.Servers;
 
 internal static class McpRequestDispatcher
 {
-    public static async Task<JsonRpcResponse> HandleRequestAsync(this McpRequestHandlerRegistry handlers,
+    public static async Task<JsonRpcResponse> HandleRequestAsync(this McpRequestHandlers handlers,
         ScopedServiceProvider services,
         JsonRpcRequest? request, CancellationToken cancellationToken = default) => request?.Method switch
     {

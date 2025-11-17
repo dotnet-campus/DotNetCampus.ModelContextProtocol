@@ -7,12 +7,16 @@ using DotNetCampus.ModelContextProtocol.Protocol.Messages.JsonRpc;
 namespace DotNetCampus.ModelContextProtocol.Servers;
 
 /// <summary>
-/// MCP 请求处理程序注册表。
+/// MCP 服务器处理来自客户端所有请求的处理器方法合集。
 /// </summary>
-/// <param name="server">MCP 服务器实例</param>
-public class McpRequestHandlerRegistry(McpServer server)
+/// <param name="server">MCP 服务器实例。</param>
+public class McpRequestHandlers(McpServer server)
 {
-    private readonly BuiltInRequestHandlers _default = new(server);
+    /// <summary>
+    /// 获取最基本的 MCP 请求相应的处理器集合。<br/>
+    /// 通过调用该属性内的方法而不是本类型的方法，可以绕过异常处理逻辑，直接获得底层的请求处理能力。
+    /// </summary>
+    public readonly McpRawRequestHandlers Raw = new(server);
 
     /// <summary>
     /// 获取或设置初始化请求处理程序。
@@ -20,7 +24,7 @@ public class McpRequestHandlerRegistry(McpServer server)
     [NotNull]
     public McpRequestHandler<InitializeRequestParams, InitializeResult>? InitializeHandler
     {
-        get => field ?? _default.Initialize;
+        get => field ?? Raw.Initialize;
         set;
     }
 
@@ -45,7 +49,7 @@ public class McpRequestHandlerRegistry(McpServer server)
     [NotNull]
     public McpRequestHandler<PingRequestParams, EmptyResult>? PingHandler
     {
-        get => field ?? _default.Ping;
+        get => field ?? Raw.Ping;
         set;
     }
 
@@ -70,7 +74,7 @@ public class McpRequestHandlerRegistry(McpServer server)
     [NotNull]
     public McpRequestHandler<ListToolsRequestParams, ListToolsResult>? ListToolsHandler
     {
-        get => field ?? _default.ListTools;
+        get => field ?? Raw.ListTools;
         set;
     }
 
@@ -95,7 +99,7 @@ public class McpRequestHandlerRegistry(McpServer server)
     [NotNull]
     public McpRequestHandler<CallToolRequestParams, CallToolResult>? CallToolHandler
     {
-        get => field ?? _default.CallTool;
+        get => field ?? Raw.CallTool;
         set;
     }
 
@@ -159,7 +163,7 @@ public class McpRequestHandlerRegistry(McpServer server)
     [NotNull]
     public McpRequestHandler<SetLevelRequestParams, EmptyResult>? SetLoggingLevelHandler
     {
-        get => field ?? _default.SetLoggingLevel;
+        get => field ?? Raw.SetLoggingLevel;
         set;
     }
 

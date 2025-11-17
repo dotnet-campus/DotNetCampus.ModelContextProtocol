@@ -14,6 +14,7 @@ public class McpServerBuilder(string serverName, string serverVersion)
     private HttpServerTransportOptions? _httpOptions;
     private readonly McpServerToolsProvider _tools = new();
     private readonly McpServerResourcesProvider _resources = new();
+    private McpRequestHandlersBuilder? _requestHandlers;
 
     /// <summary>
     /// 允许此 MCP 服务器通过标准输入/输出流提供服务。
@@ -75,6 +76,17 @@ public class McpServerBuilder(string serverName, string serverVersion)
     }
 
     /// <summary>
+    /// 配置自定义的 MCP 请求处理程序。
+    /// </summary>
+    /// <param name="handlers">创建自定义的 MCP 请求处理程序的工厂。</param>
+    /// <returns>用于链式调用的 MCP 服务器生成器。</returns>
+    public McpServerBuilder WithRequestHandlers(McpRequestHandlersBuilder handlers)
+    {
+        _requestHandlers = handlers;
+        return this;
+    }
+
+    /// <summary>
     /// 配置 MCP 服务器的资源和相关选项。
     /// </summary>
     /// <param name="resourceBuilder">用于配置资源的生成器。</param>
@@ -114,7 +126,7 @@ public class McpServerBuilder(string serverName, string serverVersion)
                 context,
                 _httpOptions));
         }
-        return new McpServer
+        var server = new McpServer
         {
             ServerName = serverName,
             ServerVersion = serverVersion,
@@ -122,6 +134,10 @@ public class McpServerBuilder(string serverName, string serverVersion)
             Transports = transports,
             Tools = _tools,
         };
+        context.Handlers = _requestHandlers is { } requestHandlers
+            ? requestHandlers(server, new McpRequestHandlers(server))
+            : new McpRequestHandlers(server);
+        return server;
     }
 }
 
@@ -256,3 +272,11 @@ public class McpServerToolsBuilder
         return this;
     }
 }
+
+/// <summary>
+/// 用于构建 MCP 请求处理程序的委托。
+/// </summary>
+/// <param name="mcpServer">MCP 服务器实例。</param>
+/// <param name="defaultHandlers">默认的 MCP 请求处理程序。</param>
+/// <returns>构建的 MCP 请求处理程序。</returns>
+public delegate McpRequestHandlers McpRequestHandlersBuilder(McpServer mcpServer, McpRequestHandlers defaultHandlers);
