@@ -65,7 +65,6 @@ internal sealed class McpServerToolCompositeJsonContext(JsonSerializerContext ex
 [JsonSerializable(typeof(string[]))]
 // 协议类型
 [JsonSerializable(typeof(CompiledJsonSchema))]
-[JsonSerializable(typeof(Dictionary<string, CompiledJsonSchema>))]
 [JsonSourceGenerationOptions(GenerationMode = JsonSourceGenerationMode.Serialization)]
 public partial class CompiledSchemaJsonContext : JsonSerializerContext;
 

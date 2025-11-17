@@ -67,7 +67,7 @@ public sealed record CompiledJsonSchema
     /// </summary>
     [JsonPropertyName("properties")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public JsonElement? Properties { get; init; }
+    public IReadOnlyDictionary<string, CompiledJsonSchema>? Properties { get; init; }
 
     /// <summary>
     /// 必需属性列表（仅用于 object 类型）。<br/>

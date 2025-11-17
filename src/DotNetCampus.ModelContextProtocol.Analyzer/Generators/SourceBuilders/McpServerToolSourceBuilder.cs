@@ -95,19 +95,13 @@ internal static class McpServerToolSourceBuilder
                 .Otherwise(nonPoly => nonPoly
                     .AddPropertyAssignment("Required", info.GetJsonRequiredPropertiesExpressionOrDefault())
                     .Condition(properties.Count > 0, i => i
-                        .AddBracketScope($"Properties = {G.JsonSerializer}.SerializeToElement(new {G.Dictionary}<string, {G.CompiledJsonSchema}>", "{", "}, jsonContext.DictionaryStringCompiledJsonSchema),", rbs => rbs
+                        .AddBracketScope($"Properties = new {G.Dictionary}<string, {G.CompiledJsonSchema}>", "{", "},", rbs => rbs
                             .AddStatements(properties, (d, p) => d
                                 .AddStatement($"[ \"{p.JsonPropertyName}\" ] = ", ",", c => c
                                     .AddInputSchemaExpression(p))
                             )))
                     .EndCondition()
-                    // 如果是 JsonElement 类型（任意 JSON 类型），需要特殊处理
-                    .Condition(isJsonElementType, jsonElement => jsonElement
-                        // 允许任意额外属性（对于 object 类型）
-                        .AddPropertyAssignment("AdditionalProperties", $"{G.JsonSerializer}.SerializeToElement(true, jsonContext.Boolean)")
-                        // 设置空 items（对于 array 类型，表示数组元素可以是任意类型）
-                        .AddPropertyAssignment("Items", $"new {G.CompiledJsonSchema}()"))
-                    .EndCondition())
+                )
                 .EndCondition()
             );
     }
@@ -130,7 +124,7 @@ internal static class McpServerToolSourceBuilder
         return builder
             .AddBracketScope($"new {G.CompiledJsonSchema}", "{", "}", true, bs => bs
                 .AddPropertyAssignment("Type", null)
-                .AddBracketScope($"Properties = {G.JsonSerializer}.SerializeToElement(new {G.Dictionary}<string, {G.CompiledJsonSchema}>", "{", "}, jsonContext.DictionaryStringCompiledJsonSchema),", rbs => rbs
+                .AddBracketScope($"Properties = new {G.Dictionary}<string, {G.CompiledJsonSchema}>", "{", "},", rbs => rbs
                     .AddStatement($"[ \"{discriminatorPropertyName}\" ] = ", ",", c => c
                         .AddBracketScope($"new {G.CompiledJsonSchema}", "{", "}", false, ds => ds
                             .AddPropertyAssignment("Type", null)
