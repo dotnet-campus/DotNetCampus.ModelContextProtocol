@@ -34,6 +34,7 @@ public class McpServerToolGenerator : IIncrementalGenerator
     {
         using var builder = new SourceTextBuilder(model.Namespace)
             .Using("System.Text.Json")
+            .Using("DotNetCampus.ModelContextProtocol.CompilerServices")
             .AddTypeDeclaration(
                 $"{model.GetGetAccessModifier()} sealed class {model.GetBridgeTypeName()}({G.Func}<{model.ContainingType.ToUsingString()}> targetFactory)",
                 t => t.AddBaseTypes(G.IMcpServerTool)

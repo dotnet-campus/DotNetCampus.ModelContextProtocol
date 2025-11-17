@@ -89,40 +89,5 @@ public static class McpServerCallToolContextExtensions
         /// Gets the context information related to HTTP transport (if the current transport is HTTP).
         /// </summary>
         public HttpServerTransportContext? HttpTransportContext => (HttpServerTransportContext?)context.Services.GetService(typeof(HttpServerTransportContext));
-
-        /// <summary>
-        /// 确保将指定的 JSON 属性反序列化为指定类型的对象。
-        /// </summary>
-        /// <param name="property">要反序列化的 JSON 属性。</param>
-        /// <param name="sourceGeneratedJsonTypeName">由源生成器提供的要反序列化的类型名称。</param>
-        /// <param name="sourceGeneratedJsonTypeFullName">由源生成器提供的要反序列化的类型完整名称。</param>
-        /// <param name="typeDiscriminatorPropertyName">多态类型鉴别器属性名称（如果适用）。</param>
-        /// <param name="expectedTypeDiscriminatorValues">预期的多态类型鉴别器值（如果适用）。</param>
-        /// <typeparam name="T">要反序列化的目标类型。</typeparam>
-        /// <returns>反序列化后的对象。</returns>
-        /// <exception cref="McpToolJsonTypeInfoNotFoundException">当指定类型的 JSON 类型信息未找到时引发。</exception>
-        /// <exception cref="McpToolMissingRequiredTypeDiscriminatorException">当缺少必需的多态类型鉴别器时引发。</exception>
-        public T? EnsureDeserialize<T>(JsonElement property,
-            string sourceGeneratedJsonTypeName, string sourceGeneratedJsonTypeFullName,
-            string? typeDiscriminatorPropertyName, params ReadOnlySpan<string> expectedTypeDiscriminatorValues)
-        {
-            var jsonTypeInfo = (JsonTypeInfo<T>?)context.JsonSerializerContext.GetTypeInfo(typeof(T));
-            if (jsonTypeInfo is null)
-            {
-                throw context.McpServer.Context.JsonSerializerTypeName is { } serializerName
-                    ? new McpToolJsonTypeInfoNotFoundException(sourceGeneratedJsonTypeName, sourceGeneratedJsonTypeFullName, serializerName)
-                    : new McpToolJsonTypeInfoNotFoundException(sourceGeneratedJsonTypeName, sourceGeneratedJsonTypeFullName);
-            }
-
-            try
-            {
-                return property.Deserialize(jsonTypeInfo);
-            }
-            catch (NotSupportedException)
-            {
-                // System.NotSupportedException: The JSON payload for polymorphic interface or abstract type 'DotNetCampus.SampleMcpServer.McpTools.PolymorphicBase' must specify a type discriminator.
-                throw new McpToolMissingRequiredTypeDiscriminatorException(typeDiscriminatorPropertyName!, expectedTypeDiscriminatorValues.ToArray());
-            }
-        }
     }
 }

@@ -156,7 +156,7 @@ internal static class McpServerToolSourceBuilder
             .AddRawStatement($"{G.JsonElement} jsonArguments = context.InputJsonArguments;")
             .AddRawStatement($"{G.JsonSerializerContext} jsonSerializerContext = context.JsonSerializerContext;")
             .AddRawStatement($"{G.CancellationToken} cancellationToken = context.CancellationToken;")
-            .AddRawStatements(model.GetParameters(true).Select(GenerateParameterDeserializationStatement).OfType<string>())
+            .AddRawStatements(model.GetParameters(true).Select(p => GenerateParameterDeserializationStatement(p, model)).OfType<string>())
             .AddInvokeTargetMethodStatements(model)
         );
     }
@@ -164,17 +164,36 @@ internal static class McpServerToolSourceBuilder
     /// <summary>
     /// 生成参数反序列化语句。
     /// </summary>
-    private static string? GenerateParameterDeserializationStatement(IParameterSymbol parameter)
+    private static string? GenerateParameterDeserializationStatement(IParameterSymbol parameter, McpServerToolGeneratingModel model)
     {
         var parameterType = parameter.GetParameterType();
         var jsonName = parameter.GetJsonPropertyName();
         var hasDefault = parameter.HasExplicitDefaultValue;
 
+        // 获取参数的 Schema 信息以访问多态类型信息
+        var schemaInfo = JsonPropertySchemaInfo.From(parameter);
+        var polymorphicInfo = schemaInfo.PolymorphicInfo;
+
+        // 构建多态类型参数
+        var typeDiscriminatorPropertyName = polymorphicInfo?.DiscriminatorPropertyName;
+        var expectedTypeDiscriminatorValues = polymorphicInfo?.DerivedTypes
+            .Select(d => $"\"{d.DiscriminatorValue}\"")
+            .ToList();
+
+        // 构建 EnsureDeserialize 调用
+        var ensureDeserializeCall = BuildEnsureDeserializeCall(
+            parameter.Type.ToUsingString(),
+            parameter.Type.ToSimpleDisplayString(),
+            parameter.Type.ToDisplayString(),
+            typeDiscriminatorPropertyName,
+            expectedTypeDiscriminatorValues
+        );
+
         return parameterType switch
         {
             // InputObject 类型：直接反序列化整个 jsonArguments
             ToolParameterType.InputObject => $"""
-var {parameter.Name} = jsonArguments.Deserialize({G.McpToolJsonTypeInfoNotFoundException}.EnsureTypeInfo<{parameter.Type.ToUsingString()}>(context, "{parameter.Type.ToSimpleDisplayString()}", "{parameter.Type.ToDisplayString()}"));
+var {parameter.Name} = context.EnsureDeserialize<{parameter.Type.ToUsingString()}>(jsonArguments, "{parameter.Type.ToSimpleDisplayString()}", "{parameter.Type.ToDisplayString()}", {FormatNullableString(typeDiscriminatorPropertyName)}{FormatExpectedTypeDiscriminatorValues(expectedTypeDiscriminatorValues)});
 """,
             ToolParameterType.Injected when parameter.Type.IsNullableType => $"""
 var {parameter.Name} = context.TryGetMcpToolService<{parameter.Type.ToUsingString()}>();
@@ -190,11 +209,50 @@ var {parameter.Name} = jsonArguments.TryGetProperty("{jsonName}", out var {param
             // Parameter 类型：从 jsonArguments 中提取对应属性
             ToolParameterType.Parameter => $"""
 var {parameter.Name} = jsonArguments.TryGetProperty("{jsonName}", out var {parameter.Name}Property)
-    ? {parameter.Name}Property.Deserialize({G.McpToolJsonTypeInfoNotFoundException}.EnsureTypeInfo<{parameter.Type.ToUsingString()}>(context, "{parameter.Type.ToSimpleDisplayString()}", "{parameter.Type.ToDisplayString()}"))
+    ? context.EnsureDeserialize<{parameter.Type.ToUsingString()}>({parameter.Name}Property, "{parameter.Type.ToSimpleDisplayString()}", "{parameter.Type.ToDisplayString()}", {FormatNullableString(typeDiscriminatorPropertyName)}{FormatExpectedTypeDiscriminatorValues(expectedTypeDiscriminatorValues)})
     : {(hasDefault ? parameter.GetDefaultValueExpression() : $"throw new {G.McpToolMissingRequiredArgumentException}(\"{jsonName}\")")};
 """,
             _ => null,
         };
+    }
+
+    /// <summary>
+    /// 格式化可空字符串为 C# 代码。
+    /// </summary>
+    private static string FormatNullableString(string? value)
+    {
+        return value is null ? "null" : $"\"{value}\"";
+    }
+
+    /// <summary>
+    /// 格式化预期类型鉴别器值列表为 C# 代码。
+    /// </summary>
+    private static string FormatExpectedTypeDiscriminatorValues(List<string>? values)
+    {
+        if (values is null || values.Count == 0)
+        {
+            return "";
+        }
+
+        return $", {string.Join(", ", values)}";
+    }
+
+    /// <summary>
+    /// 构建 EnsureDeserialize 方法调用表达式。
+    /// </summary>
+    private static string BuildEnsureDeserializeCall(
+        string typeUsingString,
+        string typeSimpleName,
+        string typeFullName,
+        string? typeDiscriminatorPropertyName,
+        List<string>? expectedTypeDiscriminatorValues)
+    {
+        var discriminatorArg = typeDiscriminatorPropertyName is null ? "null" : $"\"{typeDiscriminatorPropertyName}\"";
+        var valuesArg = expectedTypeDiscriminatorValues is null || expectedTypeDiscriminatorValues.Count == 0
+            ? ""
+            : $", {string.Join(", ", expectedTypeDiscriminatorValues)}";
+
+        return $"context.EnsureDeserialize<{typeUsingString}>({{0}}, \"{typeSimpleName}\", \"{typeFullName}\", {discriminatorArg}{valuesArg})";
     }
 
     /// <summary>
