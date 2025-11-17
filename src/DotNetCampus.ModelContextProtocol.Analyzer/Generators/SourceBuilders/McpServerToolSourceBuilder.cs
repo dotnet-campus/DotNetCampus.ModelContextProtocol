@@ -225,7 +225,7 @@ var {parameter.Name} = jsonArguments.TryGetProperty("{jsonName}", out var {param
             return "";
         }
 
-        return $", {string.Join(", ", values)}";
+        return $", [{string.Join(", ", values)}]";
     }
 
     /// <summary>
