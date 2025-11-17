@@ -2,6 +2,7 @@
 using DotNetCampus.Logging.Attributes;
 using DotNetCampus.Logging.Writers;
 using DotNetCampus.ModelContextProtocol.Servers;
+using DotNetCampus.SampleMcpServer.McpResources;
 using DotNetCampus.SampleMcpServer.McpTools;
 
 namespace DotNetCampus.SampleMcpServer;
@@ -23,15 +24,18 @@ internal class Program
         Log.Info($"[App] Starting Sample MCP Server...");
 
         var mcpServer = new McpServerBuilder("SampleMcpServer", "1.0.0")
+            .WithHttp(5943, "mcp")
+            .WithStdio()
+            .WithJsonSerializer(McpToolJsonContext.Default)
             .WithTools(t => t
-                .WithJsonSerializer(McpToolJsonContext.Default)
-                .WithTool(() => new SampleTools())
+                .WithTool(() => new SampleTool())
                 .WithTool(() => new InputTool())
                 .WithTool(() => new ResourceTool())
                 .WithTool(() => new OutputTool())
             )
-            .WithHttp(5943, "mcp")
-            .WithStdio()
+            // .WithResources(r => r
+            //     .WithResource(() => new SampleResource())
+            // )
             .Build();
         mcpServer.EnableDebugMode();
         await mcpServer.RunAsync();

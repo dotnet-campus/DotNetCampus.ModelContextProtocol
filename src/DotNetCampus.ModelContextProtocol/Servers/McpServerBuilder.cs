@@ -13,19 +13,7 @@ public class McpServerBuilder(string serverName, string serverVersion)
     private McpServerContext? _context;
     private HttpServerTransportOptions? _httpOptions;
     private readonly McpServerToolsProvider _tools = new();
-
-    /// <summary>
-    /// 配置 MCP 服务器的工具和相关选项。
-    /// </summary>
-    /// <param name="toolsBuilder">用于配置工具的生成器。</param>
-    /// <returns>用于链式调用的 MCP 服务器生成器。</returns>
-    public McpServerBuilder WithTools(Action<McpServerToolsBuilder> toolsBuilder)
-    {
-        var builder = new McpServerToolsBuilder(_context, _tools);
-        toolsBuilder(builder);
-        _context = builder.Context;
-        return this;
-    }
+    private readonly McpServerResourcesProvider _resources = new();
 
     /// <summary>
     /// 允许此 MCP 服务器通过标准输入/输出流提供服务。
@@ -63,6 +51,51 @@ public class McpServerBuilder(string serverName, string serverVersion)
         return this;
     }
 
+    public McpServerBuilder WithJsonSerializer(JsonSerializerContext generatedJsonSerializerContext)
+    {
+        var jsonSerializer = new McpServerToolJsonSerializer(generatedJsonSerializerContext);
+        _context = _context switch
+        {
+            null => new McpServerContext
+            {
+                JsonSerializer = jsonSerializer,
+                JsonSerializerTypeName = generatedJsonSerializerContext.GetType().FullName,
+            },
+            var c => c with
+            {
+                JsonSerializer = jsonSerializer,
+                JsonSerializerTypeName = generatedJsonSerializerContext.GetType().FullName,
+            },
+        };
+        return this;
+    }
+
+    /// <summary>
+    /// 配置 MCP 服务器的资源和相关选项。
+    /// </summary>
+    /// <param name="resourceBuilder">用于配置资源的生成器。</param>
+    /// <returns>用于链式调用的 MCP 服务器生成器。</returns>
+    public McpServerBuilder WithResources(Action<McpServerResourcesBuilder> resourceBuilder)
+    {
+        var builder = new McpServerResourcesBuilder(_context, _resources);
+        resourceBuilder(builder);
+        _context = builder.Context;
+        return this;
+    }
+
+    /// <summary>
+    /// 配置 MCP 服务器的工具和相关选项。
+    /// </summary>
+    /// <param name="toolsBuilder">用于配置工具的生成器。</param>
+    /// <returns>用于链式调用的 MCP 服务器生成器。</returns>
+    public McpServerBuilder WithTools(Action<McpServerToolsBuilder> toolsBuilder)
+    {
+        var builder = new McpServerToolsBuilder(_context, _tools);
+        toolsBuilder(builder);
+        _context = builder.Context;
+        return this;
+    }
+
     /// <summary>
     /// 构建 MCP 服务器实例。
     /// </summary>
@@ -85,6 +118,56 @@ public class McpServerBuilder(string serverName, string serverVersion)
             Transports = transports,
             Tools = _tools,
         };
+    }
+}
+
+public class McpServerResourcesBuilder
+{
+    private readonly McpServerResourcesProvider _resources;
+
+    internal McpServerResourcesBuilder(McpServerContext? originalContext, McpServerResourcesProvider resources)
+    {
+        Context = originalContext;
+        _resources = resources;
+    }
+
+    internal McpServerContext? Context { get; private set; }
+
+    public IMcpServerResourcesProvider Resources => _resources;
+
+    public McpServerResourcesBuilder WithServiceProvider(IServiceProvider serviceProvider)
+    {
+        Context = Context switch
+        {
+            null => new McpServerContext
+            {
+                ServiceProvider = serviceProvider,
+            },
+            var c => c with
+            {
+                ServiceProvider = serviceProvider,
+            },
+        };
+        return this;
+    }
+
+    public McpServerResourcesBuilder WithResource<TMcpServerResourceType>(Func<TMcpServerResourceType> resourceFactory,
+        CreationMode creationMode = CreationMode.Singleton)
+        where TMcpServerResourceType : class
+    {
+        throw new InvalidOperationException("源生成器本应该在编译时拦截了此方法的调用。请检查编译警告，查看 DotNetCampus.ModelContextProtocol 的源生成器是否正常工作。");
+    }
+
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public McpServerResourcesBuilder WithResource<TMcpServerResourceType>(IMcpServerResource resource)
+        where TMcpServerResourceType : class
+    {
+        var name = resource.ResourceName;
+        if (!_resources.TryAdd(name, resource))
+        {
+            throw new InvalidOperationException($"已存在名称为 \"{name}\" 的 MCP 服务器工具，无法重复添加同名工具。");
+        }
+        return this;
     }
 }
 
@@ -118,43 +201,8 @@ public class McpServerToolsBuilder
         return this;
     }
 
-    public McpServerToolsBuilder WithJsonSerializer(IMcpServerToolJsonSerializer jsonSerializer)
-    {
-        Context = Context switch
-        {
-            null => new McpServerContext
-            {
-                JsonSerializer = jsonSerializer,
-            },
-            var c => c with
-            {
-                JsonSerializer = jsonSerializer,
-            },
-        };
-        return this;
-    }
-
-    public McpServerToolsBuilder WithJsonSerializer(JsonSerializerContext generatedJsonSerializerContext)
-    {
-        var jsonSerializer = new McpServerToolJsonSerializer(generatedJsonSerializerContext);
-        Context = Context switch
-        {
-            null => new McpServerContext
-            {
-                JsonSerializer = jsonSerializer,
-                JsonSerializerTypeName = generatedJsonSerializerContext.GetType().FullName,
-            },
-            var c => c with
-            {
-                JsonSerializer = jsonSerializer,
-                JsonSerializerTypeName = generatedJsonSerializerContext.GetType().FullName,
-            },
-        };
-        return this;
-    }
-
     public McpServerToolsBuilder WithTool<TMcpServerToolType>(Func<TMcpServerToolType> toolFactory,
-        McpServerToolCreationMode creationMode = McpServerToolCreationMode.Singleton)
+        CreationMode creationMode = CreationMode.Singleton)
         where TMcpServerToolType : class
     {
         throw new InvalidOperationException("源生成器本应该在编译时拦截了此方法的调用。请检查编译警告，查看 DotNetCampus.ModelContextProtocol 的源生成器是否正常工作。");

@@ -1,7 +1,6 @@
 #pragma warning disable RSEXPERIMENTAL002
 
 using DotNetCampus.ModelContextProtocol.CompilerServices;
-using DotNetCampus.ModelContextProtocol.Servers;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -20,7 +19,7 @@ public record WithToolInterceptorGeneratingModel(
     InterceptableLocation InterceptableLocation,
     INamedTypeSymbol ToolType,
     List<McpServerToolGeneratingModel> ToolModels,
-    McpServerToolCreationMode CreationMode)
+    CreationMode CreationMode)
 {
     /// <summary>
     /// 从语法上下文解析 WithTool 拦截器模型。
@@ -90,13 +89,13 @@ public record WithToolInterceptorGeneratingModel(
         }
 
         // 获取创建模式参数（如果提供）
-        var creationMode = McpServerToolCreationMode.Singleton;
+        var creationMode = CreationMode.Singleton;
         if (invocationOperation.Arguments.Length > 1)
         {
             // 尝试从第二个参数获取枚举值
             if (invocationOperation.Arguments[1].Value is { ConstantValue: { HasValue: true, Value: int modeValue } })
             {
-                creationMode = (McpServerToolCreationMode)modeValue;
+                creationMode = (CreationMode)modeValue;
             }
         }
 

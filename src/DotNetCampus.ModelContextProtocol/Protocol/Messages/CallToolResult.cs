@@ -9,7 +9,7 @@ namespace DotNetCampus.ModelContextProtocol.Protocol.Messages;
 /// 工具调用结果<br/>
 /// The server's response to a tool call.
 /// </summary>
-public record CallToolResult
+public record CallToolResult : Result
 {
     /// <summary>
     /// 表示空的工具调用结果。<br/>

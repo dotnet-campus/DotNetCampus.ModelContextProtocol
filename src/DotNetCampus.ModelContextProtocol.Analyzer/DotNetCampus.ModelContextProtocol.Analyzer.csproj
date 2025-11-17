@@ -21,8 +21,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Include="..\DotNetCampus.ModelContextProtocol\**\*Attribute.cs" LinkBase="." />
-    <Compile Include="..\DotNetCampus.ModelContextProtocol\Servers\McpServerToolCreationMode.cs" LinkBase="Servers" />
+    <Compile Include="..\DotNetCampus.ModelContextProtocol\CompilerServices\*Attribute.cs" LinkBase="CompilerServices" />
+    <Compile Include="..\DotNetCampus.ModelContextProtocol\CompilerServices\CreationMode.cs" LinkBase="CompilerServices" />
     <Compile Include="..\DotNetCampus.ModelContextProtocol\CompilerServices\CompiledJsonSchema.cs" LinkBase="CompilerServices" />
   </ItemGroup>
 

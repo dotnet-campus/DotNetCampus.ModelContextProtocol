@@ -94,7 +94,7 @@ file static class Extensions
             public static global::DotNetCampus.ModelContextProtocol.Servers.McpServerToolsBuilder WithTool_{simplifiedTypeName}<TMcpServerToolType>(
                 this global::DotNetCampus.ModelContextProtocol.Servers.McpServerToolsBuilder builder,
                 global::System.Func<TMcpServerToolType> toolFactory,
-                global::DotNetCampus.ModelContextProtocol.Servers.McpServerToolCreationMode creationMode = global::DotNetCampus.ModelContextProtocol.Servers.McpServerToolCreationMode.Singleton)
+                global::DotNetCampus.ModelContextProtocol.CompilerServices.CreationMode creationMode = global::DotNetCampus.ModelContextProtocol.CompilerServices.CreationMode.Singleton)
                 where TMcpServerToolType : class
             """;
 
@@ -104,7 +104,7 @@ file static class Extensions
             .AddRawStatement($$"""
                 {{G.Func}}<{{toolType.ToUsingString()}}> typedFactory = creationMode switch
                 {
-                    {{G.McpServerToolCreationMode}}.Singleton => () => builder.Tools.GetOrAddSingleton<{{toolType.ToUsingString()}}>("{{toolType.ToDisplayString()}}", () => ({{toolType.ToUsingString()}})(object)toolFactory()),
+                    {{G.CreationMode}}.Singleton => () => builder.Tools.GetOrAddSingleton<{{toolType.ToUsingString()}}>("{{toolType.ToDisplayString()}}", () => ({{toolType.ToUsingString()}})(object)toolFactory()),
                     _ => () => ({{toolType.ToUsingString()}})(object)toolFactory(),
                 };
                 """)
