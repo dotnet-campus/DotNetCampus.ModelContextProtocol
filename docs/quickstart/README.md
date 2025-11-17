@@ -79,7 +79,7 @@ public class SampleTools
     - `IMcpServerCallToolContext`: 表示当前工具方法的上下文信息
     - `JsonElement`：表示任意 JSON 数据 **请注意，虽然这是 MCP 协议支持的类型，但有些 MCP 客户端（如 Copilot 智能体）不接受这种类型作为输入参数；当存在时，会导致整个 MCP 服务器不可用**
 - 显式类型：
-    - `[ToolParameter(Type = ToolParameterType.InputObject)]`：表示此参数负责接收整个工具调用的输入对象，此时不允许再有其他普通参数
+    - `[ToolParameter(Type = ToolParameterType.InputObject)]`：表示此参数负责接收整个工具调用的输入对象，此时不允许再有其他普通参数 **请注意，根据 MCP 2025-06-18 版协议规范，顶层输入类型不支持多态；如果希望使用多态，请设为普通参数；当然也存在支持顶层类型多态的 MCP 客户端，本库能兼容这些客户端**
     - `[ToolParameter(Type = ToolParameterType.Injected)]`：表示此参数由依赖注入框架自动注入，不由 MCP 协议层传入
 
 方法的返回值可以是以下类型：
