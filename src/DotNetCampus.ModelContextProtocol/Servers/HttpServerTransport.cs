@@ -470,7 +470,7 @@ public class HttpServerTransport
 file static class Extensions
 {
     internal static ScopedServiceProvider AddHttpTransportServices(this ScopedServiceProvider services,
-        string sessionId, NameValueCollection headers)
+        string? sessionId, NameValueCollection headers)
     {
         var context = new HttpServerTransportContext
         {
