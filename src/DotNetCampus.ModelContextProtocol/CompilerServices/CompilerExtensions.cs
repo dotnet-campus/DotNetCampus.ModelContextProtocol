@@ -42,15 +42,15 @@ public static class CompilerExtensions
             {
                 return property.Deserialize(jsonTypeInfo);
             }
-            catch (NotSupportedException) when (typeDiscriminatorPropertyName is not null)
+            catch (NotSupportedException ex) when (typeDiscriminatorPropertyName is not null && ex.Message.Contains("discriminator"))
             {
-                // System.NotSupportedException: The JSON payload for polymorphic interface or abstract type 'DotNetCampus.SampleMcpServer.McpTools.PolymorphicBase' must specify a type discriminator.
+                // System.NotSupportedException: The JSON payload for polymorphic interface or abstract type 'xxx' must specify a type discriminator.
                 throw new McpToolMissingRequiredTypeDiscriminatorException(typeDiscriminatorPropertyName, expectedTypeDiscriminatorValues.ToArray());
             }
-            catch (JsonException ex) when (typeDiscriminatorPropertyName is not null)
+            catch (JsonException ex) when (typeDiscriminatorPropertyName is not null && ex.Message.Contains("discriminator"))
             {
                 // System.Text.Json.JsonException: Read unrecognized type discriminator id 'xxx'.
-                throw new McpToolMissingRequiredTypeDiscriminatorException(ex, typeDiscriminatorPropertyName!, expectedTypeDiscriminatorValues.ToArray());
+                throw new McpToolMissingRequiredTypeDiscriminatorException(ex, typeDiscriminatorPropertyName, expectedTypeDiscriminatorValues.ToArray());
             }
         }
     }

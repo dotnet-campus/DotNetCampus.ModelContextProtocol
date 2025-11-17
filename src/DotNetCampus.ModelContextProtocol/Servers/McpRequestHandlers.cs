@@ -1,4 +1,5 @@
 using System.Diagnostics.CodeAnalysis;
+using System.Text.Json;
 using DotNetCampus.ModelContextProtocol.Core;
 using DotNetCampus.ModelContextProtocol.Exceptions;
 using DotNetCampus.ModelContextProtocol.Protocol.Messages;
@@ -121,6 +122,11 @@ public class McpRequestHandlers(McpServer server)
         {
             // 调用工具时缺少必要的类型鉴别器。
             return CallToolResult.FromError(ex.Message);
+        }
+        catch (JsonException ex)
+        {
+            // 调用工具时传入的参数无法被正确反序列化。
+            return CallToolResult.FromError($"Failed to deserialize tool arguments: {ex.Message}");
         }
         catch (McpToolServiceNotFoundException ex)
         {
