@@ -74,7 +74,7 @@ public class SampleTools
 方法参数可以是任意数量的，支持以下类型：
 
 - 隐式类型：
-    - 任意可被 JSON 反序列化的类型
+    - 任意可被 JSON 反序列化的类型（包括基本类型、数组和对象等）
     - `CancellationToken`: 表示取消令牌
     - `IMcpServerCallToolContext`: 表示当前工具方法的上下文信息
     - `JsonElement`：表示任意 JSON 数据 **请注意，虽然这是 MCP 协议支持的类型，但有些 MCP 客户端（如 Copilot 智能体）不接受这种类型作为输入参数；当存在时，会导致整个 MCP 服务器不可用**
@@ -86,7 +86,7 @@ public class SampleTools
 
 - `string`: 表示返回给 AI 的字符串（通常是可被 AI 理解的自然语言）
 - `void`: 表示没有返回值 **请注意，虽然这是 MCP 协议支持的类型，但有些 MCP 客户端会在 MCP 服务器返回空结果时出现异常；此时建议改为 `string` 返回值，并返回空字符串**
-- 任意可被 JSON 序列化的类型
+- 任意可被 JSON 序列化的类型（根据 MCP 协议规范，**返回值只能是对象类型**，不能是数组或原始类型）
 - `CallToolResult`: 通用的工具调用结果，这就是最终 MCP 协议层的数据结构；使用此返回值类型，你可以直接在 MCP 协议层控制返回给 AI 的数据
 - `CallToolResult<T>`: 带有结构化数据类型的工具调用结果，通过 `CallToolResult.FromResult(result)` 方法创建实例，`T` 是任意可被 JSON 序列化的类型；使用此返回值类型，你可以在保证不破坏结构化返回值功能的同时，仍然具备在 MCP 协议层控制返回给 AI 的数据的能力
 

@@ -18,26 +18,6 @@ public class OutputTool
     }
 
     /// <summary>
-    /// 测试获取简单类型的输出信息
-    /// </summary>
-    /// <returns></returns>
-    [McpServerTool(ReadOnly = true)]
-    public int TestSimpleReturn()
-    {
-        return 42;
-    }
-
-    /// <summary>
-    /// 测试获取枚举类型的输出信息
-    /// </summary>
-    /// <returns></returns>
-    [McpServerTool(ReadOnly = true)]
-    public DayOfWeek TestEnumReturn()
-    {
-        return DateTime.Today.DayOfWeek;
-    }
-
-    /// <summary>
     /// 测试获取结构化的输出信息
     /// </summary>
     /// <returns></returns>
