@@ -180,15 +180,6 @@ internal static class McpServerToolSourceBuilder
             .Select(d => $"\"{d.DiscriminatorValue}\"")
             .ToList();
 
-        // 构建 EnsureDeserialize 调用
-        var ensureDeserializeCall = BuildEnsureDeserializeCall(
-            parameter.Type.ToUsingString(),
-            parameter.Type.ToSimpleDisplayString(),
-            parameter.Type.ToDisplayString(),
-            typeDiscriminatorPropertyName,
-            expectedTypeDiscriminatorValues
-        );
-
         return parameterType switch
         {
             // InputObject 类型：直接反序列化整个 jsonArguments
@@ -235,24 +226,6 @@ var {parameter.Name} = jsonArguments.TryGetProperty("{jsonName}", out var {param
         }
 
         return $", {string.Join(", ", values)}";
-    }
-
-    /// <summary>
-    /// 构建 EnsureDeserialize 方法调用表达式。
-    /// </summary>
-    private static string BuildEnsureDeserializeCall(
-        string typeUsingString,
-        string typeSimpleName,
-        string typeFullName,
-        string? typeDiscriminatorPropertyName,
-        List<string>? expectedTypeDiscriminatorValues)
-    {
-        var discriminatorArg = typeDiscriminatorPropertyName is null ? "null" : $"\"{typeDiscriminatorPropertyName}\"";
-        var valuesArg = expectedTypeDiscriminatorValues is null || expectedTypeDiscriminatorValues.Count == 0
-            ? ""
-            : $", {string.Join(", ", expectedTypeDiscriminatorValues)}";
-
-        return $"context.EnsureDeserialize<{typeUsingString}>({{0}}, \"{typeSimpleName}\", \"{typeFullName}\", {discriminatorArg}{valuesArg})";
     }
 
     /// <summary>
