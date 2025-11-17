@@ -52,10 +52,10 @@ public class HttpServerTransport
 
         Log.Info($"[McpServer][Http] listening on {string.Join(", ", _listener.Prefixes)}");
 
-        while (true)
+        while (!cancellationToken.IsCancellationRequested)
         {
             var ctx = await _listener.GetContextAsync();
-            _ = Task.Run(async () => await HandleRequestAsync(ctx));
+            _ = Task.Run(async () => await HandleRequestAsync(ctx), cancellationToken);
         }
     }
 
