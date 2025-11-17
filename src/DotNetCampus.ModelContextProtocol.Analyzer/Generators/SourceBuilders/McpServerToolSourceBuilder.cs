@@ -95,7 +95,7 @@ internal static class McpServerToolSourceBuilder
                 .Otherwise(nonPoly => nonPoly
                     .AddPropertyAssignment("Required", info.GetJsonRequiredPropertiesExpressionOrDefault())
                     .Condition(properties.Count > 0, i => i
-                        .AddBracketScope($"Properties = new {G.Dictionary}<string, {G.CompiledJsonSchema}>", "{", "},", rbs => rbs
+                        .AddBracketScope($"Properties = {G.JsonSerializer}.SerializeToElement(new {G.Dictionary}<string, {G.CompiledJsonSchema}>", "{", "}, jsonContext.DictionaryStringCompiledJsonSchema),", rbs => rbs
                             .AddStatements(properties, (d, p) => d
                                 .AddStatement($"[ \"{p.JsonPropertyName}\" ] = ", ",", c => c
                                     .AddInputSchemaExpression(p))
@@ -130,7 +130,7 @@ internal static class McpServerToolSourceBuilder
         return builder
             .AddBracketScope($"new {G.CompiledJsonSchema}", "{", "}", true, bs => bs
                 .AddPropertyAssignment("Type", null)
-                .AddBracketScope($"Properties = new {G.Dictionary}<string, {G.CompiledJsonSchema}>", "{", "},", rbs => rbs
+                .AddBracketScope($"Properties = {G.JsonSerializer}.SerializeToElement(new {G.Dictionary}<string, {G.CompiledJsonSchema}>", "{", "}, jsonContext.DictionaryStringCompiledJsonSchema),", rbs => rbs
                     .AddStatement($"[ \"{discriminatorPropertyName}\" ] = ", ",", c => c
                         .AddBracketScope($"new {G.CompiledJsonSchema}", "{", "}", false, ds => ds
                             .AddPropertyAssignment("Type", null)
