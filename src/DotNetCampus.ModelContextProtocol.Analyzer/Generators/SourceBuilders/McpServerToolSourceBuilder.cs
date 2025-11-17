@@ -73,6 +73,7 @@ internal static class McpServerToolSourceBuilder
         var itemSchema = info.GetItemSchemaOfArrayOrDefault();
         var properties = info.GetProperties();
         var polymorphicDerivedTypes = info.GetPolymorphicDerivedTypes();
+        var isJsonElementType = info.PropertyType.IsAnyJsonElementType();
 
         return builder
             .AddBracketScope($"new {G.CompiledJsonSchema}", "{", "}", true, bs => bs
@@ -99,6 +100,10 @@ internal static class McpServerToolSourceBuilder
                                 .AddStatement($"[ \"{p.JsonPropertyName}\" ] = ", ",", c => c
                                     .AddInputSchemaExpression(p))
                             )))
+                    .EndCondition()
+                    // 如果是 JsonElement 类型且 JsonSchemaType 是 object，设置 additionalProperties: true
+                    .Condition(isJsonElementType && info.JsonSchemaType == "object", addProps => addProps
+                        .AddPropertyAssignment("AdditionalProperties", $"{G.JsonSerializer}.SerializeToElement(true, jsonContext.Boolean)"))
                     .EndCondition())
                 .EndCondition()
             );

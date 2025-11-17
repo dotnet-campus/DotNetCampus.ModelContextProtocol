@@ -92,4 +92,16 @@ public sealed record CompiledJsonSchema
     [JsonPropertyName("anyOf")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public IReadOnlyList<CompiledJsonSchema>? AnyOf { get; init; }
+
+    /// <summary>
+    /// 指示对象类型是否允许额外属性（未在 properties 中定义的属性）。<br/>
+    /// 当设置为 true 时，允许任意额外属性；当设置为 false 时，不允许额外属性；<br/>
+    /// 当设置为 Schema 对象时，额外属性必须符合该 Schema。<br/>
+    /// Indicates whether the object type allows additional properties (properties not defined in properties).<br/>
+    /// When set to true, any additional properties are allowed; when set to false, no additional properties are allowed;<br/>
+    /// When set to a Schema object, additional properties must conform to that Schema.
+    /// </summary>
+    [JsonPropertyName("additionalProperties")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public JsonElement? AdditionalProperties { get; init; }
 }
