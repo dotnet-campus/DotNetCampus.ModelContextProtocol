@@ -101,9 +101,12 @@ internal static class McpServerToolSourceBuilder
                                     .AddInputSchemaExpression(p))
                             )))
                     .EndCondition()
-                    // 如果是 JsonElement 类型，需要特殊处理
+                    // 如果是 JsonElement 类型（任意 JSON 类型），需要特殊处理
                     .Condition(isJsonElementType, jsonElement => jsonElement
-                        .AddPropertyAssignment("AdditionalProperties", $"{G.JsonSerializer}.SerializeToElement(true, jsonContext.Boolean)"))
+                        // 允许任意额外属性（对于 object 类型）
+                        .AddPropertyAssignment("AdditionalProperties", $"{G.JsonSerializer}.SerializeToElement(true, jsonContext.Boolean)")
+                        // 设置空 items（对于 array 类型，表示数组元素可以是任意类型）
+                        .AddPropertyAssignment("Items", $"new {G.CompiledJsonSchema}()"))
                     .EndCondition())
                 .EndCondition()
             );

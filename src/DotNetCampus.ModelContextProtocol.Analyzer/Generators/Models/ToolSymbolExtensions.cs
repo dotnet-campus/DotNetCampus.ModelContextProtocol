@@ -1,4 +1,5 @@
-﻿using DotNetCampus.ModelContextProtocol.CompilerServices;
+﻿using DotNetCampus.ModelContextProtocol.CodeAnalysis;
+using DotNetCampus.ModelContextProtocol.CompilerServices;
 using DotNetCampus.ModelContextProtocol.Utils;
 using Microsoft.CodeAnalysis;
 
@@ -134,11 +135,12 @@ public static class ToolSymbolExtensions
     extension(ITypeSymbol type)
     {
         /// <summary>
-        /// 判断参数是否为任意 JSON 对象类型。
+        /// 判断参数是否为任意 JSON 对象类型（包括可空版本，如 JsonElement?）。
         /// </summary>
         public bool IsAnyJsonElementType()
         {
-            return type.ToGlobalDisplayString()
+            var underlyingType = type.GetNotNullTypeSymbol();
+            return underlyingType.ToGlobalDisplayString()
                 is "object"
                 or "global::System.Object"
                 or "global::System.Text.Json.JsonElement"

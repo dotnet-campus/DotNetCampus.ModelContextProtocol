@@ -116,9 +116,12 @@ public record JsonPropertySchemaInfo(ITypeSymbol PropertyType)
         return properties.ToArray();
     }
 
+    /// <summary>
+    /// 获取 JSON Schema 的 type 字段表达式。
+    /// </summary>
     public string GetJsonSchemaTypeExpression() => (PropertyType.IsAnyJsonElementType(), IsNullableType) switch
     {
-        (true, _) => $"{G.JsonSerializer}.SerializeToElement(new[] {{ \"string\", \"number\", \"boolean\", \"object\", \"null\" }}, jsonContext.StringArray)",
+        (true, _) => $"{G.JsonSerializer}.SerializeToElement(new[] {{ \"string\", \"number\", \"boolean\", \"object\", \"array\", \"null\" }}, jsonContext.StringArray)",
         (_, true) => $"{G.JsonSerializer}.SerializeToElement(new[] {{ \"{JsonSchemaType}\", \"null\" }}, jsonContext.StringArray)",
         (_, false) => $"{G.JsonSerializer}.SerializeToElement(\"{JsonSchemaType}\", jsonContext.String)",
     };

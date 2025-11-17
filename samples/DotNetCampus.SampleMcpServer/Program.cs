@@ -27,6 +27,10 @@ internal class Program
             .WithHttp(5943, "mcp")
             .WithStdio()
             .WithJsonSerializer(McpToolJsonContext.Default)
+            .WithRequestHandlers((s, d) => new McpRequestHandlers(s)
+            {
+                ListToolsHandler = (request, token) => d.Raw.ListTools(request, token),
+            })
             .WithTools(t => t
                 .WithTool(() => new SampleTool())
                 .WithTool(() => new InputTool())

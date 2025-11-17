@@ -1,4 +1,5 @@
-﻿using System.Text.Json.Serialization;
+﻿using System.Text.Json;
+using System.Text.Json.Serialization;
 using DotNetCampus.ModelContextProtocol.CompilerServices;
 
 namespace DotNetCampus.SampleMcpServer.McpTools;
@@ -42,6 +43,7 @@ public class PolymorphicTool
 
 [JsonDerivedType(typeof(PolymorphicDerivedA), "a")]
 [JsonDerivedType(typeof(PolymorphicDerivedB), "b")]
+[JsonDerivedType(typeof(PolymorphicDerivedC), "c")]
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
 public record PolymorphicBase
 {
@@ -55,4 +57,9 @@ public record PolymorphicDerivedA : PolymorphicBase
 public record PolymorphicDerivedB : PolymorphicBase
 {
     public int? Bar { get; init; }
+}
+
+public record PolymorphicDerivedC : PolymorphicBase
+{
+    public JsonElement? Baz { get; init; }
 }

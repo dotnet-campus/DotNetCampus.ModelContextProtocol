@@ -6,7 +6,7 @@ internal class JsonSchemaTypeInfo
 {
     public JsonSchemaTypeInfo(ITypeSymbol typeSymbol)
     {
-        TypeSymbol = GetNotNullTypeSymbol(typeSymbol);
+        TypeSymbol = typeSymbol.GetNotNullTypeSymbol();
         SpecialKind = GetJsonTypeKind(typeSymbol);
         SchemaKind = SpecialKind.ToJsonSchemaType();
     }
@@ -127,7 +127,7 @@ internal class JsonSchemaTypeInfo
     /// <returns>类型信息。</returns>
     private static JsonSpecialType GetJsonTypeKind(ITypeSymbol typeSymbol)
     {
-        var notNullTypeSymbol = GetNotNullTypeSymbol(typeSymbol);
+        var notNullTypeSymbol = typeSymbol.GetNotNullTypeSymbol();
 
         switch (notNullTypeSymbol.SpecialType)
         {
@@ -204,21 +204,4 @@ internal class JsonSchemaTypeInfo
 
         return JsonSpecialType.Object;
     }
-
-    /// <summary>
-    /// 如果 <paramref name="typeSymbol"/> 是可空值类型，则递归返回其基础类型，否则直接返回 <paramref name="typeSymbol"/> 本身。<br/>
-    /// 不会处理其泛型参数的可空性。
-    /// </summary>
-    /// <param name="typeSymbol">要处理的类型符号。</param>
-    /// <returns>基础类型符号。</returns>
-    private static ITypeSymbol GetNotNullTypeSymbol(ITypeSymbol typeSymbol) => typeSymbol switch
-    {
-        INamedTypeSymbol
-        {
-            IsValueType: true,
-            IsGenericType: true,
-            OriginalDefinition.SpecialType: SpecialType.System_Nullable_T,
-        } nullableTypeSymbol => nullableTypeSymbol.TypeArguments[0],
-        _ => typeSymbol,
-    };
 }
