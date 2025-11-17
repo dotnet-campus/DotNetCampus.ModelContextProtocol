@@ -8,9 +8,27 @@ public class McpToolUsageException : ModelContextProtocolException
     /// <summary>
     /// 初始化 <see cref="McpToolUsageException"/> 类的新实例。
     /// </summary>
-    /// <param name="message">错误消息</param>
+    public McpToolUsageException()
+        : base("The MCP tool was used incorrectly.")
+    {
+    }
+
+    /// <summary>
+    /// 初始化 <see cref="McpToolUsageException"/> 类的新实例。
+    /// </summary>
+    /// <param name="message">错误消息。</param>
     public McpToolUsageException(string message)
         : base(message)
+    {
+    }
+
+    /// <summary>
+    /// 初始化 <see cref="McpToolUsageException"/> 类的新实例。
+    /// </summary>
+    /// <param name="message">错误消息。</param>
+    /// <param name="innerException">导致此异常的内部异常。</param>
+    public McpToolUsageException(string? message, Exception? innerException)
+        : base(message, innerException)
     {
     }
 }
