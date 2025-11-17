@@ -1,4 +1,5 @@
 using DotNetCampus.ModelContextProtocol.CodeAnalysis;
+using DotNetCampus.ModelContextProtocol.CompilerServices;
 using Microsoft.CodeAnalysis;
 using DotNetCampus.ModelContextProtocol.Utils;
 using G = DotNetCampus.ModelContextProtocol.GlobalTypeNames;
@@ -194,6 +195,14 @@ public record JsonPropertySchemaInfo(ITypeSymbol PropertyType)
     /// </summary>
     public static JsonPropertySchemaInfo From(McpServerToolGeneratingModel model)
     {
+        // 检查是否有 InputObject 类型的参数
+        var inputObjectParam = model.Method.Parameters.FirstOrDefault(p => p.GetParameterType() == ToolParameterType.InputObject);
+        if (inputObjectParam != null)
+        {
+            // 如果有 InputObject 参数，直接使用该参数类型的 Schema 信息（保留多态信息）
+            return From(inputObjectParam.Type, model.Name);
+        }
+
         return new JsonPropertySchemaInfo(model.ContainingType)
         {
             JsonPropertyName = model.Name, // 仅为结构相同，实际不会被使用。

@@ -30,8 +30,9 @@ internal class Program
             .WithTools(t => t
                 .WithTool(() => new SampleTool())
                 .WithTool(() => new InputTool())
-                .WithTool(() => new ResourceTool())
                 .WithTool(() => new OutputTool())
+                .WithTool(() => new PolymorphicTool())
+                .WithTool(() => new ResourceTool())
             )
             // .WithResources(r => r
             //     .WithResource(() => new SampleResource())
