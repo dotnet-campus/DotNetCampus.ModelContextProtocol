@@ -101,8 +101,8 @@ internal static class McpServerToolSourceBuilder
                                     .AddInputSchemaExpression(p))
                             )))
                     .EndCondition()
-                    // 如果是 JsonElement 类型且 JsonSchemaType 是 object，设置 additionalProperties: true
-                    .Condition(isJsonElementType && info.JsonSchemaType == "object", addProps => addProps
+                    // 如果是 JsonElement 类型，需要特殊处理
+                    .Condition(isJsonElementType, jsonElement => jsonElement
                         .AddPropertyAssignment("AdditionalProperties", $"{G.JsonSerializer}.SerializeToElement(true, jsonContext.Boolean)"))
                     .EndCondition())
                 .EndCondition()

@@ -118,7 +118,7 @@ public record JsonPropertySchemaInfo(ITypeSymbol PropertyType)
 
     public string GetJsonSchemaTypeExpression() => (PropertyType.IsAnyJsonElementType(), IsNullableType) switch
     {
-        (true, _) => $"{G.JsonSerializer}.SerializeToElement(new[] {{ \"string\", \"number\", \"boolean\", \"object\", \"array\", \"null\" }}, jsonContext.StringArray)",
+        (true, _) => $"{G.JsonSerializer}.SerializeToElement(new[] {{ \"string\", \"number\", \"boolean\", \"object\", \"null\" }}, jsonContext.StringArray)",
         (_, true) => $"{G.JsonSerializer}.SerializeToElement(new[] {{ \"{JsonSchemaType}\", \"null\" }}, jsonContext.StringArray)",
         (_, false) => $"{G.JsonSerializer}.SerializeToElement(\"{JsonSchemaType}\", jsonContext.String)",
     };
