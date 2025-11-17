@@ -1,5 +1,54 @@
 # 快速使用
 
+## 初始化
+
+一个典型的 MCP 服务器程序如下所示：
+
+```csharp
+internal class Program
+{
+    private static async Task Main(string[] args)
+    {
+        // 此服务器名和版本号会在 MCP 协议中发送给客户端
+        var mcpServer = new McpServerBuilder("示例服务器", "1.0.0")
+            .WithTools(t => t
+                // 如果你的 MCP 工具参数和返回值存在自定义类型，需要传入 JSON 序列化上下文
+                .WithJsonSerializer(McpToolJsonContext.Default)
+                // 注册各种 MCP 工具
+                .WithTool(() => new SampleTools())
+                .WithTool(() => new SampleTools2())
+            )
+            // 传输层使用 Streamable HTTP，监听 http://localhost:5943/mcp，
+            // 传输层同时兼容 SSE，监听地址为 http://localhost:5943/mcp/sse
+            .WithHttp(5943, "mcp")
+            // 传输层也可使用 stdio（标准输入输出），这是 MCP 协议建议所有 MCP 服务器都支持的传输层
+            // 不过通常不建议同时启用 http 和 stdio，因为前者通常要求单例运行，后者则必须支持多实例运行
+            // .WithStdio()
+            .Build();
+        // 启用调试模式，这样当 MCP 服务遇到异常时，会把异常信息返回给客户端，方便调试
+        // 此方法在 Release 编译下不会生效
+        mcpServer.EnableDebugMode();
+        // 运行 MCP 服务器
+        await mcpServer.RunAsync();
+    }
+}
+
+[JsonSerializable(typeof(Foo))]
+[JsonSerializable(typeof(Bar))]
+[JsonSourceGenerationOptions(
+    // 建议设置：MCP 协议主流实现都使用驼峰命名法
+    PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,
+    // 建议设置：MCP 协议主流实现都使用字符串枚举
+    UseStringEnumConverter = true,
+    // 建议设置：无法保证 AI 永远将元数据属性放到首位
+    AllowOutOfOrderMetadataProperties = true
+    // 如果你计划使用很笨的模型，也可开启以下选项
+    // PropertyNameCaseInsensitive = true,
+    // NumberHandling = JsonNumberHandling.AllowReadingFromString
+    )]
+internal partial class McpToolJsonContext : JsonSerializerContext;
+```
+
 ## MCP 工具方法声明
 
 ```csharp
