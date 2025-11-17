@@ -76,7 +76,7 @@ public class InputTool
     /// 可以使用 <see cref="JsonElement.ValueKind"/> 判断实际类型，
     /// 然后调用相应的方法（如 GetString()、GetInt32()、EnumerateObject() 等）。
     /// </remarks>
-    // [McpServerTool(ReadOnly = true)] // Visual Studio Code Copilot 不支持此参数，会导致所有工具不可用。
+    [McpServerTool(ReadOnly = true)]
     public string TestParameterAny(string id, object payload)
     {
         return $"""
@@ -90,7 +90,7 @@ public class InputTool
     /// <param name="id">传递过来的标识</param>
     /// <param name="data">传递过来的 JSON 元素</param>
     /// <returns></returns>
-    // [McpServerTool(ReadOnly = true)] // Visual Studio Code Copilot 不支持此参数，会导致所有工具不可用。
+    [McpServerTool(ReadOnly = true)]
     public string TestParameterJsonElement(string id, JsonElement data)
     {
         var typeInfo = data.ValueKind switch
