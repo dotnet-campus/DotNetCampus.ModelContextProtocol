@@ -200,7 +200,7 @@ public record JsonPropertySchemaInfo(ITypeSymbol PropertyType)
                     : ev.Name)
                 .ToList();
 
-            var enumHint = $"(可选值: {string.Join(", ", enumDescriptions)})";
+            var enumHint = $"(Values: {string.Join(", ", enumDescriptions)})";
             return baseDescription is not null
                 ? $"{baseDescription} {enumHint}"
                 : enumHint;
@@ -213,7 +213,7 @@ public record JsonPropertySchemaInfo(ITypeSymbol PropertyType)
                 .Select(d => d.DiscriminatorValue)
                 .ToList();
 
-            var polymorphicHint = $"(多态类型，鉴别器属性: \"{PolymorphicInfo.DiscriminatorPropertyName}\", 可选值: {string.Join(", ", discriminatorValues.Select(v => $"\"{v}\""))})";
+            var polymorphicHint = $"(Polymorphic type discriminated by: '{PolymorphicInfo.DiscriminatorPropertyName}'. Values: {string.Join(", ", discriminatorValues.Select(v => $"'{v}'"))})";
             return baseDescription is not null
                 ? $"{baseDescription} {polymorphicHint}"
                 : polymorphicHint;
