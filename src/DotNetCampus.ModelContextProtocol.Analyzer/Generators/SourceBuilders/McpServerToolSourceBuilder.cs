@@ -79,7 +79,7 @@ internal static class McpServerToolSourceBuilder
             .AddBracketScope($"new {G.CompiledJsonSchema}", "{", "}", true, bs => bs
                 .AddPropertyAssignment("Type", info.GetJsonSchemaTypeExpression())
                 .AddPropertyAssignment("Default", info.DefaultValueJsonElement)
-                .AddStringAssignment("Description", info.Description)
+                .AddStringAssignment("Description", info.GetEnhancedDescription())
                 .AddPropertyAssignment("Enum", info.GetJsonEnumNameExpressionOrDefault())
                 .Condition(itemSchema is not null, i => i
                     .AddStatement("Items = ", null, c => c.AddInputSchemaExpression(itemSchema!)))

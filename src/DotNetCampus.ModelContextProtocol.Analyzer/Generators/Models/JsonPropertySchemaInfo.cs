@@ -180,6 +180,50 @@ public record JsonPropertySchemaInfo(ITypeSymbol PropertyType)
     }
 
     /// <summary>
+    /// 获取增强的描述文本，包含枚举值或多态类型信息。
+    /// </summary>
+    /// <remarks>
+    /// 我们在测试中发现 GPT-4 GPT-4.1 GPT-5 GPT-5.1 的 GPT 全系列模型都无法正确传入多态参数；
+    /// 经过本方法的处理（算是提示词工程吧），可以显著提升模型传入正确多态参数的概率。
+    /// </remarks>
+    public string? GetEnhancedDescription()
+    {
+        var baseDescription = Description;
+
+        // 1. 处理枚举类型：提取所有枚举值和注释
+        var enumValues = EnumJsonValueInfo.FromEnumSymbol(PropertyType).ToList();
+        if (enumValues.Count > 0)
+        {
+            var enumDescriptions = enumValues
+                .Select(ev => ev.Description is not null
+                    ? $"{ev.Name}: {ev.Description}"
+                    : ev.Name)
+                .ToList();
+
+            var enumHint = $"(可选值: {string.Join(", ", enumDescriptions)})";
+            return baseDescription is not null
+                ? $"{baseDescription} {enumHint}"
+                : enumHint;
+        }
+
+        // 2. 处理多态类型：标注鉴别器属性和所有可能的值
+        if (PolymorphicInfo is not null)
+        {
+            var discriminatorValues = PolymorphicInfo.DerivedTypes
+                .Select(d => d.DiscriminatorValue)
+                .ToList();
+
+            var polymorphicHint = $"(多态类型，鉴别器属性: \"{PolymorphicInfo.DiscriminatorPropertyName}\", 可选值: {string.Join(", ", discriminatorValues.Select(v => $"\"{v}\""))})";
+            return baseDescription is not null
+                ? $"{baseDescription} {polymorphicHint}"
+                : polymorphicHint;
+        }
+
+        // 3. 没有特殊类型，返回原始描述
+        return baseDescription;
+    }
+
+    /// <summary>
     /// 获取所有必需属性的集合表达式语法代码。
     /// </summary>
     public string? GetJsonRequiredPropertiesExpressionOrDefault()
