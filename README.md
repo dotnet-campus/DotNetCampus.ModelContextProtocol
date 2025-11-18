@@ -98,7 +98,6 @@ public class SampleTools
 ### Advanced Usage
 
 For advanced usage including supported types for parameters and return values, type polymorphism, and more, please refer to the [Quick Start Guide](docs/quickstart/README.md)
-```
 
 ## Contributing
 
