@@ -10,6 +10,7 @@
     <IsPackable>true</IsPackable>
     <PackageId>DotNetCampus.ModelContextProtocol</PackageId>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
     <ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <Deterministic>true</Deterministic>
