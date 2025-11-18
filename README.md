@@ -1,7 +1,12 @@
 # DotNetCampus.ModelContextProtocol
 
-[![.NET Build and Test](https://github.com/dotnet-campus/DotNetCampus.ModelContextProtocol/actions/workflows/dotnet-core.yml/badge.svg)](https://github.com/dotnet-campus/DotNetCampus.ModelContextProtocol/actions/workflows/dotnet-core.yml)
-[![NuGet](https://img.shields.io/nuget/v/DotNetCampus.ModelContextProtocol.svg)](https://www.nuget.org/packages/DotNetCampus.ModelContextProtocol)
+[![.NET Build and Test](https://github.com/dotnet-campus/DotNetCampus.ModelContextProtocol/actions/workflows/dotnet-build.yml/badge.svg)](https://github.com/dotnet-campus/DotNetCampus.ModelContextProtocol/actions/workflows/dotnet-build.yml) [![NuGet](https://img.shields.io/nuget/v/DotNetCampus.ModelContextProtocol.svg?label=DotNetCampus.ModelContextProtocol)](https://www.nuget.org/packages/DotNetCampus.ModelContextProtocol)
+
+| [English][en] | [简体中文][zh-hans] |
+| ------------- | ------------------- |
+
+[en]: /docs/en/QuickStart.md
+[zh-hans]: /docs/zh-hans/QuickStart.md
 
 A lightweight, zero-dependency yet full-featured MCP protocol implementation built with .NET. It can be easily integrated into your application, regardless of its architecture.
 
