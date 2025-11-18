@@ -261,12 +261,12 @@ var {parameter.Name} = jsonArguments.TryGetProperty("{jsonName}", out var {param
             // async with structured return
             (true, false, true) => $"""
                 var result = await {callMethodExpression}.ConfigureAwait(false);
-                return (({G.CallToolResult})result).Structure(context, "{typeName}", "{typeFullName}");
+                return ({G.CallToolResult}.FromResult(result)).Structure(context, "{typeName}", "{typeFullName}");
                 """,
             // async without structured return
             (true, false, false) => $"""
                 var result = await {callMethodExpression}.ConfigureAwait(false);
-                return (({G.CallToolResult})result).Structure(jsonSerializerContext);
+                return ({G.CallToolResult}.FromResult(result)).Structure(jsonSerializerContext);
                 """,
             // sync void
             (false, true, _) => $"""

@@ -18,6 +18,25 @@ public class OutputTool
     }
 
     /// <summary>
+    /// 测试异步获取结构化的输出信息
+    /// </summary>
+    /// <returns></returns>
+    [McpServerTool(ReadOnly = true)]
+    public async Task<LocalTimeInfo> TestAsyncStructureReturn()
+    {
+        var now = DateTime.Now;
+        return new LocalTimeInfo
+        {
+            Year = now.Year,
+            Month = now.Month,
+            Day = now.Day,
+            Hour = now.Hour,
+            Minute = now.Minute,
+            Second = now.Second,
+        };
+    }
+
+    /// <summary>
     /// 测试获取结构化的输出信息
     /// </summary>
     /// <returns></returns>
