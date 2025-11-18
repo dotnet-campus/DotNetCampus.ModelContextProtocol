@@ -17,5 +17,5 @@ public interface IMcpServerResource
     /// </summary>
     /// <param name="context">读取资源时的上下文信息。</param>
     /// <returns>表示资源读取结果的对象。</returns>
-    ValueTask<ReadResourceResult> ReadResource(IMcpServerCallToolContext context);
+    ValueTask<ReadResourceResult> ReadResource(IMcpServerReadResourceContext context);
 }

@@ -28,12 +28,6 @@ public interface IMcpServerPrimitiveContext
     /// JSON serialization context that can be used to deserialize MCP tool invocation input parameters.
     /// </summary>
     JsonSerializerContext JsonSerializerContext { get; }
-
-    /// <summary>
-    /// 用于取消工具调用操作的取消令牌。<br/>
-    /// Cancellation token used to cancel the tool invocation operation.
-    /// </summary>
-    CancellationToken CancellationToken { get; }
 }
 
 /// <summary>
@@ -48,6 +42,12 @@ public interface IMcpServerCallToolContext : IMcpServerPrimitiveContext
     /// JSON element from the arguments field in the tools/call request in the MCP protocol.
     /// </summary>
     JsonElement InputJsonArguments { get; }
+
+    /// <summary>
+    /// 用于取消工具调用操作的取消令牌。<br/>
+    /// Cancellation token used to cancel the tool invocation operation.
+    /// </summary>
+    CancellationToken CancellationToken { get; }
 }
 
 /// <summary>
@@ -73,7 +73,6 @@ internal sealed class McpServerReadResourceContext : IMcpServerReadResourceConte
     public required McpServer McpServer { get; init; }
     public required IServiceProvider Services { get; init; }
     public required JsonSerializerContext JsonSerializerContext { get; init; }
-    public required CancellationToken CancellationToken { get; init; }
 }
 
 /// <summary>
@@ -90,28 +89,5 @@ public static class McpServerCallToolContextExtensions
         /// Gets the context information related to HTTP transport (if the current transport is HTTP).
         /// </summary>
         public HttpServerTransportContext? HttpTransportContext => (HttpServerTransportContext?)context.Services.GetService(typeof(HttpServerTransportContext));
-
-        /// <summary>
-        /// 尝试从依赖注入容器中解析并获取指定类型的服务实例。
-        /// </summary>
-        /// <typeparam name="T">要解析的服务类型。</typeparam>
-        /// <returns>指定类型的服务实例。</returns>
-        public T? TryGetMcpToolService<T>()
-        {
-            return (T?)context.Services.GetService(typeof(T));
-        }
-
-        /// <summary>
-        /// 从依赖注入容器中解析并获取指定类型的服务实例。
-        /// </summary>
-        /// <param name="sourceGeneratedServiceTypeName">由源生成器提供的要解析的服务类型名称。</param>
-        /// <typeparam name="T">要解析的服务类型。</typeparam>
-        /// <returns>指定类型的服务实例。</returns>
-        /// <exception cref="McpToolServiceNotFoundException">当指定类型的服务在依赖注入容器中未找到时引发。</exception>
-        public T GetRequiredMcpToolService<T>(string sourceGeneratedServiceTypeName)
-        {
-            return (T?)context.Services.GetService(typeof(T))
-                   ?? throw new McpToolServiceNotFoundException(sourceGeneratedServiceTypeName);
-        }
     }
 }

@@ -39,8 +39,7 @@ public class McpServerToolGenerator : IIncrementalGenerator
                 $"{model.GetGetAccessModifier()} sealed class {model.GetBridgeTypeName()}({G.Func}<{model.ContainingType.ToUsingString()}> targetFactory)",
                 t => t.AddBaseTypes(G.IMcpServerTool)
                     .WithSummaryComment($"为 <see cref=\"{model.ContainingType.ToUsingString()}.{model.Method.Name}\"/> 方法生成的 MCP 服务器工具桥接类。")
-                    .AddRawText($"private readonly {G.Func}<{model.ContainingType.ToUsingString()}> _targetFactory = targetFactory;")
-                    .AddRawText($"private {model.ContainingType.ToUsingString()} Target => _targetFactory();")
+                    .AddRawText($"private {model.ContainingType.ToUsingString()} Target => targetFactory();")
                     .AddRawText($"/// <inheritdoc />\npublic string ToolName {{ get; }} = \"{model.Name}\";")
                     .AddGetToolDefinitionMethod(model)
                     .AddGetInputSchemaMethod(model)

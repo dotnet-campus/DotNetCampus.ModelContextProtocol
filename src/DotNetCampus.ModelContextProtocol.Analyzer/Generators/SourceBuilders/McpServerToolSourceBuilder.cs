@@ -153,9 +153,9 @@ internal static class McpServerToolSourceBuilder
 
         return builder.AddMethodDeclaration(signature, m => m
             .WithRawDocumentationComment("/// <inheritdoc />")
-            .AddRawStatement($"{G.JsonElement} jsonArguments = context.InputJsonArguments;")
-            .AddRawStatement($"{G.JsonSerializerContext} jsonSerializerContext = context.JsonSerializerContext;")
-            .AddRawStatement($"{G.CancellationToken} cancellationToken = context.CancellationToken;")
+            .AddRawStatement("var jsonArguments = context.InputJsonArguments;")
+            .AddRawStatement("var jsonSerializerContext = context.JsonSerializerContext;")
+            .AddRawStatement("var cancellationToken = context.CancellationToken;")
             .AddRawStatements(model.GetParameters(true).Select(p => GenerateParameterDeserializationStatement(p, model)).OfType<string>())
             .AddInvokeTargetMethodStatements(model)
         );
@@ -187,10 +187,10 @@ internal static class McpServerToolSourceBuilder
 var {parameter.Name} = context.EnsureDeserialize<{parameter.Type.ToUsingString()}>(jsonArguments, "{parameter.Type.ToSimpleDisplayString()}", "{parameter.Type.ToDisplayString()}", {FormatNullableString(typeDiscriminatorPropertyName)}{FormatExpectedTypeDiscriminatorValues(expectedTypeDiscriminatorValues)});
 """,
             ToolParameterType.Injected when parameter.Type.IsNullableType => $"""
-var {parameter.Name} = context.TryGetMcpToolService<{parameter.Type.ToUsingString()}>();
+var {parameter.Name} = context.TryGetService<{parameter.Type.ToUsingString()}>();
 """,
             ToolParameterType.Injected => $"""
-var {parameter.Name} = context.GetRequiredMcpToolService<{parameter.Type.ToUsingString()}>("{parameter.Type.ToDisplayString()}");
+var {parameter.Name} = context.EnsureGetService<{parameter.Type.ToUsingString()}>("{parameter.Type.ToDisplayString()}");
 """,
             ToolParameterType.JsonElement => $"""
 var {parameter.Name} = jsonArguments.TryGetProperty("{jsonName}", out var {parameter.Name}Property)
@@ -261,12 +261,12 @@ var {parameter.Name} = jsonArguments.TryGetProperty("{jsonName}", out var {param
             // async with structured return
             (true, false, true) => $"""
                 var result = await {callMethodExpression}.ConfigureAwait(false);
-                return ({G.CallToolResult}.FromResult(result)).Structure(context, "{typeName}", "{typeFullName}");
+                return {G.CallToolResult}.FromResult(result).Structure(context, "{typeName}", "{typeFullName}");
                 """,
             // async without structured return
             (true, false, false) => $"""
                 var result = await {callMethodExpression}.ConfigureAwait(false);
-                return ({G.CallToolResult}.FromResult(result)).Structure(jsonSerializerContext);
+                return {G.CallToolResult}.FromResult(result).Structure(jsonSerializerContext);
                 """,
             // sync void
             (false, true, _) => $"""
@@ -276,12 +276,12 @@ var {parameter.Name} = jsonArguments.TryGetProperty("{jsonName}", out var {param
             // sync with structured return
             (false, false, true) => $"""
                 var result = {callMethodExpression};
-                return {G.ValueTask}.FromResult(({G.CallToolResult}.FromResult(result)).Structure(context, "{typeName}", "{typeFullName}"));
+                return {G.ValueTask}.FromResult({G.CallToolResult}.FromResult(result).Structure(context, "{typeName}", "{typeFullName}"));
                 """,
             // sync without structured return
             (false, false, false) => $"""
                 var result = {callMethodExpression};
-                return {G.ValueTask}.FromResult(({G.CallToolResult}.FromResult(result)).Structure(jsonSerializerContext));
+                return {G.ValueTask}.FromResult({G.CallToolResult}.FromResult(result).Structure(jsonSerializerContext));
                 """,
         });
         return builder;

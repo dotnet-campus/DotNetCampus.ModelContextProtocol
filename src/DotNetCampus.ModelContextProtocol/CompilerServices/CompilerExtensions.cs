@@ -15,6 +15,29 @@ public static class CompilerExtensions
     extension(IMcpServerCallToolContext context)
     {
         /// <summary>
+        /// 尝试从依赖注入容器中解析并获取指定类型的服务实例。如果未找到该服务，则返回 <see langword="null"/>。
+        /// </summary>
+        /// <typeparam name="T">要解析的服务类型。</typeparam>
+        /// <returns>指定类型的服务实例。</returns>
+        public T? TryGetService<T>()
+        {
+            return (T?)context.Services.GetService(typeof(T));
+        }
+
+        /// <summary>
+        /// 从依赖注入容器中解析并获取指定类型的服务实例。
+        /// </summary>
+        /// <param name="sourceGeneratedServiceTypeName">由源生成器提供的要解析的服务类型名称。</param>
+        /// <typeparam name="T">要解析的服务类型。</typeparam>
+        /// <returns>指定类型的服务实例。</returns>
+        /// <exception cref="McpToolServiceNotFoundException">当指定类型的服务在依赖注入容器中未找到时引发。</exception>
+        public T EnsureGetService<T>(string sourceGeneratedServiceTypeName)
+        {
+            return (T?)context.Services.GetService(typeof(T))
+                   ?? throw new McpToolServiceNotFoundException(sourceGeneratedServiceTypeName);
+        }
+
+        /// <summary>
         /// 确保将指定的 JSON 属性反序列化为指定类型的对象。
         /// </summary>
         /// <param name="property">要反序列化的 JSON 属性。</param>
