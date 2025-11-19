@@ -13,7 +13,7 @@ public record ReadResourceResult : Result
     /// The contents of the resource or resources that were read.
     /// </summary>
     [JsonPropertyName("contents")]
-    public IList<ResourceContents> Contents { get; set; } = [];
+    public IReadOnlyList<ResourceContents> Contents { get; set; } = [];
 
     /// <summary>
     /// 创建包含指定资源内容的 <see cref="ReadResourceResult"/> 实例。
@@ -40,4 +40,9 @@ public record ReadResourceResult : Result
     {
         return result;
     }
+
+    /// <summary>
+    /// 空的资源读取结果（用于 void 返回值）。
+    /// </summary>
+    public static ReadResourceResult Empty => new();
 }

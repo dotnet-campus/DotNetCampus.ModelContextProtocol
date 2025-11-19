@@ -1,6 +1,7 @@
 ﻿using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
 using DotNetCampus.ModelContextProtocol.Exceptions;
+using DotNetCampus.ModelContextProtocol.Protocol.Messages;
 using DotNetCampus.ModelContextProtocol.Servers;
 
 namespace DotNetCampus.ModelContextProtocol.CompilerServices;
@@ -11,7 +12,7 @@ namespace DotNetCampus.ModelContextProtocol.CompilerServices;
 /// </summary>
 public static class CompilerExtensions
 {
-    /// <param name="context">工具调用上下文。Tool invocation context.</param>
+    /// <param name="context">工具调用上下文。<br/>Tool invocation context.</param>
     extension(IMcpServerCallToolContext context)
     {
         /// <summary>
@@ -76,5 +77,71 @@ public static class CompilerExtensions
                 throw new McpToolMissingRequiredTypeDiscriminatorException(ex, typeDiscriminatorPropertyName, expectedTypeDiscriminatorValues.ToArray());
             }
         }
+    }
+
+    /// <param name="context">读取资源的上下文。<br/>The context for reading resources.</param>
+    extension(IMcpServerReadResourceContext context)
+    {
+        /// <summary>
+        /// 创建包含指定文本资源内容的 <see cref="ReadResourceResult"/> 实例。
+        /// </summary>
+        /// <param name="text">要包含的文本资源内容。</param>
+        /// <returns><see cref="ReadResourceResult"/> 实例。</returns>
+        public ReadResourceResult CreateResult(string text) => new()
+        {
+            Contents =
+            [
+                new TextResourceContents
+                {
+                    Uri = context.Uri,
+                    MimeType = "text/plain",
+                    Text = text,
+                },
+            ],
+        };
+
+        /// <summary>
+        /// 创建包含多个指定文本资源内容的 <see cref="ReadResourceResult"/> 实例。
+        /// </summary>
+        /// <param name="texts">要包含的文本资源内容集合。</param>
+        /// <returns><see cref="ReadResourceResult"/> 实例。</returns>
+        public ReadResourceResult CreateResult(IEnumerable<string> texts) => new()
+        {
+            Contents =
+            [
+                .. texts.Select(text => new TextResourceContents
+                {
+                    Uri = context.Uri,
+                    MimeType = "text/plain",
+                    Text = text,
+                }),
+            ],
+        };
+
+        /// <summary>
+        /// 创建包含指定资源内容的 <see cref="ReadResourceResult"/> 实例。
+        /// </summary>
+        /// <param name="resourceContents">要包含的资源内容。</param>
+        /// <returns><see cref="ReadResourceResult"/> 实例。</returns>
+        public ReadResourceResult CreateResult(ResourceContents resourceContents) => new()
+        {
+            Contents =
+            [
+                resourceContents,
+            ],
+        };
+
+        /// <summary>
+        /// 创建包含指定资源内容的 <see cref="ReadResourceResult"/> 实例。
+        /// </summary>
+        /// <param name="resourceContents">要包含的资源内容。</param>
+        /// <returns><see cref="ReadResourceResult"/> 实例。</returns>
+        public ReadResourceResult CreateResult(IEnumerable<ResourceContents> resourceContents) => new()
+        {
+            Contents =
+            [
+                ..resourceContents,
+            ],
+        };
     }
 }

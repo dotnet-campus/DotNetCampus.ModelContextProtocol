@@ -52,14 +52,23 @@ public class SampleResource
     /// <param name="id1">Second ID parameter</param>
     /// <returns></returns>
     [McpServerResource(UriTemplate = "test://template/resource/{id1}/foo/{id0}/bar", Name = "Multi-Parameter Resource")]
-    public ResourceContents MultiParameterResource(IMcpServerReadResourceContext context, int id0, int id1)
+    public IReadOnlyList<ResourceContents> MultiParameterResource(IMcpServerReadResourceContext context, int id0, int id1)
     {
-        return new TextResourceContents
-        {
-            Text = $"Multi-parameter resource: id0={id0}, id1={id1}",
-            MimeType = "text/plain",
-            Uri = context.Uri,
-        };
+        return
+        [
+            new TextResourceContents
+            {
+                Text = $"Multi-parameter resource: id0={id0}, id1={id1}",
+                MimeType = "text/plain",
+                Uri = context.Uri,
+            },
+            new TextResourceContents
+            {
+                Text = $"Parameters received: id0={id0}, id1={id1}",
+                MimeType = "text/plain",
+                Uri = context.Uri,
+            },
+        ];
     }
 }
 

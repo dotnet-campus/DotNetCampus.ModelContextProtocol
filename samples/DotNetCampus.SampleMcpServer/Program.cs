@@ -41,8 +41,6 @@ internal class Program
             )
             .WithResources(r => r
                 .WithResource(() => new SampleResource())
-                .WithResource(() => new SampleResource())
-                .WithResource(() => new SampleResource())
             )
             .Build();
         mcpServer.EnableDebugMode();

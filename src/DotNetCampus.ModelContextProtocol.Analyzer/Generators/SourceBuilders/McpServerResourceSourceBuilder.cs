@@ -166,82 +166,24 @@ internal static class McpServerResourceSourceBuilder
         }
         else
         {
-            // 有返回值
-            var returnTypeFullName = returnType.ToGlobalDisplayString();
-
+            // 有返回值，统一使用 FromResult
             if (isAsync)
             {
-                builder.AddRawStatement($"var result = await {callMethodExpression}.ConfigureAwait(false);");
+                builder.AddRawStatements($"""
+                    var result = await {callMethodExpression}.ConfigureAwait(false);
+                    return context.CreateResult(result);
+                    """);
             }
             else
             {
-                builder.AddRawStatement($"var result = {callMethodExpression};");
-            }
-
-            // 根据返回类型生成不同的包装代码
-            if (returnTypeFullName == "global::DotNetCampus.ModelContextProtocol.Protocol.Messages.ResourceContents")
-            {
-                // 直接返回 ResourceContents
-                var returnStatement = isAsync
-                    ? $"return {G.ReadResourceResult}.FromResult(result);"
-                    : $"return {G.ValueTask}.FromResult({G.ReadResourceResult}.FromResult(result));";
-                builder.AddRawStatement(returnStatement);
-            }
-            else if (returnType.SpecialType == SpecialType.System_String)
-            {
-                // string 类型，包装为 TextResourceContents
-                var mimeType = FormatNullableString(model.MimeType);
-                builder.AddBracketScope(
-                    isAsync
-                        ? $"return {G.ReadResourceResult}.FromResult(new {G.TextResourceContents}"
-                        : $"return {G.ValueTask}.FromResult({G.ReadResourceResult}.FromResult(new {G.TextResourceContents}",
-                    "{", isAsync ? "});" : "}));", bs => bs
-                        .AddRawText("Uri = context.Uri,")
-                        .AddRawText($"MimeType = \"{model.MimeType ?? "text/plain"}\",")
-                        .AddRawText("Text = result,")
-                );
-            }
-            else if (returnTypeFullName == "global::System.Byte[]")
-            {
-                // byte[] 类型，包装为 BlobResourceContents
-                var mimeType = FormatNullableString(model.MimeType);
-                builder.AddBracketScope(
-                    isAsync
-                        ? $"return {G.ReadResourceResult}.FromResult(new {G.BlobResourceContents}"
-                        : $"return {G.ValueTask}.FromResult({G.ReadResourceResult}.FromResult(new {G.BlobResourceContents}",
-                    "{", isAsync ? ");" : "));", bs => bs
-                        .AddRawText("Uri = context.Uri,")
-                        .AddRawText($"MimeType = {mimeType} ?? \"application/octet-stream\",")
-                        .AddRawText($"Blob = {G.Convert}.ToBase64String(result),")
-                );
-            }
-            else
-            {
-                // 其他可序列化对象，JSON 序列化后包装为 TextResourceContents
-                builder.AddRawStatement(
-                    $"var json = {G.JsonSerializer}.Serialize(result, context.JsonSerializerContext.GetTypeInfo(typeof({returnTypeFullName})));");
-                var mimeType = FormatNullableString(model.MimeType);
-                builder.AddBracketScope(
-                    isAsync
-                        ? $"return {G.ReadResourceResult}.FromResult(new {G.TextResourceContents}"
-                        : $"return {G.ValueTask}.FromResult({G.ReadResourceResult}.FromResult(new {G.TextResourceContents}",
-                    "{", isAsync ? ");" : "));", bs => bs
-                        .AddRawText("Uri = context.Uri,")
-                        .AddRawText($"MimeType = {mimeType} ?? \"application/json\",")
-                        .AddRawText("Text = json,")
-                );
+                builder.AddRawStatements($"""
+                    var result = {callMethodExpression};
+                    return {G.ValueTask}.FromResult(context.CreateResult(result));
+                    """);
             }
         }
 
         return builder;
-    }
-
-    /// <summary>
-    /// 格式化可空字符串为 C# 代码。
-    /// </summary>
-    private static string FormatNullableString(string? value)
-    {
-        return value is null ? "null" : $"\"{value}\"";
     }
 
     /// <summary>
