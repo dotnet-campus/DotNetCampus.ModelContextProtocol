@@ -22,5 +22,5 @@ public enum Role
     /// Assistant role
     /// </summary>
     [EnumMember(Value = "assistant")]
-    Assistant
+    Assistant,
 }

@@ -63,7 +63,7 @@ public static class ResourceSymbolExtensions
                 "global::System.DateTime" => "global::System.DateTime.TryParse",
                 "global::System.DateTimeOffset" => "global::System.DateTimeOffset.TryParse",
                 "global::System.TimeSpan" => "global::System.TimeSpan.TryParse",
-                _ => typeName == "string" ? null : $"{typeFullName}.TryParse" // string 不需要 TryParse
+                _ => typeName == "string" ? null : $"{typeFullName}.TryParse", // string 不需要 TryParse
             };
         }
 

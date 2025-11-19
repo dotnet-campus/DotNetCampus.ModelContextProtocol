@@ -1,5 +1,6 @@
 ﻿using DotNetCampus.ModelContextProtocol.CompilerServices;
 using DotNetCampus.ModelContextProtocol.Core;
+using DotNetCampus.ModelContextProtocol.Protocol;
 using DotNetCampus.ModelContextProtocol.Protocol.Messages;
 
 namespace DotNetCampus.ModelContextProtocol.Servers;
@@ -22,7 +23,7 @@ public class McpRawRequestHandlers(McpServer server)
 
         return new InitializeResult
         {
-            ProtocolVersion = "2025-06-18",
+            ProtocolVersion = ProtocolVersion.Current,
             ServerInfo = new Implementation
             {
                 Name = server.ServerName,
@@ -153,7 +154,8 @@ public class McpRawRequestHandlers(McpServer server)
     /// <summary>
     /// 处理列出资源模板请求。
     /// </summary>
-    public async ValueTask<ListResourceTemplatesResult> ListResourceTemplates(RequestContext<ListResourceTemplatesRequestParams> request, CancellationToken cancellationToken)
+    public async ValueTask<ListResourceTemplatesResult> ListResourceTemplates(RequestContext<ListResourceTemplatesRequestParams> request,
+        CancellationToken cancellationToken)
     {
         var jsonContext = CompiledSchemaJsonContext.Default;
         var templates = server.Resources.GetTemplateResources()
