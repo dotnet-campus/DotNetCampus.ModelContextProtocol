@@ -14,4 +14,30 @@ public record ReadResourceResult : Result
     /// </summary>
     [JsonPropertyName("contents")]
     public IList<ResourceContents> Contents { get; set; } = [];
+
+    /// <summary>
+    /// 创建包含指定文本内容的 <see cref="ReadResourceResult"/> 实例。
+    /// </summary>
+    /// <param name="textResourceContents">要包含的文本资源内容。</param>
+    /// <returns><see cref="CallToolResult"/> 实例。</returns>
+    public static ReadResourceResult FromResult(TextResourceContents textResourceContents)
+    {
+        return new ReadResourceResult
+        {
+            Contents =
+            [
+                textResourceContents,
+            ],
+        };
+    }
+
+    /// <summary>
+    /// 直接返回 <paramref name="result"/> 实例本身。本方法存在的唯一作用，是让源生成器生成的代码能具有完全统一的调用形式。
+    /// </summary>
+    /// <param name="result">要返回的结果实例。</param>
+    /// <returns>传入的结果实例本身。</returns>
+    public static ReadResourceResult FromResult(ReadResourceResult result)
+    {
+        return result;
+    }
 }

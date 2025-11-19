@@ -1,6 +1,6 @@
-﻿using System.Text.Json;
+﻿using System.Diagnostics.CodeAnalysis;
+using System.Text.Json;
 using System.Text.Json.Serialization;
-using DotNetCampus.ModelContextProtocol.Exceptions;
 
 namespace DotNetCampus.ModelContextProtocol.Servers;
 
@@ -38,6 +38,12 @@ public interface IMcpServerPrimitiveContext
 public interface IMcpServerCallToolContext : IMcpServerPrimitiveContext
 {
     /// <summary>
+    /// 来自 MCP 协议中 tools/call 请求中 name 字段的工具名称。<br/>
+    /// The name of the tool to call from the name field in the tools/call request in the MCP protocol.
+    /// </summary>
+    string Name { get; }
+
+    /// <summary>
     /// 来自 MCP 协议中 tools/call 请求中 arguments 字段的 JSON 元素。<br/>
     /// JSON element from the arguments field in the tools/call request in the MCP protocol.
     /// </summary>
@@ -57,6 +63,12 @@ public interface IMcpServerCallToolContext : IMcpServerPrimitiveContext
 /// </summary>
 public interface IMcpServerReadResourceContext : IMcpServerPrimitiveContext
 {
+    /// <summary>
+    /// 要读取的资源的 URI。URI 可以使用任何协议；由服务器决定如何解释它。<br/>
+    /// The URI of the resource to read. The URI can use any protocol; it is up to the server how to interpret it.
+    /// </summary>
+    [StringSyntax(StringSyntaxAttribute.Uri)]
+    string Uri { get; }
 }
 
 internal sealed class McpServerCallToolContext : IMcpServerCallToolContext
@@ -64,6 +76,7 @@ internal sealed class McpServerCallToolContext : IMcpServerCallToolContext
     public required McpServer McpServer { get; init; }
     public required IServiceProvider Services { get; init; }
     public required JsonSerializerContext JsonSerializerContext { get; init; }
+    public required string Name { get; init; }
     public required JsonElement InputJsonArguments { get; init; }
     public required CancellationToken CancellationToken { get; init; }
 }
@@ -73,6 +86,7 @@ internal sealed class McpServerReadResourceContext : IMcpServerReadResourceConte
     public required McpServer McpServer { get; init; }
     public required IServiceProvider Services { get; init; }
     public required JsonSerializerContext JsonSerializerContext { get; init; }
+    public required string Uri { get; init; }
 }
 
 /// <summary>

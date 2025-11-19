@@ -95,6 +95,7 @@ public class McpRawRequestHandlers(McpServer server)
             McpServer = server,
             Services = request.Services,
             JsonSerializerContext = jsonContext,
+            Name = toolName,
             InputJsonArguments = arguments,
             CancellationToken = cancellationToken,
         };
