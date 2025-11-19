@@ -8,6 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="DotNetCampus.CommandLine" />
     <PackageReference Include="DotNetCampus.LatestCSharpFeatures" />
     <PackageReference Include="DotNetCampus.Logger" />
   </ItemGroup>
@@ -21,6 +22,12 @@
     <None Update="mcp-simple-diagram.avif">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Update="CommandLineOptions.cs">
+      <DependentUpon>Program.cs</DependentUpon>
+    </Compile>
   </ItemGroup>
 
 </Project>
