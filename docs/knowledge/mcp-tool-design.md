@@ -110,9 +110,7 @@ namespace DotNetCampus.SampleMcpServer.McpTools;
 /// </summary>
 public sealed class PolymorphicTool_TestPolymorphicParameter_Bridge(global::System.Func<global::DotNetCampus.SampleMcpServer.McpTools.PolymorphicTool> targetFactory) : global::DotNetCampus.ModelContextProtocol.Servers.IMcpServerTool
 {
-    private readonly global::System.Func<global::DotNetCampus.SampleMcpServer.McpTools.PolymorphicTool> _targetFactory = targetFactory;
-
-    private global::DotNetCampus.SampleMcpServer.McpTools.PolymorphicTool Target => _targetFactory();
+    private global::DotNetCampus.SampleMcpServer.McpTools.PolymorphicTool Target => targetFactory();
 
     /// <inheritdoc />
     public string ToolName { get; } = "test_polymorphic_parameter";
@@ -138,7 +136,7 @@ public sealed class PolymorphicTool_TestPolymorphicParameter_Bridge(global::Syst
             [ "param" ] = new global::DotNetCampus.ModelContextProtocol.CompilerServices.CompiledJsonSchema
             {
                 Type = global::System.Text.Json.JsonSerializer.SerializeToElement("object", jsonContext.String),
-                Description = "多态参数",
+                Description = "多态参数 (Polymorphic type discriminated by: 'type'. Values: 'a', 'b', 'c')",
                 Required = [ "type" ],
                 AnyOf = 
                 [
@@ -191,14 +189,14 @@ public sealed class PolymorphicTool_TestPolymorphicParameter_Bridge(global::Syst
     /// <inheritdoc />
     public global::System.Threading.Tasks.ValueTask<global::DotNetCampus.ModelContextProtocol.Protocol.Messages.CallToolResult> CallTool(global::DotNetCampus.ModelContextProtocol.Servers.IMcpServerCallToolContext context)
     {
-        global::System.Text.Json.JsonElement jsonArguments = context.InputJsonArguments;
-        global::System.Text.Json.Serialization.JsonSerializerContext jsonSerializerContext = context.JsonSerializerContext;
-        global::System.Threading.CancellationToken cancellationToken = context.CancellationToken;
+        var jsonArguments = context.InputJsonArguments;
+        var jsonSerializerContext = context.JsonSerializerContext;
+        var cancellationToken = context.CancellationToken;
         var param = jsonArguments.TryGetProperty("param", out var paramProperty)
             ? context.EnsureDeserialize<global::DotNetCampus.SampleMcpServer.McpTools.PolymorphicBase>(paramProperty, "PolymorphicBase", "DotNetCampus.SampleMcpServer.McpTools.PolymorphicBase", "type", ["a", "b", "c"])
             : throw new global::DotNetCampus.ModelContextProtocol.Exceptions.McpToolMissingRequiredArgumentException("param");
         var result = Target.TestPolymorphicParameter(param!);
-        return global::System.Threading.Tasks.ValueTask.FromResult((global::DotNetCampus.ModelContextProtocol.Protocol.Messages.CallToolResult.FromResult(result)).Structure(jsonSerializerContext));
+        return global::System.Threading.Tasks.ValueTask.FromResult(global::DotNetCampus.ModelContextProtocol.Protocol.Messages.CallToolResult.FromResult(result).Structure(jsonSerializerContext));
     }
 }
 ```
