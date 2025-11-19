@@ -101,11 +101,13 @@ public record CallToolResult : Result
     /// </summary>
     /// <param name="textContent">要转换的字符串。</param>
     /// <returns>表示成功的 <see cref="CallToolResult"/> 实例。</returns>
-    public static implicit operator CallToolResult(string textContent)
+    public static implicit operator CallToolResult(string? textContent)
     {
         return new CallToolResult
         {
-            Content = [new TextContentBlock { Text = textContent }],
+            Content = textContent is null
+                ? []
+                : [new TextContentBlock { Text = textContent }],
         };
     }
 
@@ -128,11 +130,13 @@ public record CallToolResult : Result
     /// </summary>
     /// <param name="textContent">要包含的文本内容。</param>
     /// <returns>表示成功的 <see cref="CallToolResult"/> 实例。</returns>
-    public static CallToolResult FromResult(string textContent)
+    public static CallToolResult FromResult(string? textContent)
     {
         return new CallToolResult
         {
-            Content = [new TextContentBlock { Text = textContent }],
+            Content = textContent is null
+                ? []
+                : [new TextContentBlock { Text = textContent }],
         };
     }
 
@@ -163,9 +167,12 @@ public record CallToolResult : Result
     /// <param name="result">要包含的结果。</param>
     /// <typeparam name="TResult">结果的类型。</typeparam>
     /// <returns>一个可以被序列化成 <see cref="CallToolResult"/> 的延迟实例。</returns>
-    public static CallToolResult<TResult> FromResult<TResult>(TResult result)
-    {
-        return new CallToolResult<TResult>(result)
+    public static CallToolResult FromResult<TResult>(TResult? result) => result is null
+        ? new CallToolResult
+        {
+            Content = [],
+        }
+        : new CallToolResult<TResult>(result)
         {
             ResultFactory = (r, t) =>
             {
@@ -183,5 +190,4 @@ public record CallToolResult : Result
                 };
             },
         };
-    }
 }

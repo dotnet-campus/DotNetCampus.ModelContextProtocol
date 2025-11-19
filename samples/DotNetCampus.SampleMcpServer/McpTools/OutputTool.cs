@@ -18,6 +18,16 @@ public class OutputTool
     }
 
     /// <summary>
+    /// 测试什么也不输出
+    /// </summary>
+    /// <returns></returns>
+    [McpServerTool(ReadOnly = true)]
+    public async Task<string?> TestNullableReturn()
+    {
+        return null;
+    }
+
+    /// <summary>
     /// 测试异步获取结构化的输出信息
     /// </summary>
     /// <returns></returns>
