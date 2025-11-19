@@ -8,7 +8,7 @@ namespace DotNetCampus.ModelContextProtocol.Protocol.Messages;
 /// 工具定义<br/>
 /// Definition of a tool the server can call
 /// </summary>
-public sealed record Tool
+public sealed record Tool : IBaseMetadata
 {
     /// <summary>
     /// 用于编程或逻辑使用，但在过去的规范中或作为后备用于显示名称（如果 title 不存在）。<br/>

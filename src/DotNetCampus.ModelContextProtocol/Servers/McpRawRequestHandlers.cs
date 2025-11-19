@@ -22,7 +22,7 @@ public class McpRawRequestHandlers(McpServer server)
         return new InitializeResult
         {
             ProtocolVersion = "2025-06-18",
-            ServerInfo = new ServerInfo
+            ServerInfo = new Implementation
             {
                 Name = server.ServerName,
                 Version = server.ServerVersion,

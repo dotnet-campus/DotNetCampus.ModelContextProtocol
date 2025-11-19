@@ -7,7 +7,7 @@ namespace DotNetCampus.ModelContextProtocol.Protocol.Messages;
 /// Describes the name and version of an MCP implementation,
 /// with an optional title for UI representation.
 /// </summary>
-public sealed record Implementation
+public sealed record Implementation : IBaseMetadata
 {
     /// <summary>
     /// 用于编程或逻辑使用，但在过去的规范中或作为后备用于显示名称（如果 title 不存在）。<br/>

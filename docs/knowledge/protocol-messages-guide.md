@@ -84,12 +84,12 @@ src/DotNetCampus.ModelContextProtocol/Protocol/
 │   │   ├── JsonRpcError.cs
 │   │   └── JsonRpcErrorCode.cs
 │   ├── ProtocolBase.cs           # MCP 基类（RequestParams, Result, PaginatedRequestParams, PaginatedResult）
+│   ├── IBaseMetadata.cs          # BaseMetadata 接口（name + title）
 │   ├── InitializeRequestParams.cs
 │   ├── InitializeResult.cs
 │   ├── ClientCapabilities.cs
 │   ├── ServerCapabilities.cs
 │   ├── Implementation.cs
-│   ├── ServerInfo.cs
 │   ├── Icon.cs
 │   ├── Annotations.cs
 │   ├── Tool.cs
@@ -170,7 +170,7 @@ src/DotNetCampus.ModelContextProtocol/Protocol/
 | `ClientCapabilities`      | `ClientCapabilities`       | 客户端能力声明                     |
 | `ServerCapabilities`      | `ServerCapabilities`       | 服务端能力声明                     |
 | `Implementation`          | `Implementation`           | MCP 实现信息（名称、版本、标题等） |
-| `ServerInfo`              | 服务端信息简化版           | 服务器名称和版本                   |
+| `IBaseMetadata`           | `BaseMetadata` (internal)  | 包含 name 和 title 的基础接口      |
 
 #### 工具相关
 
@@ -199,10 +199,11 @@ src/DotNetCampus.ModelContextProtocol/Protocol/
 
 #### 通用类型
 
-| 类型          | Schema 对应   | 说明                                           |
-| ------------- | ------------- | ---------------------------------------------- |
-| `Annotations` | `Annotations` | 客户端注解（audience, priority, lastModified） |
-| `Icon`        | `Icon`        | 图标信息                                       |
+| 类型            | Schema 对应   | 说明                                           |
+| --------------- | ------------- | ---------------------------------------------- |
+| `Annotations`   | `Annotations` | 客户端注解（audience, priority, lastModified） |
+| `Icon`          | `Icon`        | 图标信息                                       |
+| `IBaseMetadata` | `BaseMetadata`| 包含 name 和 title 属性的基础接口               |
 
 #### 常量和接口
 

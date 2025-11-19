@@ -31,7 +31,7 @@ public record InitializeResult : Result
     /// Server information
     /// </summary>
     [JsonPropertyName("serverInfo")]
-    public required ServerInfo ServerInfo { get; init; }
+    public required Implementation ServerInfo { get; init; }
 
     /// <summary>
     /// 描述如何使用服务器及其功能的说明。<br/>
