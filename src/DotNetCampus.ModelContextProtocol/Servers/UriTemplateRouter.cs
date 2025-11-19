@@ -1,5 +1,4 @@
 using System.Diagnostics.CodeAnalysis;
-using System.Text;
 
 namespace DotNetCampus.ModelContextProtocol.Servers;
 
@@ -12,7 +11,7 @@ internal sealed class UriTemplateRouter<TResource> where TResource : class
 {
     // 静态 URI 的精确匹配（O(1)查找）
     private readonly Dictionary<string, TResource> _exactMatches = new(StringComparer.Ordinal);
-    
+
     // URI 模板的前缀树节点（支持参数匹配）
     private readonly TrieNode _templateRoot = new();
 
