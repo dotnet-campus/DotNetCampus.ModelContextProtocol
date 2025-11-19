@@ -189,7 +189,8 @@ public class McpServerResourcesBuilder
         CreationMode creationMode = CreationMode.Singleton)
         where TMcpServerResourceType : class
     {
-        throw new InvalidOperationException("源生成器本应该在编译时拦截了此方法的调用。请检查编译警告，查看 DotNetCampus.ModelContextProtocol 的源生成器是否正常工作。");
+        throw new InvalidOperationException(
+            "拦截器未能成功拦截 WithResource<T> 方法调用。请确保：1. 所有需要被拦截的方法均已标记了 [McpServerResourceAttribute] 特性。2. 编译项目时没有出现与 DotNetCampus.ModelContextProtocol 源生成器相关的警告或错误。");
     }
 
     /// <summary>
@@ -255,7 +256,8 @@ public class McpServerToolsBuilder
         CreationMode creationMode = CreationMode.Singleton)
         where TMcpServerToolType : class
     {
-        throw new InvalidOperationException("源生成器本应该在编译时拦截了此方法的调用。请检查编译警告，查看 DotNetCampus.ModelContextProtocol 的源生成器是否正常工作。");
+        throw new InvalidOperationException(
+            "拦截器未能成功拦截 WithTool<T> 方法调用。请确保：1. 所有需要被拦截的方法均已标记了 [McpServerToolAttribute] 特性。2. 编译项目时没有出现与 DotNetCampus.ModelContextProtocol 源生成器相关的警告或错误。");
     }
 
     /// <summary>
