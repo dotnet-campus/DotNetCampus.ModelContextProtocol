@@ -14,7 +14,7 @@ namespace DotNetCampus.ModelContextProtocol.Generators;
 /// 拦截器生成器，用于拦截 WithTool 方法调用。
 /// </summary>
 [Generator(LanguageNames.CSharp)]
-public class InterceptorGenerator : IIncrementalGenerator
+public class WithToolInterceptorGenerator : IIncrementalGenerator
 {
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {

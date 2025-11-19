@@ -40,9 +40,9 @@ internal class Program
                 .WithTool(() => new ResourceTool())
             )
             .WithResources(r => r
-                .WithResource<SampleResource>(new SampleResource_DirectTextResource_Bridge(() => new SampleResource()))
-                .WithResource<SampleResource>(new SampleResource_TemplateResource_Bridge(() => new SampleResource()))
-                .WithResource<SampleResource>(new SampleResource_MultiParameterResource_Bridge(() => new SampleResource()))
+                .WithResource(() => new SampleResource())
+                .WithResource(() => new SampleResource())
+                .WithResource(() => new SampleResource())
             )
             .Build();
         mcpServer.EnableDebugMode();
