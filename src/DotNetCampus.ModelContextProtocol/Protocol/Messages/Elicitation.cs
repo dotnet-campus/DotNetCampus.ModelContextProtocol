@@ -51,7 +51,7 @@ public sealed record ElicitationSchema
     /// </summary>
     [JsonPropertyName("required")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public string[]? Required { get; init; }
+    public IReadOnlyList<string>? Required { get; init; }
 }
 
 /// <summary>

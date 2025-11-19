@@ -18,7 +18,7 @@ public sealed record CreateMessageRequestParams : RequestParams
     /// Messages for sampling
     /// </summary>
     [JsonPropertyName("messages")]
-    public required SamplingMessage[] Messages { get; init; }
+    public required IReadOnlyList<SamplingMessage> Messages { get; init; }
 
     /// <summary>
     /// 服务器对选择哪个模型的偏好。客户端可以忽略这些偏好。<br/>

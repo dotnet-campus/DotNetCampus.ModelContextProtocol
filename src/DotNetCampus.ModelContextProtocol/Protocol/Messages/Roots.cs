@@ -32,7 +32,7 @@ public sealed record ListRootsResult : Result
     /// List of roots
     /// </summary>
     [JsonPropertyName("roots")]
-    public required Root[] Roots { get; init; }
+    public required IReadOnlyList<Root> Roots { get; init; }
 }
 
 /// <summary>

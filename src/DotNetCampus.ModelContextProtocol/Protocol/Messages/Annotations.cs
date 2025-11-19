@@ -18,7 +18,7 @@ public sealed record Annotations
     /// </summary>
     [JsonPropertyName("audience")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public string[]? Audience { get; init; }
+    public IReadOnlyList<string>? Audience { get; init; }
 
     /// <summary>
     /// 描述此数据对于服务器操作的重要程度。<br/>

@@ -145,7 +145,7 @@ public sealed record CompletionValue
     /// as higher priority, representing the server's suggested ordering.
     /// </summary>
     [JsonPropertyName("values")]
-    public required string[] Values { get; init; }
+    public required IReadOnlyList<string> Values { get; init; }
 
     /// <summary>
     /// 可用补全的总数。<br/>

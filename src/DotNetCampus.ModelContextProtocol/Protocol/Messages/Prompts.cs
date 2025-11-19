@@ -46,7 +46,7 @@ public sealed record Prompt : IBaseMetadata
     /// </summary>
     [JsonPropertyName("arguments")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public PromptArgument[]? Arguments { get; init; }
+    public IReadOnlyList<PromptArgument>? Arguments { get; init; }
 
     /// <summary>
     /// 元数据字段<br/>
