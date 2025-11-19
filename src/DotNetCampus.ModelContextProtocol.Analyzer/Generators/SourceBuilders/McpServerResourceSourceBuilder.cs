@@ -1,4 +1,3 @@
-using DotNetCampus.ModelContextProtocol.CodeAnalysis;
 using DotNetCampus.ModelContextProtocol.Generators.Builders;
 using DotNetCampus.ModelContextProtocol.Generators.Models;
 using Microsoft.CodeAnalysis;
@@ -67,195 +66,64 @@ internal static class McpServerResourceSourceBuilder
 
         var segments = model.ParseUriSegments();
 
-        builder
+        // 添加注释说明 URI 模板
+        builder.AddRawStatement($"// 解析 URI: {model.UriTemplate}");
 
-            // 添加注释：URI 模板和段列表
-            .AddRawStatement($"// URI 模板: \"{model.UriTemplate}\"")
-            .AddRawStatement("// URI 段列表:")
-            .AddRawStatements(segments.Select((segment, i) => segment.IsStatic
-                ? $"//   [{i}] = \"{segment.Content}\" (静态)"
-                : $"//   [{i}] = {{{segment.ParameterName}}} (参数，{segment.Parameter!.Type.ToSimpleDisplayString()})"))
-            .AddRawStatement("")
-
-            // 生成解析代码
-            .AddRawStatement("var uri = context.Uri;");
-
-        // 如果第一个段是静态的且较长，使用 Span 优化
-        if (segments.Count > 0 && segments[0].IsStatic && segments[0].Content!.Length > 5)
-        {
-            builder.AddRawStatement("var span = uri.AsSpan();");
-        }
+        // 创建 UriTemplateParser 实例
+        builder.AddRawStatement($"var parser = new {G.UriTemplateParser}(context);");
+        builder.AddRawStatement("");
 
         // 逐段解析
-        var position = "0";
-        var needsPositionVariable = segments.Count > 1 && segments.Any(s => !s.IsStatic);
-
-        if (needsPositionVariable)
+        foreach (var segment in segments)
         {
-            builder.AddRawStatement($"""
-                #pragma warning disable CS0219 // 变量“position”已被赋值，但从未使用过它的值
-                var position = 0;
-                #pragma warning restore CS0219 // 变量“position”已被赋值，但从未使用过它的值
-                """);
-        }
-
-        for (var i = 0; i < segments.Count; i++)
-        {
-            var segment = segments[i];
-
             if (segment.IsStatic)
             {
-                builder.AddStaticSegmentValidation(segment, i, ref position, segments.Count == 1);
+                // 静态段：匹配验证
+                var escapedContent = segment.Content!
+                    .Replace("\\", "\\\\")
+                    .Replace("\"", "\\\"");
+                builder.AddRawStatement($"parser.MatchStaticSegment(\"{escapedContent}\");");
             }
             else
             {
-                builder.AddParameterSegmentExtraction(segment, i, ref position, i == segments.Count - 1);
+                // 参数段：调用对应的解析方法
+                var paramName = segment.ParameterName!;
+                var parseMethod = GetParseMethodName(segment.Parameter!);
+                builder.AddRawStatement($"var {paramName} = parser.{parseMethod}();");
             }
         }
 
+        // 确保到达 URI 末尾
+        builder.AddRawStatement("parser.EnsureEndOfUri();");
         builder.AddRawStatement("");
+
         return builder;
     }
 
     /// <summary>
-    /// 添加静态段的验证代码。
+    /// 根据参数类型获取对应的 UriTemplateParser 解析方法名。
     /// </summary>
-    private static void AddStaticSegmentValidation<TBuilder>(
-        this TBuilder builder,
-        UriSegment segment,
-        int segmentIndex,
-        ref string position,
-        bool isOnlySegment)
-        where TBuilder : IAllowStatement
+    private static string GetParseMethodName(IParameterSymbol parameter)
     {
-        var content = segment.Content!;
-        var length = content.Length;
-        var constName = $"segment{segmentIndex}Length";
+        var type = parameter.Type;
 
-        builder.AddRawStatement($"// 段 {segmentIndex}: 验证静态{(segmentIndex == 0 ? "前缀" : "段")} \"{content}\"");
 
-        if (isOnlySegment)
-        {
-            // 只有一个静态段（整个 URI 是固定的）
-            builder.AddRawStatements($$"""
-                if (!uri.Equals("{{content}}", {{G.StringComparison}}.Ordinal))
-                {
-                    throw new {{G.McpResourceNotFoundException}}(context);
-                }
-                """);
-        }
-        else if (segmentIndex == 0)
-        {
-            // 第一个段（前缀验证）
-            builder.AddRawStatements($$"""
-                const int {{constName}} = {{length}};
-                if (uri.Length <= {{constName}} || !uri.AsSpan(0, {{constName}}).SequenceEqual("{{content}}"))
-                {
-                    throw new {{G.McpResourceNotFoundException}}(context);
-                }
-                """);
-            position = constName;
-        }
-        else
-        {
-            // 中间或末尾的静态段
-            builder.AddRawStatements($$"""
-                const string segment{{segmentIndex}} = "{{content}}";
-                const int {{constName}} = {{length}};
-                if (span.Length <= position + {{constName}} || !span.Slice(position, {{constName}}).SequenceEqual(segment{{segmentIndex}}))
-                {
-                    throw new {{G.McpResourceNotFoundException}}(context);
-                }
-                position += {{constName}};
-                """);
-            position = "position";
-        }
-
-        builder.AddRawStatement("");
-    }
-
-    /// <summary>
-    /// 添加参数段的提取代码。
-    /// </summary>
-    private static void AddParameterSegmentExtraction<TBuilder>(
-        this TBuilder builder,
-        UriSegment segment,
-        int segmentIndex,
-        ref string position,
-        bool isLastSegment)
-        where TBuilder : IAllowStatement
-    {
-        var paramName = segment.ParameterName!;
-        var parameter = segment.Parameter!;
-        var paramType = parameter.Type.ToSimpleDisplayString();
-
-        builder.AddRawStatement($"// 段 {segmentIndex}: 提取参数 {{{paramName}}} ({paramType})");
-
-        if (isLastSegment)
-        {
-            // 最后一个段，直接取到末尾
-            if (position == "0")
-            {
-                builder.AddRawStatement($"var {paramName}Span = uri.AsSpan();");
-            }
-            else if (position == "position")
-            {
-                builder.AddRawStatement($"var {paramName}Span = span.Slice(position);");
-            }
-            else
-            {
-                // position 是一个常量名（如 segment0Length）
-                builder.AddRawStatement($"var {paramName}Span = span.Slice({position});");
-            }
-        }
-        else
-        {
-            // 不是最后一个段，需要查找下一个分隔符
-            var positionRef = position == "position" ? "position" : position;
-            builder.AddRawStatements($$"""
-                var segment{{segmentIndex}}End = span.Slice({{positionRef}}).IndexOf('/');
-                if (segment{{segmentIndex}}End < 0)
-                {
-                    throw new {{G.McpResourceNotFoundException}}(context);
-                }
-                var {{paramName}}Span = span.Slice({{positionRef}}, segment{{segmentIndex}}End);
-                """);
-        }
-
-        // 根据参数类型生成解析代码
         if (parameter.IsStringType())
         {
-            // string 类型直接使用
-            builder.AddRawStatement($"var {paramName} = {paramName}Span.ToString();");
-        }
-        else
-        {
-            // 其他类型使用 TryParse
-            var tryParseMethod = parameter.GetTryParseMethodName();
-            if (tryParseMethod != null)
-            {
-                builder.AddRawStatements($$"""
-                    if (!{{tryParseMethod}}({{paramName}}Span, out var {{paramName}}))
-                    {
-                        throw new {{G.McpResourceNotFoundException}}(context);
-                    }
-                    """);
-            }
-            else
-            {
-                // 不支持的类型，生成编译错误
-                builder.AddRawStatement($"#error Unsupported parameter type: {paramType}. Please use string, int, or other types that support TryParse.");
-            }
+            return "ParseStringParameter";
         }
 
-        if (!isLastSegment)
+        return type.SpecialType switch
         {
-            // 更新 position：跳过参数值和分隔符 '/'
-            builder.AddRawStatement($"position += segment{segmentIndex}End + 1;");
-        }
-
-        builder.AddRawStatement("");
-        position = "position";
+            SpecialType.System_Int32 => "ParseInt32Parameter",
+            SpecialType.System_Int64 => "ParseInt64Parameter",
+            SpecialType.System_Boolean => "ParseBooleanParameter",
+            SpecialType.System_Double => "ParseDoubleParameter",
+            SpecialType.System_Decimal => "ParseDecimalParameter",
+            _ => type.ToGlobalDisplayString() == "global::System.Guid"
+                ? "ParseGuidParameter"
+                : "ParseStringParameter" // 默认使用字符串解析
+        };
     }
 
     /// <summary>

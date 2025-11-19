@@ -34,5 +34,6 @@ internal static class GlobalTypeNames
     public const string TextResourceContents = "global::DotNetCampus.ModelContextProtocol.Protocol.Messages.TextResourceContents";
     public const string Tool = "global::DotNetCampus.ModelContextProtocol.Protocol.Messages.Tool";
     public const string ToolAnnotations = "global::DotNetCampus.ModelContextProtocol.Protocol.Messages.ToolAnnotations";
+    public const string UriTemplateParser = "global::DotNetCampus.ModelContextProtocol.CompilerServices.UriTemplateParser";
     public const string ValueTask = "global::System.Threading.Tasks.ValueTask";
 }
