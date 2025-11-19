@@ -69,6 +69,12 @@ public interface IMcpServerReadResourceContext : IMcpServerPrimitiveContext
     /// </summary>
     [StringSyntax(StringSyntaxAttribute.Uri)]
     string Uri { get; }
+
+    /// <summary>
+    /// 资源的 MIME 类型（如 text/plain、application/json）。如果未设置，将根据资源内容自动推断。<br/>
+    /// The MIME type of the resource (e.g., text/plain, application/json). If not set, it will be inferred from the resource contents.
+    /// </summary>
+    string? MimeType { get; }
 }
 
 internal sealed class McpServerCallToolContext : IMcpServerCallToolContext
@@ -87,6 +93,7 @@ internal sealed class McpServerReadResourceContext : IMcpServerReadResourceConte
     public required IServiceProvider Services { get; init; }
     public required JsonSerializerContext JsonSerializerContext { get; init; }
     public required string Uri { get; init; }
+    public required string? MimeType { get; init; }
 }
 
 /// <summary>

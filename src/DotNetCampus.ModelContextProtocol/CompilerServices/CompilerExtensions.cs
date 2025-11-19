@@ -94,7 +94,7 @@ public static class CompilerExtensions
                 new TextResourceContents
                 {
                     Uri = context.Uri,
-                    MimeType = "text/plain",
+                    MimeType = context.MimeType ?? "text/plain",
                     Text = text,
                 },
             ],
@@ -112,8 +112,80 @@ public static class CompilerExtensions
                 .. texts.Select(text => new TextResourceContents
                 {
                     Uri = context.Uri,
-                    MimeType = "text/plain",
+                    MimeType = context.MimeType ?? "text/plain",
                     Text = text,
+                }),
+            ],
+        };
+
+        /// <summary>
+        /// 创建包含指定二进制资源内容的 <see cref="ReadResourceResult"/> 实例。
+        /// </summary>
+        /// <param name="data">要包含的二进制资源内容。</param>
+        /// <returns><see cref="ReadResourceResult"/> 实例。</returns>
+        public ReadResourceResult CreateResult(byte[] data) => new()
+        {
+            Contents =
+            [
+                new BlobResourceContents
+                {
+                    Uri = context.Uri,
+                    MimeType = context.MimeType ?? "application/octet-stream",
+                    Blob = Convert.ToBase64String(data),
+                },
+            ],
+        };
+
+        /// <summary>
+        /// 创建包含多个指定二进制资源内容的 <see cref="ReadResourceResult"/> 实例。
+        /// </summary>
+        /// <param name="dataList">要包含的二进制资源内容集合。</param>
+        /// <returns><see cref="ReadResourceResult"/> 实例。</returns>
+        public ReadResourceResult CreateResult(IEnumerable<byte[]> dataList) => new()
+        {
+            Contents =
+            [
+                .. dataList.Select(data => new BlobResourceContents
+                {
+                    Uri = context.Uri,
+                    MimeType = context.MimeType ?? "application/octet-stream",
+                    Blob = Convert.ToBase64String(data),
+                }),
+            ],
+        };
+
+        /// <summary>
+        /// 创建包含指定二进制资源内容的 <see cref="ReadResourceResult"/> 实例。
+        /// </summary>
+        /// <param name="data">要包含的二进制资源内容。</param>
+        /// <returns><see cref="ReadResourceResult"/> 实例。</returns>
+        public ReadResourceResult CreateResult(Memory<byte> data) => new()
+        {
+            Contents =
+            [
+                new BlobResourceContents
+                {
+                    Uri = context.Uri,
+                    MimeType = context.MimeType ?? "application/octet-stream",
+                    Blob = Convert.ToBase64String(data.Span),
+                },
+            ],
+        };
+
+        /// <summary>
+        /// 创建包含多个指定二进制资源内容的 <see cref="ReadResourceResult"/> 实例。
+        /// </summary>
+        /// <param name="dataList">要包含的二进制资源内容集合。</param>
+        /// <returns><see cref="ReadResourceResult"/> 实例。</returns>
+        public ReadResourceResult CreateResult(IEnumerable<Memory<byte>> dataList) => new()
+        {
+            Contents =
+            [
+                .. dataList.Select(data => new BlobResourceContents
+                {
+                    Uri = context.Uri,
+                    MimeType = context.MimeType ?? "application/octet-stream",
+                    Blob = Convert.ToBase64String(data.Span),
                 }),
             ],
         };

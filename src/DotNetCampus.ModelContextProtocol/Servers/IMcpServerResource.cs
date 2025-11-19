@@ -30,6 +30,12 @@ public interface IMcpServerResource
     public bool IsTemplate { get; }
 
     /// <summary>
+    /// 资源的 MIME 类型（如 text/plain、application/json）。如果未设置，将根据资源内容自动推断。<br/>
+    /// The MIME type of the resource (e.g., text/plain, application/json). If not set, it will be inferred from the resource contents.
+    /// </summary>
+    string? MimeType { get; }
+
+    /// <summary>
     /// 获取资源的定义信息，这些信息将被客户端和 AI 查看，以了解资源的内容和用途。<br/>
     /// Gets the definition information of the resource, which will be viewed by the client and AI
     /// to understand the content and purpose of the resource.

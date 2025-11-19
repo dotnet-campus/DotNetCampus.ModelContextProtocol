@@ -200,6 +200,7 @@ public class McpRawRequestHandlers(McpServer server)
             Services = request.Services,
             JsonSerializerContext = jsonContext,
             Uri = uri,
+            MimeType = resource.MimeType,
         };
 
         // 如果是模板资源，需要将参数注入到上下文（可通过扩展属性实现）

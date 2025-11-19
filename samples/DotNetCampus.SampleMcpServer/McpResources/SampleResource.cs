@@ -7,10 +7,21 @@ namespace DotNetCampus.SampleMcpServer.McpResources;
 
 public class SampleResource
 {
-    [McpServerResource(UriTemplate = "test://direct/text/resource", Name = "Direct Text Resource", MimeType = "text/plain")]
+    [McpServerResource(UriTemplate = "test://direct/text/resource", Name = "Direct Text Resource")]
     public string DirectTextResource()
     {
         return "This is a direct resource";
+    }
+
+    [McpServerResource(UriTemplate = "test://direct/text/resource/list")]
+    public IEnumerable<string> DirectTextResourceList()
+    {
+        return
+        [
+            "This is direct resource 1",
+            "This is direct resource 2",
+            "This is direct resource 3",
+        ];
     }
 
     /// <summary>

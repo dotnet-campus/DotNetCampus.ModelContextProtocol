@@ -47,9 +47,10 @@ public class McpServerResourceGenerator : IIncrementalGenerator
                 t => t.AddBaseTypes(G.IMcpServerResource)
                     .WithSummaryComment($"为 <see cref=\"{model.ContainingType.ToUsingString()}.{model.Method.Name}\"/> 方法生成的 MCP 服务器资源桥接类。")
                     .AddRawText($"private {model.ContainingType.ToUsingString()} Target => targetFactory();")
-                    .AddRawText($"/// <inheritdoc />\npublic string ResourceName {{ get; }} = \"{model.Name}\";")
-                    .AddRawText($"/// <inheritdoc />\npublic string UriTemplate {{ get; }} = \"{model.UriTemplate}\";")
+                    .AddRawText($"/// <inheritdoc />\npublic string ResourceName => \"{model.Name}\";")
+                    .AddRawText($"/// <inheritdoc />\npublic string UriTemplate => \"{model.UriTemplate}\";")
                     .AddRawText($"/// <inheritdoc />\npublic bool IsTemplate => {model.IsTemplate.ToString().ToLowerInvariant()};")
+                    .AddRawText($"/// <inheritdoc />\npublic string? MimeType => {(model.MimeType is { } mimeType ? $"\"{mimeType}\"" : "null")};")
                     .AddGetResourceDefinitionMethod(model)
                     .AddReadResourceMethod(model)
             );
