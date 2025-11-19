@@ -18,6 +18,7 @@ public class McpRawRequestHandlers(McpServer server)
     public async ValueTask<InitializeResult> Initialize(RequestContext<InitializeRequestParams> request, CancellationToken cancellationToken)
     {
         var hasTools = server.Tools.Count > 0;
+        var hasResources = server.Resources.Count > 0;
 
         return new InitializeResult
         {
@@ -37,9 +38,16 @@ public class McpRawRequestHandlers(McpServer server)
                         ListChanged = false,
                     }
                     : null,
-                // 暂不支持 prompts 和 resources
+                // 如果服务器有资源,则声明支持 resources 能力
+                Resources = hasResources
+                    ? new ResourcesCapability
+                    {
+                        Subscribe = false,
+                        ListChanged = false,
+                    }
+                    : null,
+                // 暂不支持 prompts
                 Prompts = null,
-                Resources = null,
                 // 支持日志记录
                 Logging = EmptyResult.JsonElement,
             },
@@ -124,5 +132,79 @@ public class McpRawRequestHandlers(McpServer server)
         server.Context.ClientLoggingLevel = request.Params.Level;
 
         return default;
+    }
+
+    /// <summary>
+    /// 处理列出资源请求。
+    /// </summary>
+    public async ValueTask<ListResourcesResult> ListResources(RequestContext<ListResourcesRequestParams> request, CancellationToken cancellationToken)
+    {
+        var jsonContext = CompiledSchemaJsonContext.Default;
+        var resources = server.Resources.GetStaticResources()
+            .Select(r => (Resource)r.GetResourceDefinition(jsonContext))
+            .ToArray();
+
+        return new ListResourcesResult
+        {
+            Resources = resources,
+        };
+    }
+
+    /// <summary>
+    /// 处理列出资源模板请求。
+    /// </summary>
+    public async ValueTask<ListResourceTemplatesResult> ListResourceTemplates(RequestContext<ListResourceTemplatesRequestParams> request, CancellationToken cancellationToken)
+    {
+        var jsonContext = CompiledSchemaJsonContext.Default;
+        var templates = server.Resources.GetTemplateResources()
+            .Select(r => (ResourceTemplate)r.GetResourceDefinition(jsonContext))
+            .ToArray();
+
+        return new ListResourceTemplatesResult
+        {
+            ResourceTemplates = templates,
+        };
+    }
+
+    /// <summary>
+    /// 处理读取资源请求。
+    /// </summary>
+    public async ValueTask<ReadResourceResult> ReadResource(RequestContext<ReadResourceRequestParams> request, CancellationToken cancellationToken)
+    {
+        var uri = request.Params?.Uri;
+
+        if (string.IsNullOrEmpty(uri))
+        {
+            throw new ArgumentException("Resource URI is required.", nameof(uri));
+        }
+
+        // 通过 URI 路由找到匹配的资源
+        if (!server.Resources.TryRoute(uri, out var resource, out var parameters))
+        {
+            // 根据 MCP 官方规范 § 7 Error Handling：
+            // Resource not found: -32002
+            // 抛出异常，由 McpRequestHandlers 层将其转换为 JSON-RPC 错误 (-32002)
+            throw new InvalidOperationException($"Resource not found: {uri}");
+        }
+
+        var jsonSerializer = server.Context.JsonSerializer;
+        var jsonContext = jsonSerializer switch
+        {
+            McpServerToolJsonSerializer mcpSerializer => mcpSerializer.JsonSerializerContext ?? CompiledSchemaJsonContext.Default,
+            _ => CompiledSchemaJsonContext.Default,
+        };
+
+        var context = new McpServerReadResourceContext
+        {
+            McpServer = server,
+            Services = request.Services,
+            JsonSerializerContext = jsonContext,
+            Uri = uri,
+        };
+
+        // 如果是模板资源，需要将参数注入到上下文（可通过扩展属性实现）
+        // 当前版本简化处理，参数由业务代码自行从 Uri 中解析
+
+        return await resource.ReadResource(context);
     }
 }

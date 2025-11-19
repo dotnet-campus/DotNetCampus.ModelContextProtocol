@@ -133,6 +133,7 @@ public class McpServerBuilder(string serverName, string serverVersion)
             Context = context,
             Transports = transports,
             Tools = _tools,
+            Resources = _resources,
         };
         context.Handlers = _requestHandlers is { } requestHandlers
             ? requestHandlers(server, new McpRequestHandlers(server))
