@@ -7,14 +7,13 @@ namespace DotNetCampus.ModelContextProtocol.Generators.ModelProviders;
 
 internal static class InterceptorModelProvider
 {
-    /// <summary>
-    /// 查找所有的 <see cref="McpServerToolsBuilder"/>.WithTool 方法调用，并生成对应的 <see cref="WithToolInterceptorGeneratingModel"/>。
-    /// </summary>
-    /// <param name="context"></param>
-    /// <returns></returns>
-    public static IncrementalValuesProvider<WithToolInterceptorGeneratingModel> SelectWithToolProvider(this IncrementalGeneratorInitializationContext context)
+    /// <param name="context">初始化上下文。</param>
+    extension(IncrementalGeneratorInitializationContext context)
     {
-        return context.SyntaxProvider.CreateSyntaxProvider(
+        /// <summary>
+        /// 查找所有的 <see cref="McpServerToolsBuilder"/>.WithTool 方法调用，并生成对应的 <see cref="WithToolInterceptorGeneratingModel"/>。
+        /// </summary>
+        public IncrementalValuesProvider<WithToolInterceptorGeneratingModel> SelectWithToolProvider() => context.SyntaxProvider.CreateSyntaxProvider(
                 predicate: static (node, _) => node is InvocationExpressionSyntax
                 {
                     Expression: MemberAccessExpressionSyntax
@@ -23,6 +22,21 @@ internal static class InterceptorModelProvider
                     },
                 },
                 transform: static (ctx, ct) => WithToolInterceptorGeneratingModel.Parse(ctx, ct))
+            .Where(model => model is not null)
+            .Select((model, ct) => model!);
+
+        /// <summary>
+        /// 查找所有的 <see cref="McpServerResourcesBuilder"/>.WithResource 方法调用，并生成对应的 <see cref="WithResourceInterceptorGeneratingModel"/>。
+        /// </summary>
+        public IncrementalValuesProvider<WithResourceInterceptorGeneratingModel> SelectWithResourceProvider() => context.SyntaxProvider.CreateSyntaxProvider(
+                predicate: static (node, _) => node is InvocationExpressionSyntax
+                {
+                    Expression: MemberAccessExpressionSyntax
+                    {
+                        Name.Identifier.ValueText: "WithResource",
+                    },
+                },
+                transform: static (ctx, ct) => WithResourceInterceptorGeneratingModel.Parse(ctx, ct))
             .Where(model => model is not null)
             .Select((model, ct) => model!);
     }

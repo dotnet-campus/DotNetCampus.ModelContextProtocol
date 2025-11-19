@@ -46,27 +46,22 @@ public record McpServerResourceGeneratingModel
     /// <summary>
     /// 从方法符号解析生成模型。
     /// </summary>
-    public static McpServerResourceGeneratingModel? TryParse(IMethodSymbol methodSymbol, CancellationToken cancellationToken)
+    public static McpServerResourceGeneratingModel TryParse(IMethodSymbol methodSymbol, CancellationToken cancellationToken)
     {
         // 解析 McpServerResourceAttribute 特性
         var attribute = methodSymbol.GetAttributes()
             .FirstOrDefault(x => x.AttributeClass?.ToDisplayString() == typeof(McpServerResourceAttribute).FullName);
         if (attribute == null)
         {
-            return null;
+            throw new InvalidOperationException("Method does not have McpServerResourceAttribute");
         }
 
         // 获取 UriTemplate
         var uriTemplate = attribute.NamedArguments.GetObjectOrDefault<string>(nameof(McpServerResourceAttribute.UriTemplate));
-        if (string.IsNullOrWhiteSpace(uriTemplate))
+        if (uriTemplate is null || string.IsNullOrWhiteSpace(uriTemplate))
         {
             // 如果未设置 UriTemplate，根据方法参数生成默认 URI
             uriTemplate = GenerateDefaultUriTemplate(methodSymbol);
-        }
-
-        if (uriTemplate == null)
-        {
-            return null; // UriTemplate 无效
         }
 
         return new McpServerResourceGeneratingModel

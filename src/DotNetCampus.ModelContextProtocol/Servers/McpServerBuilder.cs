@@ -202,7 +202,7 @@ public class McpServerResourcesBuilder
         var name = resource.ResourceName;
         if (!_resources.TryAdd(name, resource))
         {
-            throw new InvalidOperationException($"已存在名称为 \"{name}\" 的 MCP 服务器工具，无法重复添加同名工具。");
+            throw new InvalidOperationException($"已存在名称为 \"{name}\" 的 MCP 服务器资源，无法重复添加同名资源。");
         }
         return this;
     }

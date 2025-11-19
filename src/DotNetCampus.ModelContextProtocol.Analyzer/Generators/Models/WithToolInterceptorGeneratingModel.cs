@@ -14,12 +14,10 @@ namespace DotNetCampus.ModelContextProtocol.Generators.Models;
 /// <param name="InterceptableLocation">拦截位置信息。</param>
 /// <param name="ToolType">被拦截的工具类型。</param>
 /// <param name="ToolModels">工具类型中所有标记了 McpServerToolAttribute 的方法对应的模型。</param>
-/// <param name="CreationMode">工具创建模式。</param>
 public record WithToolInterceptorGeneratingModel(
     InterceptableLocation InterceptableLocation,
     INamedTypeSymbol ToolType,
-    List<McpServerToolGeneratingModel> ToolModels,
-    CreationMode CreationMode)
+    List<McpServerToolGeneratingModel> ToolModels)
 {
     /// <summary>
     /// 从语法上下文解析 WithTool 拦截器模型。
@@ -88,21 +86,9 @@ public record WithToolInterceptorGeneratingModel(
             return null;
         }
 
-        // 获取创建模式参数（如果提供）
-        var creationMode = CreationMode.Singleton;
-        if (invocationOperation.Arguments.Length > 1)
-        {
-            // 尝试从第二个参数获取枚举值
-            if (invocationOperation.Arguments[1].Value is { ConstantValue: { HasValue: true, Value: int modeValue } })
-            {
-                creationMode = (CreationMode)modeValue;
-            }
-        }
-
         return new WithToolInterceptorGeneratingModel(
             interceptableLocation,
             (INamedTypeSymbol)toolType,
-            toolModels,
-            creationMode);
+            toolModels);
     }
 };
