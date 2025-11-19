@@ -114,37 +114,43 @@ internal partial class McpServerToolJsonContext : JsonSerializerContext;
 /// <summary>
 /// 提供给 MCP 协议中，服务端收到来自客户端的请求数据时使用的 JSON 序列化上下文。
 /// </summary>
+[JsonSerializable(typeof(CallToolRequestParams))]
+[JsonSerializable(typeof(InitializeRequestParams))]
 [JsonSerializable(typeof(JsonElement))]
 [JsonSerializable(typeof(JsonRpcRequest))]
-[JsonSerializable(typeof(InitializeRequestParams))]
-[JsonSerializable(typeof(PingRequestParams))]
+[JsonSerializable(typeof(ListResourcesRequestParams))]
+[JsonSerializable(typeof(ListResourceTemplatesRequestParams))]
 [JsonSerializable(typeof(ListToolsRequestParams))]
-[JsonSerializable(typeof(CallToolRequestParams))]
-[JsonSerializable(typeof(SetLevelRequestParams))]
 [JsonSerializable(typeof(LoggingLevel))]
+[JsonSerializable(typeof(PingRequestParams))]
+[JsonSerializable(typeof(ReadResourceRequestParams))]
+[JsonSerializable(typeof(SetLevelRequestParams))]
 internal partial class McpServerRequestJsonContext : JsonSerializerContext;
 
 /// <summary>
 /// 提供给 MCP 协议中，服务端发送给客户端的响应数据时使用的 JSON 序列化上下文。
 /// </summary>
+[JsonSerializable(typeof(Annotations))]
+[JsonSerializable(typeof(AudioContentBlock))]
+[JsonSerializable(typeof(BlobResourceContents))]
+[JsonSerializable(typeof(CallToolResult))]
+[JsonSerializable(typeof(CompiledJsonSchema))]
+[JsonSerializable(typeof(ContentBlock))]
+[JsonSerializable(typeof(EmbeddedResourceContentBlock))]
+[JsonSerializable(typeof(EmptyResult))]
+[JsonSerializable(typeof(ImageContentBlock))]
+[JsonSerializable(typeof(InitializeResult))]
 [JsonSerializable(typeof(JsonElement))]
 [JsonSerializable(typeof(JsonRpcResponse))]
-[JsonSerializable(typeof(InitializeResult))]
-[JsonSerializable(typeof(CompiledJsonSchema))]
-[JsonSerializable(typeof(EmptyResult))]
+[JsonSerializable(typeof(ListResourcesResult))]
+[JsonSerializable(typeof(ListResourceTemplatesResult))]
 [JsonSerializable(typeof(ListToolsResult))]
-[JsonSerializable(typeof(CallToolResult))]
-[JsonSerializable(typeof(ContentBlock))]
-[JsonSerializable(typeof(TextContentBlock))]
-[JsonSerializable(typeof(ImageContentBlock))]
-[JsonSerializable(typeof(AudioContentBlock))]
-[JsonSerializable(typeof(ResourceLinkContentBlock))]
-[JsonSerializable(typeof(EmbeddedResourceContentBlock))]
-[JsonSerializable(typeof(ResourceContents))]
-[JsonSerializable(typeof(TextResourceContents))]
-[JsonSerializable(typeof(BlobResourceContents))]
-[JsonSerializable(typeof(Annotations))]
 [JsonSerializable(typeof(McpExceptionData))]
+[JsonSerializable(typeof(ReadResourceResult))]
+[JsonSerializable(typeof(ResourceContents))]
+[JsonSerializable(typeof(ResourceLinkContentBlock))]
+[JsonSerializable(typeof(TextContentBlock))]
+[JsonSerializable(typeof(TextResourceContents))]
 [JsonSourceGenerationOptions(
     PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,
     UseStringEnumConverter = true,

@@ -39,9 +39,10 @@ internal class Program
                 .WithTool(() => new PolymorphicTool())
                 .WithTool(() => new ResourceTool())
             )
-            // .WithResources(r => r
-            //     .WithResource(() => new SampleResource())
-            // )
+            .WithResources(r => r
+                .WithResource<SampleResource>(new SampleResource_DirectTextResource_Bridge(() => new SampleResource()))
+                .WithResource<SampleResource>(new SampleResource_TemplateResource_Bridge(() => new SampleResource()))
+            )
             .Build();
         mcpServer.EnableDebugMode();
         await mcpServer.RunAsync();

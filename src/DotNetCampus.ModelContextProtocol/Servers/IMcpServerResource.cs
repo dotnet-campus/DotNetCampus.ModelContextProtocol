@@ -21,7 +21,7 @@ public interface IMcpServerResource
     /// Static resources return a fixed URI (e.g., "test://direct/text/resource").<br/>
     /// Template resources return a URI template (e.g., "test://template/resource/{id}").
     /// </summary>
-    public string UriOrTemplate { get; }
+    public string UriTemplate { get; }
 
     /// <summary>
     /// 指示该资源是否为模板资源（包含参数）。<br/>

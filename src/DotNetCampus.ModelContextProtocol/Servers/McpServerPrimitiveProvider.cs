@@ -91,11 +91,11 @@ internal sealed class McpServerResourcesProvider : McpServerPrimitiveProvider<IM
         // 添加到 URI 路由器
         if (resource.IsTemplate)
         {
-            _router.AddTemplate(resource.UriOrTemplate, resource);
+            _router.AddTemplate(resource.UriTemplate, resource);
         }
         else
         {
-            _router.AddExactUri(resource.UriOrTemplate, resource);
+            _router.AddExactUri(resource.UriTemplate, resource);
         }
 
         return true;

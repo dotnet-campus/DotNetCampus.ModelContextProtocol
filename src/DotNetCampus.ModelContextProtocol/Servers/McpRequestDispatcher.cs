@@ -1,11 +1,10 @@
 ﻿using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
+using DotNetCampus.ModelContextProtocol.CompilerServices;
 using DotNetCampus.ModelContextProtocol.Core;
 using DotNetCampus.ModelContextProtocol.Exceptions;
 using DotNetCampus.ModelContextProtocol.Protocol.Messages.JsonRpc;
-using McpServerRequestJsonContext = DotNetCampus.ModelContextProtocol.CompilerServices.McpServerRequestJsonContext;
-using McpServerResponseJsonContext = DotNetCampus.ModelContextProtocol.CompilerServices.McpServerResponseJsonContext;
 using static DotNetCampus.ModelContextProtocol.Protocol.RequestMethods;
 
 namespace DotNetCampus.ModelContextProtocol.Servers;
@@ -31,14 +30,23 @@ internal static class McpRequestDispatcher
         Ping => await request.HandleRequestAsync(services, handlers.Ping,
             McpServerRequestJsonContext.Default.PingRequestParams, McpServerResponseJsonContext.Default.EmptyResult,
             cancellationToken),
+        LoggingSetLevel => await request.HandleRequestAsync(services, handlers.SetLoggingLevel,
+            McpServerRequestJsonContext.Default.SetLevelRequestParams, McpServerResponseJsonContext.Default.EmptyResult,
+            cancellationToken),
         ToolsList => await request.HandleRequestAsync(services, handlers.ListTools,
             McpServerRequestJsonContext.Default.ListToolsRequestParams, McpServerResponseJsonContext.Default.ListToolsResult,
             cancellationToken),
         ToolsCall => await request.HandleRequestAsync(services, handlers.CallTool,
             McpServerRequestJsonContext.Default.CallToolRequestParams, McpServerResponseJsonContext.Default.CallToolResult,
             cancellationToken),
-        LoggingSetLevel => await request.HandleRequestAsync(services, handlers.SetLoggingLevel,
-            McpServerRequestJsonContext.Default.SetLevelRequestParams, McpServerResponseJsonContext.Default.EmptyResult,
+        ResourcesList => await request.HandleRequestAsync(services, handlers.ListResources,
+            McpServerRequestJsonContext.Default.ListResourcesRequestParams, McpServerResponseJsonContext.Default.ListResourcesResult,
+            cancellationToken),
+        ResourcesTemplatesList => await request.HandleRequestAsync(services, handlers.ListResourceTemplates,
+            McpServerRequestJsonContext.Default.ListResourceTemplatesRequestParams, McpServerResponseJsonContext.Default.ListResourceTemplatesResult,
+            cancellationToken),
+        ResourcesRead => await request.HandleRequestAsync(services, handlers.ReadResource,
+            McpServerRequestJsonContext.Default.ReadResourceRequestParams, McpServerResponseJsonContext.Default.ReadResourceResult,
             cancellationToken),
         _ => new JsonRpcResponse
         {
@@ -85,6 +93,19 @@ internal static class McpRequestDispatcher
             };
         }
         catch (ModelContextProtocolException ex)
+        {
+            return new JsonRpcResponse
+            {
+                Id = request.Id,
+                Error = new JsonRpcError
+                {
+                    Code = ex.JsonRpcErrorCode ?? (int)JsonRpcErrorCode.InternalError,
+                    Message = ex.Message,
+                    Data = McpExceptionData.From(ex).ToJsonElement(),
+                },
+            };
+        }
+        catch (Exception ex)
         {
             return new JsonRpcResponse
             {

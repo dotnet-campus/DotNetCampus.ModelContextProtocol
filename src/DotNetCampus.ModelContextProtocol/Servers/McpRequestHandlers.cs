@@ -70,6 +70,108 @@ public class McpRequestHandlers(McpServer server)
     }
 
     /// <summary>
+    /// 获取或设置日志级别设置请求处理程序
+    /// </summary>
+    [NotNull]
+    public McpRequestHandler<SetLevelRequestParams, EmptyResult>? SetLoggingLevelHandler
+    {
+        get => field ?? Raw.SetLoggingLevel;
+        set;
+    }
+
+    /// <summary>
+    /// 处理设置日志级别请求。
+    /// </summary>
+    public async ValueTask<EmptyResult> SetLoggingLevel(RequestContext<SetLevelRequestParams> request, CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await SetLoggingLevelHandler(request, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            throw new ModelContextProtocolException("SetLoggingLevel failed.", ex);
+        }
+    }
+
+    /// <summary>
+    /// 获取或设置列出资源模板请求处理程序。
+    /// </summary>
+    public McpRequestHandler<ListResourceTemplatesRequestParams, ListResourceTemplatesResult> ListResourceTemplatesHandler
+    {
+        get => field ?? Raw.ListResourceTemplates;
+        set;
+    }
+
+    /// <summary>
+    /// 处理列出资源模板请求。
+    /// </summary>
+    public async ValueTask<ListResourceTemplatesResult> ListResourceTemplates(RequestContext<ListResourceTemplatesRequestParams> request,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await ListResourceTemplatesHandler(request, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            throw new ModelContextProtocolException("ListResourceTemplates failed.", ex);
+        }
+    }
+
+    /// <summary>
+    /// 获取或设置列出资源请求处理程序。
+    /// </summary>
+    public McpRequestHandler<ListResourcesRequestParams, ListResourcesResult> ListResourcesHandler
+    {
+        get => field ?? Raw.ListResources;
+        set;
+    }
+
+    /// <summary>
+    /// 处理列出资源请求。
+    /// </summary>
+    public async ValueTask<ListResourcesResult> ListResources(RequestContext<ListResourcesRequestParams> request, CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await ListResourcesHandler(request, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            throw new ModelContextProtocolException("ListResources failed.", ex);
+        }
+    }
+
+    /// <summary>
+    /// 获取或设置读取资源请求处理程序。
+    /// </summary>
+    public McpRequestHandler<ReadResourceRequestParams, ReadResourceResult> ReadResourceHandler
+    {
+        get => field ?? Raw.ReadResource;
+        set;
+    }
+
+    /// <summary>
+    /// 处理读取资源请求。
+    /// </summary>
+    public async ValueTask<ReadResourceResult> ReadResource(RequestContext<ReadResourceRequestParams> request, CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await ReadResourceHandler(request, cancellationToken);
+        }
+        catch (McpResourceNotFoundException ex)
+        {
+            throw new ModelContextProtocolException("Resource not found.", ex);
+        }
+        catch (Exception ex)
+        {
+            throw new ModelContextProtocolException("ReadResource failed.", ex);
+        }
+    }
+
+    /// <summary>
     /// 获取或设置列出工具请求处理程序。
     /// </summary>
     [NotNull]
@@ -156,42 +258,11 @@ public class McpRequestHandlers(McpServer server)
     //
     // public McpRequestHandler<GetPromptRequestParams, GetPromptResult>? GetPromptHandler { get; set; }
     //
-    // public McpRequestHandler<ListResourceTemplatesRequestParams, ListResourceTemplatesResult>? ListResourceTemplatesHandler { get; set; }
-    //
-    // public McpRequestHandler<ListResourcesRequestParams, ListResourcesResult>? ListResourcesHandler { get; set; }
-    //
-    // public McpRequestHandler<ReadResourceRequestParams, ReadResourceResult>? ReadResourceHandler { get; set; }
-    //
     // public McpRequestHandler<CompleteRequestParams, CompleteResult>? CompleteHandler { get; set; }
     //
     // public McpRequestHandler<SubscribeRequestParams, EmptyResult>? SubscribeToResourcesHandler { get; set; }
     //
     // public McpRequestHandler<UnsubscribeRequestParams, EmptyResult>? UnsubscribeFromResourcesHandler { get; set; }
-
-    /// <summary>
-    /// 获取或设置日志级别设置请求处理程序
-    /// </summary>
-    [NotNull]
-    public McpRequestHandler<SetLevelRequestParams, EmptyResult>? SetLoggingLevelHandler
-    {
-        get => field ?? Raw.SetLoggingLevel;
-        set;
-    }
-
-    /// <summary>
-    /// 处理设置日志级别请求。
-    /// </summary>
-    public async ValueTask<EmptyResult> SetLoggingLevel(RequestContext<SetLevelRequestParams> request, CancellationToken cancellationToken)
-    {
-        try
-        {
-            return await SetLoggingLevelHandler(request, cancellationToken);
-        }
-        catch (Exception ex)
-        {
-            throw new ModelContextProtocolException("SetLoggingLevel failed.", ex);
-        }
-    }
 
     /// <summary>
     /// 获取或设置通知处理程序列表。
