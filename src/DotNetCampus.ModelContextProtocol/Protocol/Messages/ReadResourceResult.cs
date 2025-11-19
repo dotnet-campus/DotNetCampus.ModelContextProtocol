@@ -16,38 +16,6 @@ public record ReadResourceResult : Result
     public IList<ResourceContents> Contents { get; set; } = [];
 
     /// <summary>
-    /// 创建包含指定文本内容的 <see cref="ReadResourceResult"/> 实例。
-    /// </summary>
-    /// <param name="textResourceContents">要包含的文本资源内容。</param>
-    /// <returns><see cref="CallToolResult"/> 实例。</returns>
-    public static ReadResourceResult FromResult(TextResourceContents textResourceContents)
-    {
-        return new ReadResourceResult
-        {
-            Contents =
-            [
-                textResourceContents,
-            ],
-        };
-    }
-
-    /// <summary>
-    /// 创建包含指定 Blob 内容的 <see cref="ReadResourceResult"/> 实例。
-    /// </summary>
-    /// <param name="blobResourceContents">要包含的 Blob 资源内容。</param>
-    /// <returns><see cref="ReadResourceResult"/> 实例。</returns>
-    public static ReadResourceResult FromResult(BlobResourceContents blobResourceContents)
-    {
-        return new ReadResourceResult
-        {
-            Contents =
-            [
-                blobResourceContents,
-            ],
-        };
-    }
-
-    /// <summary>
     /// 创建包含指定资源内容的 <see cref="ReadResourceResult"/> 实例。
     /// </summary>
     /// <param name="resourceContents">要包含的资源内容。</param>
