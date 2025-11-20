@@ -108,12 +108,4 @@ public class McpServerToolAttribute : Attribute
     /// When this is <see langword="true"/>, <see cref="Destructive"/> and <see cref="Idempotent"/> are ignored.
     /// </remarks>
     public bool ReadOnly { get; init; }
-
-    /// <summary>
-    /// 设置该工具是否使用结构化内容输出。
-    /// </summary>
-    /// <remarks>
-    /// 设为 <see langword="true"/> 时，改工具会生成 OutputSchema 来描述其输出内容的结构。
-    /// </remarks>
-    public bool UseStructuredContent { get; init; } = false;
 }
