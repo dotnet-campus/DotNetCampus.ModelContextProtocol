@@ -261,8 +261,9 @@ public class HttpServerTransport
 
             if (response.IsNoResponse)
             {
-                // Notification，不返回内容
-                RespondWithSuccess(ctx, HttpStatusCode.OK);
+                // Notification：根据 MCP 协议，必须返回 202 Accepted
+                // https://modelcontextprotocol.io/specification/2025-06-18/basic/transports#sending-messages-to-the-server
+                RespondWithSuccess(ctx, HttpStatusCode.Accepted);
             }
             else
             {
@@ -414,9 +415,13 @@ public class HttpServerTransport
                 await session.Writer.WriteAsync("event:message\n");
                 var responseText = JsonSerializer.Serialize(response, McpServerResponseJsonContext.Default.JsonRpcResponse);
                 await session.Writer.WriteAsync($"data:{responseText}\n\n");
+                RespondWithSuccess(ctx, HttpStatusCode.OK);
             }
-
-            RespondWithSuccess(ctx, HttpStatusCode.OK);
+            else
+            {
+                // Notification：根据 MCP 协议，必须返回 202 Accepted
+                RespondWithSuccess(ctx, HttpStatusCode.Accepted);
+            }
         }
         catch (JsonException ex)
         {
