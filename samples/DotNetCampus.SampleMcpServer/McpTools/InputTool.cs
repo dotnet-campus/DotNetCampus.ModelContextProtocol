@@ -109,6 +109,31 @@ public class InputTool
             Raw JSON: {data.GetRawText()}
             """;
     }
+
+    /// <summary>
+    /// 演示使用复杂对象参数的工具
+    /// </summary>
+    /// <param name="id">传递过来的标识</param>
+    /// <param name="data">传递过来的复杂对象</param>
+    /// <returns></returns>
+    [McpServerTool(ReadOnly = true)]
+    public string TestParameterComplexObject(string id, SampleComplexInputObject data)
+    {
+        var attributesDescription = data.Attributes.HasValue
+            ? data.Attributes.Value.ValueKind switch
+            {
+                JsonValueKind.Object => $"Object with {data.Attributes.Value.EnumerateObject().Count()} properties",
+                JsonValueKind.Array => $"Array with {data.Attributes.Value.GetArrayLength()} items",
+                _ => $"Value of type {data.Attributes.Value.ValueKind}"
+            }
+            : "No attributes provided";
+
+        return $"""
+            Received "{id}":
+            Text: {data.Text}
+            Attributes: {attributesDescription}
+            """;
+    }
 }
 
 /// <summary>
@@ -121,4 +146,16 @@ public record SampleInputObject(string Text)
     /// 重复次数
     /// </summary>
     public int Count { get; init; } = 1;
+}
+
+/// <summary>
+/// 示例整个复杂的输入对象
+/// </summary>
+/// <param name="Text">要处理的文本</param>
+public record SampleComplexInputObject(string Text)
+{
+    /// <summary>
+    /// 重复次数
+    /// </summary>
+    public JsonElement? Attributes { get; init; }
 }
