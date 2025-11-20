@@ -36,18 +36,10 @@ public class McpServerBuilder(string serverName, string serverVersion)
     /// <returns>用于链式调用的 MCP 服务器生成器。</returns>
     public McpServerBuilder WithHttp(int port, [StringSyntax("Route")] string endpoint)
     {
-        _httpOptions = _httpOptions switch
+        _httpOptions = new HttpServerTransportOptions
         {
-            null => new HttpServerTransportOptions
-            {
-                UrlPrefixes = [$"http://localhost:{port}/", $"http://127.0.0.1:{port}/", $"http://[::1]:{port}/"],
-                Endpoint = endpoint,
-            },
-            var o => new HttpServerTransportOptions
-            {
-                UrlPrefixes = [$"http://localhost:{port}/", $"http://127.0.0.1:{port}/", $"http://[::1]:{port}/"],
-                Endpoint = endpoint,
-            },
+            UrlPrefixes = [$"http://localhost:{port}/", $"http://127.0.0.1:{port}/", $"http://[::1]:{port}/"],
+            Endpoint = endpoint,
         };
         return this;
     }
