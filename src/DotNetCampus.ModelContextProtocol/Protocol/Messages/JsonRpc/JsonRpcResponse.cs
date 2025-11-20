@@ -9,6 +9,18 @@ namespace DotNetCampus.ModelContextProtocol.Protocol.Messages.JsonRpc;
 public record JsonRpcResponse : JsonRpcMessage
 {
     /// <summary>
+    /// 无需响应标记<br/>
+    /// A special marker indicating that no JSON response needs to be sent
+    /// </summary>
+    internal static JsonRpcResponse NoResponse { get; } = new() { Id = null };
+
+    /// <summary>
+    /// 是否为无需响应标记<br/>
+    /// Indicates whether this is a no-response marker
+    /// </summary>
+    internal bool IsNoResponse => Id is null;
+
+    /// <summary>
     /// 请求 ID<br/>
     /// The ID of the request this response corresponds to
     /// </summary>

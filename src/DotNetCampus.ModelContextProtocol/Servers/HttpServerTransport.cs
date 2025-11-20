@@ -218,15 +218,15 @@ public class HttpServerTransport
 
         try
         {
-            var request = await ReadJsonRpcRequestAsync(ctx.Request.InputStream);
-            if (request is null)
+            var message = await ReadJsonRpcMessageAsync(ctx.Request.InputStream);
+            if (message is null)
             {
                 RespondWithError(ctx, HttpStatusCode.BadRequest, "Invalid JSON-RPC request");
                 return;
             }
 
             // 验证 Session (initialize 请求除外)
-            if (request.Method != "initialize")
+            if (message.Method != "initialize")
             {
                 if (string.IsNullOrEmpty(sessionId))
                 {
@@ -244,10 +244,10 @@ public class HttpServerTransport
             // 处理请求
             var services = new ScopedServiceProvider(_context.ServiceProvider)
                 .AddHttpTransportServices(sessionId, ctx.Request.Headers);
-            var response = await _context.Handlers.HandleRequestAsync(services, request, CancellationToken.None);
+            var response = await _context.Handlers.HandleRequestAsync(services, message, CancellationToken.None);
 
             // Initialize 请求：创建新会话
-            if (request.Method == "initialize")
+            if (message.Method == "initialize")
             {
                 sessionId = SessionId.MakeNew().Id;
                 ctx.Response.Headers.Add("Mcp-Session-Id", sessionId);
@@ -259,8 +259,16 @@ public class HttpServerTransport
                 Log.Info($"[McpServer][Http] Session created: {sessionId}");
             }
 
-            // 返回 JSON 响应
-            await RespondWithJson(ctx, response);
+            if (response.IsNoResponse)
+            {
+                // Notification，不返回内容
+                RespondWithSuccess(ctx, HttpStatusCode.OK);
+            }
+            else
+            {
+                // Request，返回响应内容
+                await RespondWithJson(ctx, response);
+            }
         }
         catch (JsonException ex)
         {
@@ -388,21 +396,25 @@ public class HttpServerTransport
 
         try
         {
-            var request = await ReadJsonRpcRequestAsync(ctx.Request.InputStream);
-            if (request is null)
+            var message = await ReadJsonRpcMessageAsync(ctx.Request.InputStream);
+            if (message is null)
             {
-                RespondWithError(ctx, HttpStatusCode.BadRequest, "Invalid JSON-RPC request");
+                RespondWithError(ctx, HttpStatusCode.BadRequest, "Invalid JSON-RPC message");
                 return;
             }
 
             var services = new ScopedServiceProvider(_context.ServiceProvider)
                 .AddHttpTransportServices(sessionId, ctx.Request.Headers);
-            var response = await _context.Handlers.HandleRequestAsync(services, request, CancellationToken.None);
+            var response = await _context.Handlers.HandleRequestAsync(services, message, CancellationToken.None);
 
-            // 通过 SSE 返回响应（SSE 格式需要特定的文本格式）
-            await session.Writer.WriteAsync("event:message\n");
-            var responseText = JsonSerializer.Serialize(response, McpServerResponseJsonContext.Default.JsonRpcResponse);
-            await session.Writer.WriteAsync($"data:{responseText}\n\n");
+            // Notification，不返回内容
+            // Request，返回 SSE 消息
+            if (!response.IsNoResponse)
+            {
+                await session.Writer.WriteAsync("event:message\n");
+                var responseText = JsonSerializer.Serialize(response, McpServerResponseJsonContext.Default.JsonRpcResponse);
+                await session.Writer.WriteAsync($"data:{responseText}\n\n");
+            }
 
             RespondWithSuccess(ctx, HttpStatusCode.OK);
         }
@@ -438,7 +450,7 @@ public class HttpServerTransport
         response.StatusCode = (int)HttpStatusCode.OK;
     }
 
-    private static async Task<JsonRpcRequest?> ReadJsonRpcRequestAsync(Stream inputStream)
+    private static async Task<JsonRpcRequest?> ReadJsonRpcMessageAsync(Stream inputStream)
     {
         return await JsonSerializer.DeserializeAsync(inputStream, McpServerRequestJsonContext.Default.JsonRpcRequest);
     }

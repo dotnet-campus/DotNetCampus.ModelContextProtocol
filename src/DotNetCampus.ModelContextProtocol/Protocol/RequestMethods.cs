@@ -150,4 +150,19 @@ public static class RequestMethods
     /// and available features for the session.
     /// </remarks>
     public const string Initialize = "initialize";
+
+    /// <summary>
+    /// 客户端在收到 initialize 响应后发送的通知，表示客户端已准备好开始正常操作。<br/>
+    /// The notification sent by the client after receiving the initialize response,
+    /// indicating that the client is ready to begin normal operations.
+    /// </summary>
+    /// <remarks>
+    /// 这是一个通知（Notification），不需要服务器响应。<br/>
+    /// 客户端必须在发送 initialize 请求并收到响应后发送此通知。<br/>
+    /// 服务器在收到此通知之前不应发送除 ping 和 logging 之外的请求。<br/>
+    /// This is a notification and does not expect a response from the server.<br/>
+    /// The client MUST send this notification after sending the initialize request and receiving the response.<br/>
+    /// The server SHOULD NOT send requests other than pings and logging before receiving this notification.
+    /// </remarks>
+    public const string NotificationsInitialized = "notifications/initialized";
 }
