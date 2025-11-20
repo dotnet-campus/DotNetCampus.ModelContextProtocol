@@ -190,7 +190,7 @@ public class McpServerResourcesBuilder
         where TMcpServerResourceType : class
     {
         throw new InvalidOperationException(
-            "拦截器未能成功拦截 WithResource<T> 方法调用。请确保：1. 所有需要被拦截的方法均已标记了 [McpServerResourceAttribute] 特性。2. 编译项目时没有出现与 DotNetCampus.ModelContextProtocol 源生成器相关的警告或错误。");
+            "拦截器未能成功拦截 WithResource<T> 方法调用。请确保：1. 所有需要被拦截的方法均已标记了 [McpServerResourceAttribute] 特性。2. 编译项目时没有出现与 DotNetCampus.ModelContextProtocol 源生成器相关的警告或错误（CS8785;CS9057）。");
     }
 
     /// <summary>
@@ -257,7 +257,7 @@ public class McpServerToolsBuilder
         where TMcpServerToolType : class
     {
         throw new InvalidOperationException(
-            "拦截器未能成功拦截 WithTool<T> 方法调用。请确保：1. 所有需要被拦截的方法均已标记了 [McpServerToolAttribute] 特性。2. 编译项目时没有出现与 DotNetCampus.ModelContextProtocol 源生成器相关的警告或错误。");
+            "拦截器未能成功拦截 WithTool<T> 方法调用。请确保：1. 所有需要被拦截的方法均已标记了 [McpServerToolAttribute] 特性。2. 编译项目时没有出现与 DotNetCampus.ModelContextProtocol 源生成器相关的警告或错误（CS8785;CS9057）。");
     }
 
     /// <summary>
