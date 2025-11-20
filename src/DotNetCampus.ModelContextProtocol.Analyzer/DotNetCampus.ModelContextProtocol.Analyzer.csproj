@@ -21,6 +21,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageVersion Update="System.Text.Json" Version="8.0.6" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Compile Include="..\DotNetCampus.ModelContextProtocol\Properties\Compatibility.cs" LinkBase="Properties" />
     <Compile Include="..\DotNetCampus.ModelContextProtocol\CompilerServices\*Attribute.cs" LinkBase="CompilerServices" />
     <Compile Include="..\DotNetCampus.ModelContextProtocol\CompilerServices\CompiledJsonSchema.cs" LinkBase="CompilerServices" />
