@@ -42,11 +42,11 @@ internal static class McpRequestDispatcher
         {
             case NotificationsInitialized:
                 // notifications/initialized - 客户端在初始化后发送的通知
-                Log.Debug($"[McpServer] Received notifications/initialized");
+                Log.Trace($"[McpServer][MCP] Received notifications {request.Method}.");
                 break;
 
             default:
-                Log.Warn($"[McpServer] Unknown notification method: {request.Method}");
+                Log.Warn($"[McpServer][MCP] Received notifications {request.Method}, but it is currently not supported.");
                 break;
         }
 
@@ -96,7 +96,7 @@ internal static class McpRequestDispatcher
             Error = new JsonRpcError
             {
                 Code = (int)JsonRpcErrorCode.MethodNotFound,
-                Message = $"{request.Method} method is not supported.",
+                Message = $"{request.Method} method is currently not supported.",
             },
         },
     };

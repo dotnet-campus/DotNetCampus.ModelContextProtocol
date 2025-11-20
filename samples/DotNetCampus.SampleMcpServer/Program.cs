@@ -21,8 +21,6 @@ internal class Program
             .Build()
             .IntoGlobalStaticLog();
 
-        Log.Info($"[App] Starting Sample MCP Server...");
-
         var mcpServer = new McpServerBuilder("SampleMcpServer", "1.0.0")
             .WithHttp(5943, "mcp")
             .WithStdio()

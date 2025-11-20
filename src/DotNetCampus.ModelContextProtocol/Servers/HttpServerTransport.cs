@@ -44,7 +44,7 @@ public class HttpServerTransport
     /// <summary>
     /// MCP endpoint - 用于新协议 Streamable HTTP (2025-03-26+)
     /// </summary>
-    public string EndPoint { get; init; }
+    public string EndPoint { get; }
 
     /// <summary>
     /// SSE endpoint - 用于旧协议 HTTP+SSE (2024-11-05) 兼容
@@ -115,7 +115,7 @@ public class HttpServerTransport
             return;
         }
 
-        Log.Debug($"[McpServer][Http] {ctx.Request.HttpMethod} {endpoint} from {ctx.Request.RemoteEndPoint}");
+        Log.Trace($"[McpServer][Http] {ctx.Request.HttpMethod} {endpoint} from {ctx.Request.RemoteEndPoint}");
 
         SetCorsHeaders(ctx.Response);
 
@@ -131,7 +131,7 @@ public class HttpServerTransport
         // 参考: https://modelcontextprotocol.io/specification/2025-03-26/basic/transports
         if (method == "GET" && endpoint.Equals(EndPoint, StringComparison.OrdinalIgnoreCase))
         {
-            await HandleSseConnectionAsync(ctx);
+            await HandleStreamableHttpConnectionAsync(ctx);
             return;
         }
 
@@ -171,7 +171,7 @@ public class HttpServerTransport
     /// 处理 SSE 连接 (新协议)
     /// 参考: https://modelcontextprotocol.io/specification/2025-03-26/basic/transports#listening-for-messages-from-the-server
     /// </summary>
-    private async Task HandleSseConnectionAsync(HttpListenerContext context)
+    private async Task HandleStreamableHttpConnectionAsync(HttpListenerContext context)
     {
         var sessionId = SessionId.MakeNew().Id;
 
@@ -185,7 +185,7 @@ public class HttpServerTransport
             throw new UnreachableException($"Session ID collision: '{sessionId}'");
         }
 
-        Log.Info($"[McpServer][Http] SSE connection established: {sessionId}");
+        Log.Info($"[McpServer][Http][GET] Streamable Http connection established: {sessionId}");
 
         try
         {
@@ -198,12 +198,12 @@ public class HttpServerTransport
         }
         catch (Exception ex)
         {
-            Log.Warn($"[McpServer][Http] SSE connection error: {sessionId}", ex);
+            Log.Warn($"[McpServer][Http][GET] Streamable Http connection error: {sessionId}", ex);
         }
         finally
         {
             _sseSessions.TryRemove(sessionId, out _);
-            Log.Info($"[McpServer][Http] SSE connection closed: {sessionId}");
+            Log.Info($"[McpServer][Http][GET] Streamable Http connection closed: {sessionId}");
             await writer.DisposeAsync();
         }
     }
@@ -219,8 +219,10 @@ public class HttpServerTransport
         try
         {
             var message = await ReadJsonRpcMessageAsync(ctx.Request.InputStream);
+            Log.Trace($"[McpServer][Http][POST] JSON-RPC message received: {message?.Method ?? "null"}");
             if (message is null)
             {
+                Log.Trace($"[McpServer][Http][POST] Invalid JSON-RPC request");
                 RespondWithError(ctx, HttpStatusCode.BadRequest, "Invalid JSON-RPC request");
                 return;
             }
@@ -230,12 +232,14 @@ public class HttpServerTransport
             {
                 if (string.IsNullOrEmpty(sessionId))
                 {
+                    Log.Trace($"[McpServer][Http][POST] Missing Mcp-Session-Id header");
                     RespondWithError(ctx, HttpStatusCode.BadRequest, "Missing Mcp-Session-Id header");
                     return;
                 }
 
                 if (!_sseSessions.ContainsKey(sessionId))
                 {
+                    Log.Trace($"[McpServer][Http][POST] Session not found: {sessionId}");
                     RespondWithError(ctx, HttpStatusCode.NotFound, $"Session not found: {sessionId}");
                     return;
                 }
@@ -256,29 +260,31 @@ public class HttpServerTransport
                 var placeholderSession = new SseSession(null!, new CancellationTokenSource());
                 _sseSessions.TryAdd(sessionId, placeholderSession);
 
-                Log.Info($"[McpServer][Http] Session created: {sessionId}");
+                Log.Info($"[McpServer][Http][POST] Session created: {sessionId}");
             }
 
             if (response.IsNoResponse)
             {
                 // Notification：根据 MCP 协议，必须返回 202 Accepted
                 // https://modelcontextprotocol.io/specification/2025-06-18/basic/transports#sending-messages-to-the-server
+                Log.Trace($"[McpServer][Http][POST] Notification received, returning 202 Accepted");
                 RespondWithSuccess(ctx, HttpStatusCode.Accepted);
             }
             else
             {
                 // Request，返回响应内容
+                Log.Trace($"[McpServer][Http][POST] Sending JSON-RPC response");
                 await RespondWithJson(ctx, response);
             }
         }
         catch (JsonException ex)
         {
-            Log.Error($"[McpServer][Http] JSON parsing error", ex);
+            Log.Error($"[McpServer][Http][POST] JSON parsing error", ex);
             RespondWithError(ctx, HttpStatusCode.BadRequest, "Invalid JSON");
         }
         catch (Exception ex)
         {
-            Log.Error($"[McpServer][Http] Request handling error", ex);
+            Log.Error($"[McpServer][Http][POST] Request handling error", ex);
             RespondWithError(ctx, HttpStatusCode.InternalServerError);
         }
     }
@@ -293,6 +299,7 @@ public class HttpServerTransport
 
         if (string.IsNullOrEmpty(sessionId))
         {
+            Log.Trace($"[McpServer][Http][DELETE] Missing Mcp-Session-Id header");
             RespondWithError(ctx, HttpStatusCode.BadRequest, "Missing Mcp-Session-Id header");
             return;
         }
@@ -300,7 +307,7 @@ public class HttpServerTransport
         if (!_sseSessions.TryRemove(sessionId, out var session))
         {
             // 会话不存在，但这不算错误 - 可能已经被清理了
-            Log.Info($"[McpServer][Http] DELETE request for non-existent session: {sessionId}");
+            Log.Trace($"[McpServer][Http][DELETE] Session not found (already terminated?): {sessionId}");
             RespondWithSuccess(ctx, HttpStatusCode.OK);
             return;
         }
@@ -308,15 +315,19 @@ public class HttpServerTransport
         // 取消 SSE 连接（如果存在）
         try
         {
+#if NET8_0_OR_GREATER
+            await session.CancellationToken.CancelAsync();
+#else
             session.CancellationToken.Cancel();
+#endif
             session.CancellationToken.Dispose();
         }
         catch (Exception ex)
         {
-            Log.Warn($"[McpServer][Http] Error cancelling session {sessionId}", ex);
+            Log.Warn($"[McpServer][Http][DELETE] Error cancelling session {sessionId}", ex);
         }
 
-        Log.Info($"[McpServer][Http] Session terminated: {sessionId}");
+        Log.Trace($"[McpServer][Http][DELETE] Session terminated: {sessionId}");
         RespondWithSuccess(ctx, HttpStatusCode.OK);
     }
 
@@ -379,18 +390,21 @@ public class HttpServerTransport
 
         if (string.IsNullOrEmpty(sessionId))
         {
+            Log.Trace($"[McpServer][Http][Legacy] Missing sessionId parameter");
             RespondWithError(ctx, HttpStatusCode.BadRequest, "Missing sessionId parameter");
             return;
         }
 
         if (!_sseSessions.TryGetValue(sessionId, out var session))
         {
+            Log.Trace($"[McpServer][Http][Legacy] Session not found: {sessionId}");
             RespondWithError(ctx, HttpStatusCode.BadRequest, $"Session not found: {sessionId}");
             return;
         }
 
         if (session.Writer is null)
         {
+            Log.Trace($"[McpServer][Http][Legacy] Session has no active SSE connection: {sessionId}");
             RespondWithError(ctx, HttpStatusCode.BadRequest, $"Session has no active SSE connection: {sessionId}");
             return;
         }
@@ -400,6 +414,7 @@ public class HttpServerTransport
             var message = await ReadJsonRpcMessageAsync(ctx.Request.InputStream);
             if (message is null)
             {
+                Log.Trace($"[McpServer][Http][Legacy] Invalid JSON-RPC message for session {sessionId}");
                 RespondWithError(ctx, HttpStatusCode.BadRequest, "Invalid JSON-RPC message");
                 return;
             }
@@ -412,6 +427,7 @@ public class HttpServerTransport
             // Request，返回 SSE 消息
             if (!response.IsNoResponse)
             {
+                Log.Trace($"[McpServer][Http][Legacy] Sending SSE response for session {sessionId}");
                 await session.Writer.WriteAsync("event:message\n");
                 var responseText = JsonSerializer.Serialize(response, McpServerResponseJsonContext.Default.JsonRpcResponse);
                 await session.Writer.WriteAsync($"data:{responseText}\n\n");
@@ -420,6 +436,7 @@ public class HttpServerTransport
             else
             {
                 // Notification：根据 MCP 协议，必须返回 202 Accepted
+                Log.Trace($"[McpServer][Http][Legacy] Notification received for session {sessionId}, returning 202 Accepted");
                 RespondWithSuccess(ctx, HttpStatusCode.Accepted);
             }
         }
@@ -488,7 +505,7 @@ public class HttpServerTransport
         await RespondWithJson(ctx, errorResponse);
     }
 
-    private static void RespondWithSuccess(HttpListenerContext ctx, HttpStatusCode statusCode)
+    private void RespondWithSuccess(HttpListenerContext ctx, HttpStatusCode statusCode)
     {
         ctx.Response.StatusCode = (int)statusCode;
         ctx.Response.Close();
@@ -497,7 +514,7 @@ public class HttpServerTransport
     /// <summary>
     /// 返回 HTTP 错误（用于传输层错误，未进入 JSON-RPC 协议层）
     /// </summary>
-    private static void RespondWithError(HttpListenerContext ctx, HttpStatusCode statusCode, string? message = null)
+    private void RespondWithError(HttpListenerContext ctx, HttpStatusCode statusCode, string? message = null)
     {
         ctx.Response.StatusCode = (int)statusCode;
 
