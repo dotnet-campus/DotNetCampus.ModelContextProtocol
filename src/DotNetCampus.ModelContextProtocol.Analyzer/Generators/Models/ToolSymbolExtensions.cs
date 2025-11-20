@@ -2,6 +2,7 @@
 using DotNetCampus.ModelContextProtocol.CompilerServices;
 using DotNetCampus.ModelContextProtocol.Utils;
 using Microsoft.CodeAnalysis;
+using G = DotNetCampus.ModelContextProtocol.GlobalTypeNames;
 
 namespace DotNetCampus.ModelContextProtocol.Generators.Models;
 
@@ -18,7 +19,7 @@ public static class ToolSymbolExtensions
         /// </summary>
         public bool IsCancellationTokenParameter()
         {
-            return parameter.Type.ToGlobalDisplayString() == "global::System.Threading.CancellationToken";
+            return parameter.Type.ToGlobalDisplayString() == G.CancellationToken;
         }
 
         /// <summary>
@@ -26,7 +27,7 @@ public static class ToolSymbolExtensions
         /// </summary>
         public bool IsContextParameter()
         {
-            return parameter.Type.ToGlobalDisplayString() == "global::DotNetCampus.ModelContextProtocol.Servers.IMcpServerCallToolContext";
+            return parameter.Type.ToGlobalDisplayString() == G.IMcpServerCallToolContext;
         }
 
         /// <summary>

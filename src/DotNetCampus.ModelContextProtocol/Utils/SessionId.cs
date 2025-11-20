@@ -1,12 +1,12 @@
 ﻿using System.Security.Cryptography;
 
-namespace DotNetCampus.ModelContextProtocol.Core;
+namespace DotNetCampus.ModelContextProtocol.Utils;
 
 /// <summary>
 /// 表示 MCP 会话的唯一标识符。
 /// </summary>
 /// <param name="Id">会话 ID 字符串</param>
-public readonly record struct SessionId(string Id)
+internal readonly record struct SessionId(string Id)
 {
     /// <summary>
     /// 获取会话 ID 字符串。

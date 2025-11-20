@@ -91,10 +91,10 @@ file static class Extensions
         var simplifiedTypeName = NamingHelper.MakePascalCase(resourceType.ToDisplayString());
 
         var signature = $"""
-            public static global::DotNetCampus.ModelContextProtocol.Servers.McpServerResourcesBuilder WithResource_{simplifiedTypeName}<TMcpServerResourceType>(
-                this global::DotNetCampus.ModelContextProtocol.Servers.McpServerResourcesBuilder builder,
-                global::System.Func<TMcpServerResourceType> resourceFactory,
-                global::DotNetCampus.ModelContextProtocol.CompilerServices.CreationMode creationMode = global::DotNetCampus.ModelContextProtocol.CompilerServices.CreationMode.Singleton)
+            public static {G.McpServerResourcesBuilder} WithResource_{simplifiedTypeName}<TMcpServerResourceType>(
+                this {G.McpServerResourcesBuilder} builder,
+                {G.Func}<TMcpServerResourceType> resourceFactory,
+                {G.CreationMode} creationMode = {G.CreationMode}.Singleton)
                 where TMcpServerResourceType : class
             """;
 

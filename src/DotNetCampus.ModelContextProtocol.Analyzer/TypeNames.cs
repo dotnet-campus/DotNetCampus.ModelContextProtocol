@@ -10,9 +10,10 @@ internal static class GlobalTypeNames
     public const string CompiledJsonSchema = "global::DotNetCampus.ModelContextProtocol.CompilerServices.CompiledJsonSchema";
     public const string CompiledSchemaJsonContext = "global::DotNetCampus.ModelContextProtocol.CompilerServices.CompiledSchemaJsonContext";
     public const string Convert = "global::System.Convert";
-    public const string CreationMode = "global::DotNetCampus.ModelContextProtocol.CompilerServices.CreationMode";
+    public const string CreationMode = "global::DotNetCampus.ModelContextProtocol.Servers.CreationMode";
     public const string Dictionary = "global::System.Collections.Generic.Dictionary";
     public const string Func = "global::System.Func";
+    public const string Guid = "global::System.Guid";
     public const string IMcpServerCallToolContext = "global::DotNetCampus.ModelContextProtocol.Servers.IMcpServerCallToolContext";
     public const string IMcpServerReadResourceContext = "global::DotNetCampus.ModelContextProtocol.Servers.IMcpServerReadResourceContext";
     public const string IMcpServerResource = "global::DotNetCampus.ModelContextProtocol.Servers.IMcpServerResource";
@@ -23,6 +24,8 @@ internal static class GlobalTypeNames
     public const string JsonSerializerContext = "global::System.Text.Json.Serialization.JsonSerializerContext";
     public const string JsonTypeInfo = "global::System.Text.Json.Serialization.Metadata.JsonTypeInfo";
     public const string McpResourceNotFoundException = "global::DotNetCampus.ModelContextProtocol.Exceptions.McpResourceNotFoundException";
+    public const string McpServerResourcesBuilder = "global::DotNetCampus.ModelContextProtocol.Servers.McpServerResourcesBuilder";
+    public const string McpServerToolsBuilder = "global::DotNetCampus.ModelContextProtocol.Servers.McpServerToolsBuilder";
     public const string McpToolJsonTypeInfoNotFoundException = "global::DotNetCampus.ModelContextProtocol.Exceptions.McpToolJsonTypeInfoNotFoundException";
     public const string McpToolMissingRequiredArgumentException = "global::DotNetCampus.ModelContextProtocol.Exceptions.McpToolMissingRequiredArgumentException";
     public const string ReadResourceResult = "global::DotNetCampus.ModelContextProtocol.Protocol.Messages.ReadResourceResult";

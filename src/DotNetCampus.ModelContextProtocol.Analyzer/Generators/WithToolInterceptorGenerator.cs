@@ -91,10 +91,10 @@ file static class Extensions
         var simplifiedTypeName = NamingHelper.MakePascalCase(toolType.ToDisplayString());
 
         var signature = $"""
-            public static global::DotNetCampus.ModelContextProtocol.Servers.McpServerToolsBuilder WithTool_{simplifiedTypeName}<TMcpServerToolType>(
-                this global::DotNetCampus.ModelContextProtocol.Servers.McpServerToolsBuilder builder,
-                global::System.Func<TMcpServerToolType> toolFactory,
-                global::DotNetCampus.ModelContextProtocol.CompilerServices.CreationMode creationMode = global::DotNetCampus.ModelContextProtocol.CompilerServices.CreationMode.Singleton)
+            public static {G.McpServerToolsBuilder} WithTool_{simplifiedTypeName}<TMcpServerToolType>(
+                this {G.McpServerToolsBuilder} builder,
+                {G.Func}<TMcpServerToolType> toolFactory,
+                {G.CreationMode} creationMode = {G.CreationMode}.Singleton)
                 where TMcpServerToolType : class
             """;
 

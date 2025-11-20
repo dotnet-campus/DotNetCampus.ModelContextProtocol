@@ -1,4 +1,4 @@
-using DotNetCampus.ModelContextProtocol.Core;
+using DotNetCampus.ModelContextProtocol.Utils;
 
 namespace DotNetCampus.ModelContextProtocol.Servers;
 

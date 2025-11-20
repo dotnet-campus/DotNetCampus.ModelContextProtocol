@@ -120,7 +120,7 @@ internal static class McpServerResourceSourceBuilder
             SpecialType.System_Boolean => "ParseBooleanParameter",
             SpecialType.System_Double => "ParseDoubleParameter",
             SpecialType.System_Decimal => "ParseDecimalParameter",
-            _ => type.ToGlobalDisplayString() == "global::System.Guid"
+            _ => type.ToGlobalDisplayString() == G.Guid
                 ? "ParseGuidParameter"
                 : "ParseStringParameter", // 默认使用字符串解析
         };

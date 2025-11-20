@@ -1,8 +1,8 @@
 ﻿using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.Json.Serialization.Metadata;
-using DotNetCampus.ModelContextProtocol.Core;
 using DotNetCampus.ModelContextProtocol.Exceptions;
+using DotNetCampus.ModelContextProtocol.Protocol;
 using DotNetCampus.ModelContextProtocol.Protocol.Messages;
 using DotNetCampus.ModelContextProtocol.Protocol.Messages.JsonRpc;
 
@@ -137,7 +137,7 @@ internal partial class McpServerRequestJsonContext : JsonSerializerContext;
 [JsonSerializable(typeof(CompiledJsonSchema))]
 [JsonSerializable(typeof(ContentBlock))]
 [JsonSerializable(typeof(EmbeddedResourceContentBlock))]
-[JsonSerializable(typeof(EmptyResult))]
+[JsonSerializable(typeof(EmptyObject))]
 [JsonSerializable(typeof(ImageContentBlock))]
 [JsonSerializable(typeof(InitializeResult))]
 [JsonSerializable(typeof(JsonElement))]

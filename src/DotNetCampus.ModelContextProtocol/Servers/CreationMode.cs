@@ -1,6 +1,4 @@
-using DotNetCampus.ModelContextProtocol.Servers;
-
-namespace DotNetCampus.ModelContextProtocol.CompilerServices;
+namespace DotNetCampus.ModelContextProtocol.Servers;
 
 /// <summary>
 /// MCP 服务器基本元素（提示词、资源、工具）的创建模式。

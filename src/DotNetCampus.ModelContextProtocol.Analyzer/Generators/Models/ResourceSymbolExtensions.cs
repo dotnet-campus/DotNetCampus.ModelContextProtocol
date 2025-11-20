@@ -1,4 +1,5 @@
 using Microsoft.CodeAnalysis;
+using G = DotNetCampus.ModelContextProtocol.GlobalTypeNames;
 
 namespace DotNetCampus.ModelContextProtocol.Generators.Models;
 
@@ -15,7 +16,7 @@ public static class ResourceSymbolExtensions
         /// </summary>
         public bool IsResourceContextParameter()
         {
-            return parameter.Type.ToGlobalDisplayString() == "global::DotNetCampus.ModelContextProtocol.Servers.IMcpServerReadResourceContext";
+            return parameter.Type.ToGlobalDisplayString() == G.IMcpServerReadResourceContext;
         }
 
         /// <summary>

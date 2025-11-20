@@ -1,7 +1,7 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
-using DotNetCampus.ModelContextProtocol.Core;
 using DotNetCampus.ModelContextProtocol.Exceptions;
+using DotNetCampus.ModelContextProtocol.Protocol;
 using DotNetCampus.ModelContextProtocol.Protocol.Messages;
 using DotNetCampus.ModelContextProtocol.Protocol.Messages.JsonRpc;
 
@@ -48,7 +48,7 @@ public class McpRequestHandlers(McpServer server)
     /// 获取或设置 Ping 请求处理程序。
     /// </summary>
     [NotNull]
-    public McpRequestHandler<PingRequestParams, EmptyResult>? PingHandler
+    public McpRequestHandler<PingRequestParams, EmptyObject>? PingHandler
     {
         get => field ?? Raw.Ping;
         set;
@@ -57,7 +57,7 @@ public class McpRequestHandlers(McpServer server)
     /// <summary>
     /// 处理 Ping 请求。
     /// </summary>
-    public async ValueTask<EmptyResult> Ping(RequestContext<PingRequestParams> request, CancellationToken cancellationToken)
+    public async ValueTask<EmptyObject> Ping(RequestContext<PingRequestParams> request, CancellationToken cancellationToken)
     {
         try
         {
@@ -73,7 +73,7 @@ public class McpRequestHandlers(McpServer server)
     /// 获取或设置日志级别设置请求处理程序
     /// </summary>
     [NotNull]
-    public McpRequestHandler<SetLevelRequestParams, EmptyResult>? SetLoggingLevelHandler
+    public McpRequestHandler<SetLevelRequestParams, EmptyObject>? SetLoggingLevelHandler
     {
         get => field ?? Raw.SetLoggingLevel;
         set;
@@ -82,7 +82,7 @@ public class McpRequestHandlers(McpServer server)
     /// <summary>
     /// 处理设置日志级别请求。
     /// </summary>
-    public async ValueTask<EmptyResult> SetLoggingLevel(RequestContext<SetLevelRequestParams> request, CancellationToken cancellationToken)
+    public async ValueTask<EmptyObject> SetLoggingLevel(RequestContext<SetLevelRequestParams> request, CancellationToken cancellationToken)
     {
         try
         {

@@ -2,9 +2,10 @@
 using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
 using DotNetCampus.ModelContextProtocol.CompilerServices;
-using DotNetCampus.ModelContextProtocol.Core;
 using DotNetCampus.ModelContextProtocol.Exceptions;
+using DotNetCampus.ModelContextProtocol.Protocol;
 using DotNetCampus.ModelContextProtocol.Protocol.Messages.JsonRpc;
+using DotNetCampus.ModelContextProtocol.Utils;
 using static DotNetCampus.ModelContextProtocol.Protocol.RequestMethods;
 
 namespace DotNetCampus.ModelContextProtocol.Servers;
@@ -28,10 +29,10 @@ internal static class McpRequestDispatcher
             McpServerRequestJsonContext.Default.InitializeRequestParams, McpServerResponseJsonContext.Default.InitializeResult,
             cancellationToken),
         Ping => await request.HandleRequestAsync(services, handlers.Ping,
-            McpServerRequestJsonContext.Default.PingRequestParams, McpServerResponseJsonContext.Default.EmptyResult,
+            McpServerRequestJsonContext.Default.PingRequestParams, McpServerResponseJsonContext.Default.EmptyObject,
             cancellationToken),
         LoggingSetLevel => await request.HandleRequestAsync(services, handlers.SetLoggingLevel,
-            McpServerRequestJsonContext.Default.SetLevelRequestParams, McpServerResponseJsonContext.Default.EmptyResult,
+            McpServerRequestJsonContext.Default.SetLevelRequestParams, McpServerResponseJsonContext.Default.EmptyObject,
             cancellationToken),
         ToolsList => await request.HandleRequestAsync(services, handlers.ListTools,
             McpServerRequestJsonContext.Default.ListToolsRequestParams, McpServerResponseJsonContext.Default.ListToolsResult,
@@ -79,11 +80,11 @@ internal static class McpRequestDispatcher
             var result = await handler(requestContext, cancellationToken);
             return result switch
             {
-                null or EmptyResult => new JsonRpcResponse
+                null or EmptyObject => new JsonRpcResponse
                 {
                     Id = request.Id,
                     // JSON-RPC 2.0 规范要求成功响应必须包含 result 字段，即使为空对象
-                    Result = EmptyResult.JsonElement,
+                    Result = EmptyObject.JsonElement,
                 },
                 _ => new JsonRpcResponse
                 {

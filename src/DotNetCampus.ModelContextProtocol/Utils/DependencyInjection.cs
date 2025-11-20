@@ -1,6 +1,6 @@
 ﻿using System.Collections.Concurrent;
 
-namespace DotNetCampus.ModelContextProtocol.Core;
+namespace DotNetCampus.ModelContextProtocol.Utils;
 
 /// <summary>
 /// MCP 库内部简易依赖注入框架。

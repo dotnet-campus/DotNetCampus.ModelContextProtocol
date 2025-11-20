@@ -2,6 +2,7 @@ using DotNetCampus.ModelContextProtocol.CodeAnalysis;
 using DotNetCampus.ModelContextProtocol.CompilerServices;
 using DotNetCampus.ModelContextProtocol.Utils;
 using Microsoft.CodeAnalysis;
+using G = DotNetCampus.ModelContextProtocol.GlobalTypeNames;
 
 namespace DotNetCampus.ModelContextProtocol.Generators.Models;
 
@@ -150,7 +151,7 @@ public record McpServerToolGeneratingModel
         }
 
         // 2. CallToolResult - 没有结构化返回
-        if (fullName == "global::DotNetCampus.ModelContextProtocol.Protocol.Messages.CallToolResult")
+        if (fullName == G.CallToolResult)
         {
             return null;
         }

@@ -1,5 +1,4 @@
 ﻿using DotNetCampus.ModelContextProtocol.CompilerServices;
-using DotNetCampus.ModelContextProtocol.Core;
 using DotNetCampus.ModelContextProtocol.Protocol;
 using DotNetCampus.ModelContextProtocol.Protocol.Messages;
 
@@ -50,7 +49,7 @@ public class McpRawRequestHandlers(McpServer server)
                 // 暂不支持 prompts
                 Prompts = null,
                 // 支持日志记录
-                Logging = EmptyResult.JsonElement,
+                Logging = EmptyObject.JsonElement,
             },
         };
     }
@@ -114,7 +113,7 @@ public class McpRawRequestHandlers(McpServer server)
     /// <summary>
     /// 处理 ping 请求。
     /// </summary>
-    public async ValueTask<EmptyResult> Ping(RequestContext<PingRequestParams> request, CancellationToken cancellationToken)
+    public async ValueTask<EmptyObject> Ping(RequestContext<PingRequestParams> request, CancellationToken cancellationToken)
     {
         return default;
     }
@@ -122,7 +121,7 @@ public class McpRawRequestHandlers(McpServer server)
     /// <summary>
     /// 处理设置日志级别请求。
     /// </summary>
-    public async ValueTask<EmptyResult> SetLoggingLevel(RequestContext<SetLevelRequestParams> request, CancellationToken cancellationToken)
+    public async ValueTask<EmptyObject> SetLoggingLevel(RequestContext<SetLevelRequestParams> request, CancellationToken cancellationToken)
     {
         if (request.Params is null)
         {
