@@ -30,7 +30,12 @@ public class HttpServerTransport
     public HttpServerTransport(McpServerContext context, HttpServerTransportOptions options)
     {
         _context = context;
-        _listener.Prefixes.Add(options.BaseUrl);
+
+        foreach (var prefix in options.UrlPrefixes)
+        {
+            _listener.Prefixes.Add(prefix.EndsWith('/') ? prefix : prefix + '/');
+        }
+
         EndPoint = options.Endpoint.StartsWith('/') ? options.Endpoint : "/" + options.Endpoint;
     }
 
@@ -59,11 +64,44 @@ public class HttpServerTransport
         _listener.Start();
 
         Log.Info($"[McpServer][Http] listening on {string.Join(", ", _listener.Prefixes)}");
+        Log.Info($"[McpServer][Http] MCP Endpoint: {EndPoint}");
 
         while (!cancellationToken.IsCancellationRequested)
         {
-            var ctx = await _listener.GetContextAsync();
-            _ = Task.Run(async () => await HandleRequestAsync(ctx), cancellationToken);
+            try
+            {
+                var ctx = await _listener.GetContextAsync();
+                Log.Trace($"[McpServer][Http] Received request: {ctx.Request.HttpMethod} {ctx.Request.Url}");
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        await HandleRequestAsync(ctx);
+                    }
+                    catch (Exception ex)
+                    {
+                        Log.Error($"[McpServer][Http] Unhandled exception in HandleRequestAsync", ex);
+                        try
+                        {
+                            RespondWithError(ctx, HttpStatusCode.InternalServerError);
+                        }
+                        catch
+                        {
+                            // 忽略响应失败（可能连接已关闭）
+                        }
+                    }
+                }, cancellationToken);
+            }
+            catch (HttpListenerException ex) when (ex.ErrorCode == 995) // ERROR_OPERATION_ABORTED
+            {
+                // 正常关闭
+                Log.Info($"[McpServer][Http] Listener stopped");
+                break;
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"[McpServer][Http] Error in GetContextAsync", ex);
+            }
         }
     }
 
@@ -72,66 +110,59 @@ public class HttpServerTransport
         var endpoint = ctx.Request.Url?.AbsolutePath;
         if (endpoint is null)
         {
+            Log.Warn($"[McpServer][Http] Request with null URL from {ctx.Request.RemoteEndPoint}");
             RespondWithError(ctx, HttpStatusCode.NotFound);
             return;
         }
 
-        Log.Debug($"[McpServer][Http] {ctx.Request.HttpMethod} {endpoint}");
+        Log.Debug($"[McpServer][Http] {ctx.Request.HttpMethod} {endpoint} from {ctx.Request.RemoteEndPoint}");
 
-        try
+        SetCorsHeaders(ctx.Response);
+
+        if (ctx.Request.HttpMethod == "OPTIONS")
         {
-            SetCorsHeaders(ctx.Response);
-
-            if (ctx.Request.HttpMethod == "OPTIONS")
-            {
-                RespondWithSuccess(ctx, HttpStatusCode.OK);
-                return;
-            }
-
-            var method = ctx.Request.HttpMethod;
-
-            // 新协议 (2025-03-26+): Streamable HTTP
-            // 参考: https://modelcontextprotocol.io/specification/2025-03-26/basic/transports
-            if (method == "GET" && endpoint.Equals(EndPoint, StringComparison.OrdinalIgnoreCase))
-            {
-                await HandleSseConnectionAsync(ctx);
-                return;
-            }
-
-            if (method == "POST" && endpoint.Equals(EndPoint, StringComparison.OrdinalIgnoreCase))
-            {
-                await HandleJsonRpcRequestAsync(ctx);
-                return;
-            }
-
-            if (method == "DELETE" && endpoint.Equals(EndPoint, StringComparison.OrdinalIgnoreCase))
-            {
-                await HandleDeleteSessionAsync(ctx);
-                return;
-            }
-
-            // 旧协议 (2024-11-05): HTTP+SSE 兼容
-            // 参考: https://modelcontextprotocol.io/specification/2024-11-05/basic/transports#http-with-sse
-            if (method == "GET" && endpoint.Equals(LegacySsePath, StringComparison.OrdinalIgnoreCase))
-            {
-                await HandleLegacySseConnectionAsync(ctx);
-                return;
-            }
-
-            if (method == "POST" && endpoint.Equals(LegacyMessagePath, StringComparison.OrdinalIgnoreCase))
-            {
-                await HandleLegacyMessageRequestAsync(ctx);
-                return;
-            }
-
-            Log.Warn($"[McpServer][Http] No handler found for {method} {endpoint}");
-            RespondWithError(ctx, HttpStatusCode.NotFound);
+            RespondWithSuccess(ctx, HttpStatusCode.OK);
+            return;
         }
-        catch (Exception ex)
+
+        var method = ctx.Request.HttpMethod;
+
+        // 新协议 (2025-03-26+): Streamable HTTP
+        // 参考: https://modelcontextprotocol.io/specification/2025-03-26/basic/transports
+        if (method == "GET" && endpoint.Equals(EndPoint, StringComparison.OrdinalIgnoreCase))
         {
-            Log.Error($"[McpServer][Http] Error handling request to {endpoint}", ex);
-            RespondWithError(ctx, HttpStatusCode.InternalServerError);
+            await HandleSseConnectionAsync(ctx);
+            return;
         }
+
+        if (method == "POST" && endpoint.Equals(EndPoint, StringComparison.OrdinalIgnoreCase))
+        {
+            await HandleJsonRpcRequestAsync(ctx);
+            return;
+        }
+
+        if (method == "DELETE" && endpoint.Equals(EndPoint, StringComparison.OrdinalIgnoreCase))
+        {
+            await HandleDeleteSessionAsync(ctx);
+            return;
+        }
+
+        // 旧协议 (2024-11-05): HTTP+SSE 兼容
+        // 参考: https://modelcontextprotocol.io/specification/2024-11-05/basic/transports#http-with-sse
+        if (method == "GET" && endpoint.Equals(LegacySsePath, StringComparison.OrdinalIgnoreCase))
+        {
+            await HandleLegacySseConnectionAsync(ctx);
+            return;
+        }
+
+        if (method == "POST" && endpoint.Equals(LegacyMessagePath, StringComparison.OrdinalIgnoreCase))
+        {
+            await HandleLegacyMessageRequestAsync(ctx);
+            return;
+        }
+
+        Log.Warn($"[McpServer][Http] No handler found for {method} {endpoint}");
+        RespondWithError(ctx, HttpStatusCode.NotFound);
     }
 
     #region 新协议实现 (Streamable HTTP - 2025-03-26+)

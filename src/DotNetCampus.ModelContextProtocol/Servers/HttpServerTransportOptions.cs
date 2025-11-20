@@ -8,7 +8,11 @@ public record HttpServerTransportOptions
     /// <summary>
     /// 指定用于传输的基础 URL。
     /// </summary>
-    public string BaseUrl { get; init; } = "http://localhost:5000/";
+    public IReadOnlyList<string> UrlPrefixes { get; init; } =
+    [
+        "http://localhost:5000/",
+        "http://127.0.0.1:5000/",
+    ];
 
     /// <summary>
     /// 指定用于传输的端点。

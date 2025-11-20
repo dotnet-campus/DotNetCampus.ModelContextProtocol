@@ -40,12 +40,12 @@ public class McpServerBuilder(string serverName, string serverVersion)
         {
             null => new HttpServerTransportOptions
             {
-                BaseUrl = $"http://localhost:{port}/",
+                UrlPrefixes = [$"http://localhost:{port}/", $"http://127.0.0.1:{port}/", $"http://[::1]:{port}/"],
                 Endpoint = endpoint,
             },
             var o => new HttpServerTransportOptions
             {
-                BaseUrl = $"http://localhost:{port}/",
+                UrlPrefixes = [$"http://localhost:{port}/", $"http://127.0.0.1:{port}/", $"http://[::1]:{port}/"],
                 Endpoint = endpoint,
             },
         };
