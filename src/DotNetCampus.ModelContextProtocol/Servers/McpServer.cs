@@ -1,4 +1,6 @@
-﻿namespace DotNetCampus.ModelContextProtocol.Servers;
+﻿using DotNetCampus.ModelContextProtocol.Transports;
+
+namespace DotNetCampus.ModelContextProtocol.Servers;
 
 /// <summary>
 /// MCP 服务器。
@@ -28,7 +30,7 @@ public class McpServer
     /// <summary>
     /// 获取用于处理 MCP 请求的传输集合。
     /// </summary>
-    public required IReadOnlyList<HttpServerTransport> Transports { get; init; }
+    public required IReadOnlyList<IMcpServerTransport> Transports { get; init; }
 
     /// <summary>
     /// 获取 MCP 服务器工具集合。

@@ -4,23 +4,28 @@ using System.Diagnostics;
 using System.Net;
 using System.Text;
 using System.Text.Json;
+using System.Threading.Channels;
 using DotNetCampus.Logging;
 using DotNetCampus.ModelContextProtocol.Protocol.Messages.JsonRpc;
+using DotNetCampus.ModelContextProtocol.Servers;
 using DotNetCampus.ModelContextProtocol.Utils;
 using McpServerRequestJsonContext = DotNetCampus.ModelContextProtocol.CompilerServices.McpServerRequestJsonContext;
 using McpServerResponseJsonContext = DotNetCampus.ModelContextProtocol.CompilerServices.McpServerResponseJsonContext;
 
-namespace DotNetCampus.ModelContextProtocol.Servers;
+namespace DotNetCampus.ModelContextProtocol.Transports.Http;
 
 /// <summary>
-/// MCP HTTP 传输层实现
-/// 支持新协议 Streamable HTTP (2025-03-26+) 和旧协议 HTTP+SSE (2024-11-05) 的兼容
+/// MCP HTTP 传输层实现。<br/>
+/// 支持新协议 Streamable HTTP (2025-03-26+) 和旧协议 HTTP+SSE (2024-11-05) 的兼容。<br/>
+/// MCP HTTP transport implementation.<br/>
+/// Supports new Streamable HTTP protocol (2025-03-26+) and legacy HTTP+SSE (2024-11-05) compatibility.
 /// </summary>
-public class HttpServerTransport
+public class HttpServerTransport : IMcpServerTransport
 {
     private readonly McpServerContext _context;
     private readonly HttpListener _listener = new();
     private readonly ConcurrentDictionary<string, SseSession> _sseSessions = [];
+    private readonly Channel<TransportMessageContext> _messageChannel;
 
     /// <summary>
     /// 初始化 <see cref="HttpServerTransport"/> 类的新实例。
@@ -37,7 +42,25 @@ public class HttpServerTransport
         }
 
         EndPoint = options.Endpoint.StartsWith('/') ? options.Endpoint : "/" + options.Endpoint;
+        
+        // HTTP 传输层直接处理请求响应，不使用 Channel 模式
+        // 创建一个永不写入的 Channel 以满足接口要求
+        _messageChannel = Channel.CreateUnbounded<TransportMessageContext>(new UnboundedChannelOptions
+        {
+            SingleReader = true,
+            SingleWriter = false,
+        });
     }
+
+    /// <inheritdoc />
+    public string Name => "http";
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// HTTP 传输层直接处理请求响应，不通过 Channel 模式。<br/>
+    /// 此 Reader 不会产生任何消息。
+    /// </remarks>
+    public ChannelReader<TransportMessageContext> MessageReader => _messageChannel.Reader;
 
     private ILogger Log => _context.Logger;
 
@@ -528,6 +551,80 @@ public class HttpServerTransport
     }
 
     #endregion
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// HTTP 传输层通过 SSE 推送消息到客户端（服务器主动推送）。<br/>
+    /// 需要提供 ITransportContext 以识别目标客户端会话。
+    /// </remarks>
+    public async Task SendMessageAsync(JsonRpcMessage message, ITransportContext? context = null, CancellationToken cancellationToken = default)
+    {
+        if (context is not HttpServerTransportContext httpContext)
+        {
+            Log.Warn($"[{Name}] SendMessageAsync called without HttpServerTransportContext");
+            return;
+        }
+
+        var sessionId = httpContext.SessionId;
+        if (string.IsNullOrEmpty(sessionId))
+        {
+            Log.Warn($"[{Name}] SendMessageAsync called without session ID");
+            return;
+        }
+
+        if (!_sseSessions.TryGetValue(sessionId, out var session) || session.Writer is null)
+        {
+            Log.Warn($"[{Name}] Session not found or no active SSE connection: {sessionId}");
+            return;
+        }
+
+        try
+        {
+            // 通过 SSE 推送消息
+            var json = message switch
+            {
+                JsonRpcResponse response => JsonSerializer.Serialize(response, McpServerResponseJsonContext.Default.JsonRpcResponse),
+                JsonRpcRequest request => JsonSerializer.Serialize(request, McpServerRequestJsonContext.Default.JsonRpcRequest),
+                _ => throw new ArgumentException($"Unsupported message type: {message.GetType().Name}", nameof(message))
+            };
+            await session.Writer.WriteAsync($"data: {json}\n\n");
+            await session.Writer.FlushAsync();
+            Log.Trace($"[{Name}] Sent SSE message to session {sessionId}");
+        }
+        catch (Exception ex)
+        {
+            Log.Error($"[{Name}] Error sending message to session {sessionId}", ex);
+        }
+    }
+
+    /// <inheritdoc />
+    public Task StopAsync(CancellationToken cancellationToken = default)
+    {
+        _listener.Stop();
+        _messageChannel.Writer.Complete();
+        Log.Info($"[{Name}] HTTP server stopped");
+        return Task.CompletedTask;
+    }
+
+    /// <inheritdoc />
+    public async ValueTask DisposeAsync()
+    {
+        await StopAsync();
+        _listener.Close();
+        foreach (var session in _sseSessions.Values)
+        {
+            try
+            {
+                session.CancellationToken.Dispose();
+                session.Writer?.Dispose();
+            }
+            catch
+            {
+                // 忽略异常
+            }
+        }
+        _sseSessions.Clear();
+    }
 
     private readonly record struct SseSession(StreamWriter? Writer, CancellationTokenSource CancellationToken);
 }
