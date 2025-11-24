@@ -1,14 +1,10 @@
-﻿namespace DotNetCampus.ModelContextProtocol.Transports.Http;
+﻿namespace DotNetCampus.ModelContextProtocol.Servers;
 
 /// <summary>
-/// HTTP 传输层配置选项。<br/>
-/// HTTP transport configuration options.
+/// HTTP 传输层配置选项。
 /// </summary>
-public record HttpServerTransportOptions : ITransportOptions
+public record HttpServerTransportOptions
 {
-    /// <inheritdoc />
-    public string Name { get; init; } = "http";
-
     /// <summary>
     /// 指定用于传输的基础 URL。
     /// </summary>

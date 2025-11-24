@@ -2,10 +2,6 @@ using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
 using System.Text.Json.Serialization;
 using DotNetCampus.ModelContextProtocol.CompilerServices;
-using DotNetCampus.ModelContextProtocol.Transports;
-using DotNetCampus.ModelContextProtocol.Transports.Http;
-using DotNetCampus.ModelContextProtocol.Transports.Stdio;
-using DotNetCampus.ModelContextProtocol.Transports.InProcess;
 
 namespace DotNetCampus.ModelContextProtocol.Servers;
 
@@ -15,7 +11,6 @@ namespace DotNetCampus.ModelContextProtocol.Servers;
 public class McpServerBuilder(string serverName, string serverVersion)
 {
     private McpServerContext? _context;
-    private readonly List<IMcpServerTransport> _transports = [];
     private HttpServerTransportOptions? _httpOptions;
     private readonly McpServerToolsProvider _tools = new();
     private readonly McpServerResourcesProvider _resources = new();
@@ -27,9 +22,6 @@ public class McpServerBuilder(string serverName, string serverVersion)
     /// <returns>用于链式调用的 MCP 服务器生成器。</returns>
     public McpServerBuilder WithStdio()
     {
-        var context = _context ?? new McpServerContext();
-        var transport = new StdioServerTransport(new StdioServerTransportOptions(), context.Logger);
-        _transports.Add(transport);
         return this;
     }
 
@@ -119,19 +111,19 @@ public class McpServerBuilder(string serverName, string serverVersion)
     public McpServer Build()
     {
         var context = _context ?? new McpServerContext();
-        
-        // 如果配置了 HTTP，添加到传输层列表
+        var transports = new List<HttpServerTransport>();
         if (_httpOptions is not null)
         {
-            _transports.Add(new HttpServerTransport(context, _httpOptions));
+            transports.Add(new HttpServerTransport(
+                context,
+                _httpOptions));
         }
-        
         var server = new McpServer
         {
             ServerName = serverName,
             ServerVersion = serverVersion,
             Context = context,
-            Transports = _transports,
+            Transports = transports,
             Tools = _tools,
             Resources = _resources,
         };
