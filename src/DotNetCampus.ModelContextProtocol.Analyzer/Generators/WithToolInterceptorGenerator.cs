@@ -54,9 +54,10 @@ public class WithToolInterceptorGenerator : IIncrementalGenerator
     /// </summary>
     private string GenerateInterceptorCode(Dictionary<ISymbol, List<WithToolInterceptorGeneratingModel>> modelGroups)
     {
-        using var builder = new SourceTextBuilder();
-
-        builder
+        using var builder = new SourceTextBuilder
+            {
+                RemoveIndentForPreprocessorLines = true,
+            }
             .AddNamespaceDeclaration("DotNetCampus.ModelContextProtocol.Compiler", n => n
                 .AddTypeDeclaration("file static class McpServerToolInterceptors", t =>
                 {

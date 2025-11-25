@@ -38,6 +38,9 @@ public class McpServerResourceGenerator : IIncrementalGenerator
     private void Execute(SourceProductionContext context, McpServerResourceGeneratingModel model)
     {
         using var builder = new SourceTextBuilder(model.Namespace)
+            {
+                RemoveIndentForPreprocessorLines = true,
+            }
             .Using("System")
             .Using("DotNetCampus.ModelContextProtocol.CompilerServices")
             .Using("DotNetCampus.ModelContextProtocol.Protocol.Messages")

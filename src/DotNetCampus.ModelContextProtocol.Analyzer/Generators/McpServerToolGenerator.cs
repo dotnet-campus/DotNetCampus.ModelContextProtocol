@@ -33,6 +33,9 @@ public class McpServerToolGenerator : IIncrementalGenerator
     private void Execute(SourceProductionContext context, McpServerToolGeneratingModel model)
     {
         using var builder = new SourceTextBuilder(model.Namespace)
+            {
+                RemoveIndentForPreprocessorLines = true,
+            }
             .Using("System.Text.Json")
             .Using("DotNetCampus.ModelContextProtocol.CompilerServices")
             .AddTypeDeclaration(

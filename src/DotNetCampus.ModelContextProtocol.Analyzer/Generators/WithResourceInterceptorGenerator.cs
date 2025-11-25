@@ -54,9 +54,10 @@ public class WithResourceInterceptorGenerator : IIncrementalGenerator
     /// </summary>
     private string GenerateInterceptorCode(Dictionary<ISymbol, List<WithResourceInterceptorGeneratingModel>> modelGroups)
     {
-        using var builder = new SourceTextBuilder();
-
-        builder
+        using var builder = new SourceTextBuilder
+            {
+                RemoveIndentForPreprocessorLines = true,
+            }
             .AddNamespaceDeclaration("DotNetCampus.ModelContextProtocol.Compiler", n => n
                 .AddTypeDeclaration("file static class McpServerResourceInterceptors", t =>
                 {
