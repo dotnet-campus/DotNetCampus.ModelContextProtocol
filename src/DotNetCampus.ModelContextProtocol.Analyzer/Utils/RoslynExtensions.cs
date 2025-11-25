@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -15,7 +16,7 @@ internal static class RoslynExtensions
     /// <remarks>
     /// 此方法解决了源生成器在用户未启用 GenerateDocumentationFile 时无法获取 XML 文档注释的问题。
     /// 参考：https://github.com/Cysharp/ConsoleAppFramework/blob/1b9df49d29b3b4ed60c538a54b3070e86d35a9b5/src/ConsoleAppFramework/RoslynExtensions.cs#L92
-    /// 
+    ///
     /// 原理：
     /// - ISymbol.GetDocumentationCommentXml() 需要 &lt;GenerateDocumentationFile&gt;true&lt;/&gt;
     /// - 获取 DocumentationCommentTrivia 也需要相同条件
@@ -79,7 +80,7 @@ internal static class RoslynExtensions
         var summary = docComment.Content.GetXmlElements("summary").FirstOrDefault() as XmlElementSyntax;
         if (summary == null) return null;
 
-        return summary.Content.ToString().Replace("///", "").Trim();
+        return ParseTextFromXmlNodeSyntaxList(summary.Content);
     }
 
     /// <summary>
@@ -94,10 +95,51 @@ internal static class RoslynExtensions
                 .FirstOrDefault()?
                 .Identifier.Identifier.ValueText ?? "";
 
-            var desc = item.Content.ToString().Replace("///", "").Trim();
+            var desc = ParseTextFromXmlNodeSyntaxList(item.Content);
 
             yield return (name, desc);
         }
+    }
+
+    /// <summary>
+    /// 从 XmlNodeSyntax 列表中解析文本内容。
+    /// </summary>
+    /// <param name="content">注释文本。</param>
+    /// <returns>解析后的纯文本。</returns>
+    private static string ParseTextFromXmlNodeSyntaxList(SyntaxList<XmlNodeSyntax> content)
+    {
+        var regex = new Regex(@"\s+///\s?(.*)");
+        var text = content.ToString();
+
+        // 按行拆分
+        IReadOnlyList<string> lines = text.Split(['\n'], StringSplitOptions.None);
+        if (lines.Count is 0 or 1)
+        {
+            return text.Trim();
+        }
+
+        // 去除每行开头的空格和 ///，去除行尾的 \r
+        var trimmedLines = lines.Select(line =>
+        {
+            line = line.TrimEnd('\r');
+            var match = regex.Match(line);
+            if (match is { Success: true, Groups.Count: > 1 })
+            {
+                return match.Groups[1].Value;
+            }
+            return line;
+        }).ToList();
+
+        // 删除首行和尾行的空行（如果是）
+        if (trimmedLines[^1].Length is 0)
+        {
+            trimmedLines.RemoveAt(trimmedLines.Count - 1);
+        }
+        if (trimmedLines[0].Length is 0)
+        {
+            trimmedLines.RemoveAt(0);
+        }
+        return string.Join("\n", trimmedLines);
     }
 
     /// <summary>

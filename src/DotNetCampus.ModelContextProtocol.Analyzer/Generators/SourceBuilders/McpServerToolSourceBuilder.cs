@@ -343,8 +343,8 @@ var {parameter.Name} = jsonArguments.TryGetProperty("{jsonName}", out var {param
             {
                 true => $"""""
                         """
-                            {stringValue}
-                            """
+                        {stringValue}
+                        """
                         """"",
                 false => $"\"{stringValue}\"",
             };
