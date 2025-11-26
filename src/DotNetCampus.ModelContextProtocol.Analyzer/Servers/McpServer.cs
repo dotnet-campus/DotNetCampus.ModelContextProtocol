@@ -4,8 +4,8 @@ public class McpServer;
 
 public class McpServerBuilder;
 
-public class McpServerToolsBuilder;
+public interface IMcpServerToolsBuilder;
 
-public class McpServerResourcesBuilder;
+public interface IMcpServerResourcesBuilder;
 
 public interface IMcpServerCallToolContext;

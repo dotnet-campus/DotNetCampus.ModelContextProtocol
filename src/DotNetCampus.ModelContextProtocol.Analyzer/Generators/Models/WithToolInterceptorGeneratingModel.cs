@@ -5,6 +5,7 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Operations;
+using G = DotNetCampus.ModelContextProtocol.GlobalTypeNames;
 
 namespace DotNetCampus.ModelContextProtocol.Generators.Models;
 
@@ -41,15 +42,15 @@ public record WithToolInterceptorGeneratingModel(
             return null;
         }
 
-        // 检查是否是 McpServerToolsBuilder.WithTool 方法
+        // 检查是否是 IMcpServerToolsBuilder.WithTool 方法
         var targetMethod = invocationOperation.TargetMethod;
         if (targetMethod.Name != "WithTool")
         {
             return null;
         }
 
-        // 检查是否定义在 McpServerToolsBuilder 类型中
-        if (targetMethod.ContainingType?.ToDisplayString() != "DotNetCampus.ModelContextProtocol.Servers.McpServerToolsBuilder")
+        // 检查是否定义在 IMcpServerToolsBuilder 类型中
+        if (targetMethod.ContainingType?.ToGlobalDisplayString() != G.IMcpServerToolsBuilder)
         {
             return null;
         }

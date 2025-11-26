@@ -24,8 +24,8 @@ internal static class GlobalTypeNames
     public const string JsonSerializerContext = "global::System.Text.Json.Serialization.JsonSerializerContext";
     public const string JsonTypeInfo = "global::System.Text.Json.Serialization.Metadata.JsonTypeInfo";
     public const string McpResourceNotFoundException = "global::DotNetCampus.ModelContextProtocol.Exceptions.McpResourceNotFoundException";
-    public const string McpServerResourcesBuilder = "global::DotNetCampus.ModelContextProtocol.Servers.McpServerResourcesBuilder";
-    public const string McpServerToolsBuilder = "global::DotNetCampus.ModelContextProtocol.Servers.McpServerToolsBuilder";
+    public const string IMcpServerResourcesBuilder = "global::DotNetCampus.ModelContextProtocol.Servers.IMcpServerResourcesBuilder";
+    public const string IMcpServerToolsBuilder = "global::DotNetCampus.ModelContextProtocol.Servers.IMcpServerToolsBuilder";
     public const string McpToolJsonTypeInfoNotFoundException = "global::DotNetCampus.ModelContextProtocol.Exceptions.McpToolJsonTypeInfoNotFoundException";
     public const string McpToolMissingRequiredArgumentException = "global::DotNetCampus.ModelContextProtocol.Exceptions.McpToolMissingRequiredArgumentException";
     public const string ReadResourceResult = "global::DotNetCampus.ModelContextProtocol.Protocol.Messages.ReadResourceResult";

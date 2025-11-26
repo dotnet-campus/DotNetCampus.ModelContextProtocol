@@ -1,4 +1,4 @@
-using DotNetCampus.ModelContextProtocol.Utils;
+using DotNetCampus.ModelContextProtocol.Hosting.Services;
 
 namespace DotNetCampus.ModelContextProtocol.Servers;
 
@@ -8,13 +8,13 @@ namespace DotNetCampus.ModelContextProtocol.Servers;
 /// <typeparam name="TParams">请求参数类型。</typeparam>
 public sealed class RequestContext<TParams>
 {
-    internal RequestContext(ScopedServiceProvider services, TParams? @params)
+    internal RequestContext(IServiceProvider services, TParams? @params)
     {
         Services = services;
         Params = @params;
     }
 
-    internal ScopedServiceProvider Services { get; }
+    internal IServiceProvider Services { get; }
 
     /// <summary>
     /// 获取请求参数。

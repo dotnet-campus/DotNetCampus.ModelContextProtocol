@@ -5,6 +5,7 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Operations;
+using G = DotNetCampus.ModelContextProtocol.GlobalTypeNames;
 
 namespace DotNetCampus.ModelContextProtocol.Generators.Models;
 
@@ -41,15 +42,15 @@ public record WithResourceInterceptorGeneratingModel(
             return null;
         }
 
-        // 检查是否是 McpServerResourcesBuilder.WithResource 方法
+        // 检查是否是 IMcpServerResourcesBuilder.WithResource 方法
         var targetMethod = invocationOperation.TargetMethod;
         if (targetMethod.Name != "WithResource")
         {
             return null;
         }
 
-        // 检查是否定义在 McpServerResourcesBuilder 类型中
-        if (targetMethod.ContainingType?.ToDisplayString() != "DotNetCampus.ModelContextProtocol.Servers.McpServerResourcesBuilder")
+        // 检查是否定义在 IMcpServerResourcesBuilder 类型中
+        if (targetMethod.ContainingType?.ToGlobalDisplayString() != G.IMcpServerResourcesBuilder)
         {
             return null;
         }

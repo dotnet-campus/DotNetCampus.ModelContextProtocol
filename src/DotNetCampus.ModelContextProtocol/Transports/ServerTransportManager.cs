@@ -1,0 +1,108 @@
+﻿using System.Collections.Concurrent;
+using System.Diagnostics.CodeAnalysis;
+using System.Text.Json;
+using DotNetCampus.ModelContextProtocol.CompilerServices;
+using DotNetCampus.ModelContextProtocol.Hosting.Services;
+using DotNetCampus.ModelContextProtocol.Protocol;
+using DotNetCampus.ModelContextProtocol.Protocol.Messages.JsonRpc;
+using DotNetCampus.ModelContextProtocol.Servers;
+using DotNetCampus.ModelContextProtocol.Utils;
+
+namespace DotNetCampus.ModelContextProtocol.Transports;
+
+internal class ServerTransportManager(McpServerContext context) : IServerTransportManager
+{
+    /// <summary>
+    /// 已注册的传输层集合。
+    /// </summary>
+    private readonly HashSet<IServerTransport> _transports = [];
+
+    /// <summary>
+    /// 当前正在使用的传输层会话集合。
+    /// </summary>
+    private readonly ConcurrentDictionary<string, IServerTransportSession> _sessions = [];
+
+    /// <summary>
+    /// 每次建立连接后，将注册一个候选的传输层会话工厂；后续处理请求时，会使用这些工厂创建传输层会话。
+    /// </summary>
+    private readonly ConcurrentDictionary<Type, Func<string, IServerTransportSession>> _candidateSessions = [];
+
+    /// <summary>
+    /// 桥接 MCP 协议的传输层与 MCP 协议的应用层。
+    /// </summary>
+    private readonly McpProtocolBridge _bridge = new(context);
+
+    public IServerTransportContext Context => context;
+
+    public bool Add(IServerTransport transport)
+    {
+        return _transports.Add(transport);
+    }
+
+    public async Task RunAsync(CancellationToken cancellationToken)
+    {
+        var runTasks = _transports
+            .Select(t => t.StartAsync(cancellationToken).Unwrap())
+            .ToList();
+        await Task.WhenAll(runTasks);
+    }
+
+    public string MakeNewSessionId()
+    {
+        var newSessionId = SessionId.MakeNew().Id;
+        while (_sessions.ContainsKey(newSessionId))
+        {
+            newSessionId = SessionId.MakeNew().Id;
+        }
+        return newSessionId;
+    }
+
+    public void Add(IServerTransportSession session)
+    {
+        // 多对一的传输层会话。
+        if (session.SessionId is { } sessionId)
+        {
+            var isAdded = _sessions.TryAdd(sessionId, session);
+            if (!isAdded)
+            {
+                throw new InvalidOperationException($"Session ID '{sessionId}' already exists.");
+            }
+            return;
+        }
+
+        // 一对一的传输层会话。
+        var noUseSessionId = MakeNewSessionId();
+        _sessions.AddOrUpdate(noUseSessionId, session, (_, _) => session);
+    }
+
+    public bool TryGetSession<T>(string sessionId, [NotNullWhen(true)] out T? session) where T : class, IServerTransportSession
+    {
+        if (_sessions.TryGetValue(sessionId, out var baseSession) && baseSession is T typedSession)
+        {
+            session = typedSession;
+            return true;
+        }
+
+        session = null;
+        return false;
+    }
+
+
+    public ValueTask<JsonRpcResponse?> HandleRequestAsync(JsonRpcRequest? request,
+        Action<IMcpServiceCollection>? additionalServices = null, CancellationToken cancellationToken = default)
+    {
+        var services = new ScopedServiceProvider(context.ServiceProvider);
+        additionalServices?.Invoke(services);
+        return _bridge.HandleRequestAsync(services, request, cancellationToken);
+    }
+
+    public async ValueTask<JsonRpcRequest?> ParseRequestStreamAsync(Stream inputStream)
+    {
+        var message = await JsonSerializer.DeserializeAsync(inputStream, McpServerRequestJsonContext.Default.JsonRpcRequest);
+        if (message is { Method: RequestMethods.Initialize, Id: null })
+        {
+            return message with { Id = MakeNewSessionId() };
+        }
+        return message;
+    }
+}

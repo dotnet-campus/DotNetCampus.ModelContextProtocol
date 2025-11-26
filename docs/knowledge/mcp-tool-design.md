@@ -87,7 +87,7 @@ public class MyTools
 **职责**：拦截用户代码中的 `WithTool<T>()` 调用，自动发现并为类型 `T` 中所有标记了 `[McpServerTool]` 的方法创建桥接实例。
 
 **工作原理**：
-1. 扫描所有 `McpServerToolsBuilder.WithTool<T>(...)` 调用
+1. 扫描所有 `IMcpServerToolsBuilder.WithTool<T>(...)` 调用
 2. 分析泛型参数 `T`，找出其中所有 `[McpServerTool]` 方法
 3. 为每个类型生成一个拦截方法
 4. 在拦截方法中创建所有工具桥接类实例

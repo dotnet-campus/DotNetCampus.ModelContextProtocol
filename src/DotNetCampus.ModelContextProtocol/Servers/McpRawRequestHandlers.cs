@@ -129,7 +129,7 @@ public class McpRawRequestHandlers(McpServer server)
         }
 
         // 更新服务器上下文中的日志级别
-        server.Context.ClientLoggingLevel = request.Params.Level;
+        server.Context.McpLoggingLevel = request.Params.Level;
 
         return default;
     }

@@ -92,8 +92,8 @@ file static class Extensions
         var simplifiedTypeName = NamingHelper.MakePascalCase(toolType.ToDisplayString());
 
         var signature = $"""
-            public static {G.McpServerToolsBuilder} WithTool_{simplifiedTypeName}<TMcpServerToolType>(
-                this {G.McpServerToolsBuilder} builder,
+            public static {G.IMcpServerToolsBuilder} WithTool_{simplifiedTypeName}<TMcpServerToolType>(
+                this {G.IMcpServerToolsBuilder} builder,
                 {G.Func}<TMcpServerToolType> toolFactory,
                 {G.CreationMode} creationMode = {G.CreationMode}.Singleton)
                 where TMcpServerToolType : class

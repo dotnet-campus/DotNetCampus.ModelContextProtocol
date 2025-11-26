@@ -11,7 +11,7 @@ internal static class InterceptorModelProvider
     extension(IncrementalGeneratorInitializationContext context)
     {
         /// <summary>
-        /// 查找所有的 <see cref="McpServerToolsBuilder"/>.WithTool 方法调用，并生成对应的 <see cref="WithToolInterceptorGeneratingModel"/>。
+        /// 查找所有的 <see cref="IMcpServerToolsBuilder"/>.WithTool 方法调用，并生成对应的 <see cref="WithToolInterceptorGeneratingModel"/>。
         /// </summary>
         public IncrementalValuesProvider<WithToolInterceptorGeneratingModel> SelectWithToolProvider() => context.SyntaxProvider.CreateSyntaxProvider(
                 predicate: static (node, _) => node is InvocationExpressionSyntax
@@ -26,7 +26,7 @@ internal static class InterceptorModelProvider
             .Select((model, ct) => model!);
 
         /// <summary>
-        /// 查找所有的 <see cref="McpServerResourcesBuilder"/>.WithResource 方法调用，并生成对应的 <see cref="WithResourceInterceptorGeneratingModel"/>。
+        /// 查找所有的 <see cref="IMcpServerResourcesBuilder"/>.WithResource 方法调用，并生成对应的 <see cref="WithResourceInterceptorGeneratingModel"/>。
         /// </summary>
         public IncrementalValuesProvider<WithResourceInterceptorGeneratingModel> SelectWithResourceProvider() => context.SyntaxProvider.CreateSyntaxProvider(
                 predicate: static (node, _) => node is InvocationExpressionSyntax

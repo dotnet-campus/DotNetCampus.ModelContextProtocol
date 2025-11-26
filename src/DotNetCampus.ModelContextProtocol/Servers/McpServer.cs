@@ -5,6 +5,17 @@
 /// </summary>
 public class McpServer
 {
+    private readonly McpServerContext _context;
+
+    /// <summary>
+    /// 初始化 <see cref="McpServer"/> 类的新实例。
+    /// </summary>
+    /// <param name="context">MCP 服务器的上下文信息。</param>
+    internal McpServer(McpServerContext context)
+    {
+        _context = context;
+    }
+
     /// <summary>
     /// 获取或初始化服务器名称。
     /// </summary>
@@ -23,12 +34,7 @@ public class McpServer
     /// <summary>
     /// 获取 MCP 服务器的上下文信息。
     /// </summary>
-    public required McpServerContext Context { get; init; }
-
-    /// <summary>
-    /// 获取用于处理 MCP 请求的传输集合。
-    /// </summary>
-    public required IReadOnlyList<HttpServerTransport> Transports { get; init; }
+    public IMcpServerContext Context => _context;
 
     /// <summary>
     /// 获取 MCP 服务器工具集合。
@@ -46,18 +52,15 @@ public class McpServer
     /// </summary>
     public void EnableDebugMode()
     {
-        Context.IsDebugMode = true;
+        _context.IsDebugMode = true;
     }
 
     /// <summary>
     /// 运行 MCP 服务器。此异步任务会一直运行，直到取消或程序退出为止。
     /// </summary>
     /// <param name="cancellationToken">用于取消运行的取消令牌。</param>
-    public async Task RunAsync(CancellationToken cancellationToken = default)
+    public Task RunAsync(CancellationToken cancellationToken = default)
     {
-        var runTasks = Transports
-            .Select(t => t.StartAsync(cancellationToken))
-            .ToList();
-        await Task.WhenAll(runTasks);
+        return _context.Transport.RunAsync(cancellationToken);
     }
 }

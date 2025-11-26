@@ -1,6 +1,8 @@
 ﻿using DotNetCampus.Logging;
 using DotNetCampus.Logging.Attributes;
 using DotNetCampus.Logging.Writers;
+using DotNetCampus.ModelContextProtocol.Hosting.Logging;
+using DotNetCampus.ModelContextProtocol.Protocol.Messages;
 using DotNetCampus.ModelContextProtocol.Servers;
 using DotNetCampus.SampleMcpServer.McpResources;
 using DotNetCampus.SampleMcpServer.McpTools;
@@ -22,7 +24,8 @@ internal class Program
             .IntoGlobalStaticLog();
 
         var mcpServer = new McpServerBuilder("SampleMcpServer", "1.0.0")
-            .WithHttp(5943, "mcp")
+            .WithLogger(new McpLoggerBridge(Log.Current))
+            .WithLocalHostHttp(5943, "mcp")
             .WithStdio()
             .WithJsonSerializer(McpToolJsonContext.Default)
             .WithRequestHandlers((s, d) => new McpRequestHandlers(s)
@@ -46,5 +49,34 @@ internal class Program
     }
 }
 
-[ImportLoggerBridge<DotNetCampus.ModelContextProtocol.Logging.ILoggerBridge>]
+[ImportLoggerBridge<IMcpLoggerBridge>]
 internal partial class LoggerBridgeLinker;
+
+internal class McpLoggerBridge(ILogger logger) : IMcpLogger
+{
+    public bool IsEnabled(LoggingLevel loggingLevel)
+    {
+        return logger.IsEnabled(loggingLevel.ToLogLevel());
+    }
+
+    public void Log<TState>(LoggingLevel loggingLevel, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
+    {
+        logger.Log(loggingLevel.ToLogLevel(), default, state, exception, formatter);
+    }
+}
+
+file static class LoggingExtensions
+{
+    extension(LoggingLevel level)
+    {
+        public LogLevel ToLogLevel() => level switch
+        {
+            LoggingLevel.Debug => LogLevel.Trace,
+            LoggingLevel.Info or LoggingLevel.Notice => LogLevel.Information,
+            LoggingLevel.Warning => LogLevel.Warning,
+            LoggingLevel.Error => LogLevel.Error,
+            LoggingLevel.Critical or LoggingLevel.Alert or LoggingLevel.Emergency => LogLevel.Critical,
+            _ => LogLevel.None,
+        };
+    }
+}
