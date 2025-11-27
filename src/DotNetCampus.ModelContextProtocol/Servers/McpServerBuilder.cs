@@ -6,6 +6,7 @@ using DotNetCampus.ModelContextProtocol.Hosting.Logging;
 using DotNetCampus.ModelContextProtocol.Protocol.Messages;
 using DotNetCampus.ModelContextProtocol.Transports;
 using DotNetCampus.ModelContextProtocol.Transports.Http;
+using DotNetCampus.ModelContextProtocol.Transports.Stdio;
 
 namespace DotNetCampus.ModelContextProtocol.Servers;
 
@@ -29,6 +30,7 @@ public class McpServerBuilder(string serverName, string serverVersion)
     /// <returns>用于链式调用的 MCP 服务器生成器。</returns>
     public McpServerBuilder WithStdio()
     {
+        _transportFactories.Add(m => new StdioServerTransport(m));
         return this;
     }
 

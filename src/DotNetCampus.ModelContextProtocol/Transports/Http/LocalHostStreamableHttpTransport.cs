@@ -48,16 +48,10 @@ public class LocalHostStreamableHttpTransport : IServerTransport
     }
 
     /// <inheritdoc />
-    public Task StopAsync(CancellationToken cancellationToken = default)
+    public ValueTask DisposeAsync()
     {
         _listener.Stop();
         Log.Info($"[McpServer][StreamableHttp] stopped listening");
-        return Task.CompletedTask;
-    }
-
-    /// <inheritdoc />
-    public ValueTask DisposeAsync()
-    {
         _listener.Close();
         return ValueTask.CompletedTask;
     }

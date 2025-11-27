@@ -18,8 +18,15 @@ public interface IServerTransportManager
     /// 立即启动所有已注册的传输层。
     /// </summary>
     /// <param name="cancellationToken">取消令牌。</param>
-    /// <returns>在所有的传输层已启动完毕后异步返回。</returns>
+    /// <returns>会一直等到所有的传输层已停止后异步返回。</returns>
     Task RunAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 立即停止所有已注册的传输层。
+    /// </summary>
+    /// <param name="cancellationToken">取消令牌。</param>
+    /// <returns>发起停止操作后异步返回。</returns>
+    Task StopAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
     /// 对于多对一的传输层，可调用此方法为每一个建立连接的客户端创建一个唯一的 Id。
@@ -43,6 +50,13 @@ public interface IServerTransportManager
     bool TryGetSession<T>(string sessionId, [NotNullWhen(true)] out T? session) where T : class, IServerTransportSession;
 
     /// <summary>
+    /// 提供给传输层调用。当传输层收到请求流后，调用此方法可以将请求流解析为 JSON-RPC 请求对象。
+    /// </summary>
+    /// <param name="inputStream">请求流。</param>
+    /// <returns>解析出来的 JSON-RPC 请求对象，如果无法解析则返回 <see langword="null"/>。</returns>
+    ValueTask<JsonRpcRequest?> ParseRequestStreamAsync(Stream inputStream);
+
+    /// <summary>
     /// 提供给传输层调用。当传输层收到请求后，调用此方法可以将请求交给 MCP 服务器进行处理。
     /// </summary>
     /// <param name="request">从传输层解析出来的 JSON-RPC 请求。</param>
@@ -53,6 +67,4 @@ public interface IServerTransportManager
     ValueTask<JsonRpcResponse?> HandleRequestAsync(JsonRpcRequest? request,
         Action<IMcpServiceCollection>? additionalServices = null,
         CancellationToken cancellationToken = default);
-
-    ValueTask<JsonRpcRequest?> ParseRequestStreamAsync(Stream inputStream);
 }

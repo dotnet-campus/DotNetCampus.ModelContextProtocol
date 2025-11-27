@@ -17,6 +17,7 @@ internal class Program
             .WithMemoryCache()
             .WithLevel(LogLevel.Trace)
             .AddConsoleLogger(b => b
+                .WithOutput(LoggerConsoleOutputTo.StandardError)
                 .WithThreadSafe(LogWritingThreadMode.ProducerConsumer)
                 .FilterConsoleTagsFromCommandLineArgs(args))
             .AddBridge(LoggerBridgeLinker.Default)
@@ -25,7 +26,7 @@ internal class Program
 
         var mcpServer = new McpServerBuilder("SampleMcpServer", "1.0.0")
             .WithLogger(new McpLoggerBridge(Log.Current))
-            .WithLocalHostHttp(5943, "mcp")
+            // .WithLocalHostHttp(5943, "mcp")
             .WithStdio()
             .WithJsonSerializer(McpToolJsonContext.Default)
             .WithRequestHandlers((s, d) => new McpRequestHandlers(s)
