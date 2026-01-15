@@ -49,11 +49,25 @@ public class McpServerBuilder(string serverName, string serverVersion)
     /// </remarks>
     public McpServerBuilder WithLocalHostHttp(int port, [StringSyntax("Route")] string endPoint)
     {
-        _transportFactories.Add(m => new LocalHostStreamableHttpTransport(m, new LocalHostHttpTransportOptions
+        return WithLocalHostHttp(new LocalHostHttpTransportOptions
         {
             Port = port,
             EndPoint = endPoint,
-        }));
+        });
+    }
+
+    /// <summary>
+    /// 允许此 MCP 服务器通过 HTTP 提供服务。
+    /// </summary>
+    /// <param name="options">HTTP 服务选项。</param>
+    /// <returns>用于链式调用的 MCP 服务器生成器。</returns>
+    /// <remarks>
+    /// 在无依赖的情况下，本 MCP 库只支持监听本机回环地址（localhost）的请求。<br/>
+    /// 如果需要监听其他地址，请安装 DotNetCampus.ModelContextProtocol.AspNetCore / DotNetCampus.ModelContextProtocol.TouchSocket 等包。
+    /// </remarks>
+    public McpServerBuilder WithLocalHostHttp(LocalHostHttpTransportOptions options)
+    {
+        _transportFactories.Add(m => new LocalHostStreamableHttpTransport(m, options));
         return this;
     }
 

@@ -30,11 +30,6 @@ public class LocalHostStreamableHttpTransportSession : IServerTransportSession
     public string SessionId { get; }
 
     /// <summary>
-    /// 是否使用无状态会话模式。
-    /// </summary>
-    public bool Stateless { get; init; }
-
-    /// <summary>
     /// 当会话被关闭时，此令牌将被取消。
     /// </summary>
     public CancellationToken CancellationToken => _cancellationTokenSource.Token;

@@ -4,6 +4,7 @@ using DotNetCampus.Logging.Writers;
 using DotNetCampus.ModelContextProtocol.Hosting.Logging;
 using DotNetCampus.ModelContextProtocol.Protocol.Messages;
 using DotNetCampus.ModelContextProtocol.Servers;
+using DotNetCampus.ModelContextProtocol.Transports.Http;
 using DotNetCampus.SampleMcpServer.McpResources;
 using DotNetCampus.SampleMcpServer.McpTools;
 
@@ -26,14 +27,14 @@ internal class Program
 
         var mcpServer = new McpServerBuilder("SampleMcpServer", "1.0.0")
             .WithLogger(new McpLoggerBridge(Log.Current))
-            // .WithLocalHostHttp(5943, "mcp")
-            .WithStdio()
-            .WithJsonSerializer(McpToolJsonContext.Default)
-            .WithRequestHandlers((s, d) => new McpRequestHandlers(s)
+            .WithLocalHostHttp(new LocalHostHttpTransportOptions
             {
-                ListToolsHandler = (request, token) => d.ListTools(request, token),
-                CallToolHandler = (request, token) => d.CallTool(request, token),
+                Port = 5943,
+                EndPoint = "mcp",
+                IsCompatibleWithSse = true,
             })
+            // .WithStdio()
+            .WithJsonSerializer(McpToolJsonContext.Default)
             .WithTools(t => t
                 .WithTool(() => new SampleTool())
                 .WithTool(() => new InputTool())

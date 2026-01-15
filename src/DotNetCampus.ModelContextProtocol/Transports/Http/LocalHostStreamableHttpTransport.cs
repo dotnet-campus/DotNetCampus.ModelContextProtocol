@@ -1,4 +1,6 @@
-﻿using System.Collections.Specialized;
+﻿using System.Collections.Concurrent;
+using System.Collections.Specialized;
+using System.Diagnostics;
 using System.Net;
 using System.Text;
 using System.Text.Json;
@@ -8,6 +10,7 @@ using DotNetCampus.ModelContextProtocol.Hosting.Services;
 using DotNetCampus.ModelContextProtocol.Protocol;
 using DotNetCampus.ModelContextProtocol.Protocol.Messages.JsonRpc;
 using DotNetCampus.ModelContextProtocol.Servers;
+using DotNetCampus.ModelContextProtocol.Utils;
 
 namespace DotNetCampus.ModelContextProtocol.Transports.Http;
 
@@ -19,6 +22,7 @@ public class LocalHostStreamableHttpTransport : IServerTransport
     private readonly IServerTransportManager _manager;
     private readonly LocalHostHttpTransportOptions _options;
     private readonly HttpListener _listener = new();
+    private readonly ConcurrentDictionary<string, LegacySseSession> _legacySseSessions = [];
 
     /// <summary>
     /// 初始化 <see cref="LocalHostStreamableHttpTransport"/> 类的新实例。
@@ -185,10 +189,7 @@ public class LocalHostStreamableHttpTransport : IServerTransport
         }
 
         Log.Info($"[McpServer][StreamableHttp][Mcp:{sessionId}] Establishing connection");
-        _manager.Add(new LocalHostStreamableHttpTransportSession(sessionId, context)
-        {
-            Stateless = _options.Stateless,
-        });
+        _manager.Add(new LocalHostStreamableHttpTransportSession(sessionId, context));
         return ValueTask.CompletedTask;
     }
 
@@ -370,17 +371,130 @@ public class LocalHostStreamableHttpTransport : IServerTransport
 
     #region MCP SSE 协议（仅限兼容）
 
+    /// <summary>
+    /// 处理旧协议（2024-11-05）的 SSE 连接。<br/>
+    /// 参考: <a href="https://modelcontextprotocol.io/specification/2024-11-05/basic/transports#http-with-sse">HTTP with SSE</a>
+    /// </summary>
     private async Task HandleLegacySseConnectionAsync(HttpListenerContext context)
     {
-        throw new NotImplementedException();
+        var sessionId = SessionId.MakeNew().Id;
+
+        context.Response.SetSseResponseHeaders();
+
+        var writer = new StreamWriter(context.Response.OutputStream, Encoding.UTF8) { AutoFlush = true };
+        var session = new LegacySseSession(sessionId, writer, new CancellationTokenSource());
+
+        if (!_legacySseSessions.TryAdd(sessionId, session))
+        {
+            throw new UnreachableException($"Session ID collision: '{sessionId}'");
+        }
+
+        Log.Info($"[McpServer][StreamableHttp][Legacy:Sse:{sessionId}] Connection established");
+
+        try
+        {
+            // 旧协议要求：发送 endpoint 事件告知客户端消息发送地址
+            await writer.WriteAsync($"id:{sessionId}\n");
+            await writer.WriteAsync($"event:endpoint\n");
+            await writer.WriteAsync($"data:{_options.SseMessageEndPoint}?sessionId={sessionId}\n\n");
+
+            await Task.Delay(Timeout.Infinite, session.CancellationToken.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            // 正常关闭
+        }
+        catch (Exception ex)
+        {
+            Log.Warn($"[McpServer][StreamableHttp][Legacy:Sse:{sessionId}] Connection error", ex);
+        }
+        finally
+        {
+            _legacySseSessions.TryRemove(sessionId, out _);
+            Log.Info($"[McpServer][StreamableHttp][Legacy:Sse:{sessionId}] Connection closed");
+            await writer.DisposeAsync();
+        }
     }
 
+    /// <summary>
+    /// 处理旧协议（2024-11-05）的消息请求（通过 query string 传递 sessionId）。<br/>
+    /// 参考: <a href="https://modelcontextprotocol.io/specification/2024-11-05/basic/transports#http-with-sse">HTTP with SSE</a>
+    /// </summary>
     private async Task HandleLegacyMessageRequestAsync(HttpListenerContext context)
     {
-        throw new NotImplementedException();
+        var sessionId = context.Request.QueryString["sessionId"];
+
+        if (string.IsNullOrEmpty(sessionId))
+        {
+            Log.Debug($"[McpServer][StreamableHttp][Legacy:Message] Missing sessionId parameter");
+            context.RespondHttpError(HttpStatusCode.BadRequest, "Missing sessionId parameter");
+            return;
+        }
+
+        if (!_legacySseSessions.TryGetValue(sessionId, out var session))
+        {
+            Log.Debug($"[McpServer][StreamableHttp][Legacy:Message:{sessionId}] Session not found");
+            context.RespondHttpError(HttpStatusCode.BadRequest, $"Session not found: {sessionId}");
+            return;
+        }
+
+        if (session.Writer is null)
+        {
+            Log.Debug($"[McpServer][StreamableHttp][Legacy:Message:{sessionId}] Session has no active SSE connection");
+            context.RespondHttpError(HttpStatusCode.BadRequest, $"Session has no active SSE connection: {sessionId}");
+            return;
+        }
+
+        try
+        {
+            var message = await _manager.ParseRequestAsync(context.Request.InputStream);
+            if (message is null)
+            {
+                Log.Debug($"[McpServer][StreamableHttp][Legacy:Message:{sessionId}] Invalid JSON-RPC message");
+                context.RespondHttpError(HttpStatusCode.BadRequest, "Invalid JSON-RPC message");
+                return;
+            }
+
+            Log.Debug($"[McpServer][StreamableHttp][Legacy:Message:{sessionId}][{message.Method}][Request] Handling message[{message.Id}]");
+            var response = await _manager.HandleRequestAsync(message,
+                s => s.AddHttpTransportServices(sessionId, context.Request.Headers));
+
+            // Notification：不返回内容
+            // Request：返回 SSE 消息
+            if (response is not null)
+            {
+                Log.Debug(
+                    $"[McpServer][StreamableHttp][Legacy:Message:{sessionId}][{message.Method}][Response] Sending SSE response for message[{message.Id}]");
+                await session.Writer.WriteAsync("event:message\n");
+                var responseText = JsonSerializer.Serialize(response, McpServerResponseJsonContext.Default.JsonRpcResponse);
+                await session.Writer.WriteAsync($"data:{responseText}\n\n");
+                context.RespondHttpSuccess(HttpStatusCode.OK);
+            }
+            else
+            {
+                // Notification：根据 MCP 协议，必须返回 202 Accepted
+                Log.Debug($"[McpServer][StreamableHttp][Legacy:Message:{sessionId}][{message.Method}][Response] Notification received, returning 202 Accepted");
+                context.RespondHttpSuccess(HttpStatusCode.Accepted);
+            }
+        }
+        catch (JsonException ex)
+        {
+            Log.Error($"[McpServer][StreamableHttp][Legacy:Message:{sessionId}] JSON parsing error", ex);
+            context.RespondHttpError(HttpStatusCode.BadRequest, "Invalid JSON");
+        }
+        catch (Exception ex)
+        {
+            Log.Error($"[McpServer][StreamableHttp][Legacy:Message:{sessionId}] Request handling error", ex);
+            context.RespondHttpError(HttpStatusCode.InternalServerError);
+        }
     }
 
     #endregion
+
+    /// <summary>
+    /// 旧协议（2024-11-05）SSE 会话信息。
+    /// </summary>
+    private readonly record struct LegacySseSession(string SessionId, StreamWriter? Writer, CancellationTokenSource CancellationToken);
 }
 
 file static class Extensions

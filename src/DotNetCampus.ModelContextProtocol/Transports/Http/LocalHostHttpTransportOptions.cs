@@ -10,7 +10,7 @@ public record LocalHostHttpTransportOptions
     /// <summary>
     /// 指定用于传输的端口号。
     /// </summary>
-    public int Port { get; init; } = 5000;
+    public required int Port { get; init; }
 
     /// <summary>
     /// 指定用于传输的端点。
@@ -20,13 +20,6 @@ public record LocalHostHttpTransportOptions
         get => field ??= "/mcp";
         init => field = value.StartsWith('/') ? value : "/" + value;
     }
-
-    /// <summary>
-    /// 是否使用无状态会话模式。<br/>
-    /// MCP 协议要求全双工通信，为了使 HTTP 支持这一点，MCP 服务器需要保留一个长连接；这就要求服务器维护会话状态。<br/>
-    /// 但如果你的应用场景允许，可以选择无状态会话模式；此时客户端无需提前连接即可使用此 MCP 服务器的功能，但所有服务端向客户端的发送消息的功能都将被禁用。
-    /// </summary>
-    public bool Stateless { get; init; }
 
     /// <summary>
     /// 按照 MCP 官方协议规范对传输层的要求：<br/>
