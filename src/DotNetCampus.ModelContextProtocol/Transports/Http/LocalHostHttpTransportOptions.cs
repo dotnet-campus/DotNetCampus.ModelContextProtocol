@@ -29,6 +29,15 @@ public record LocalHostHttpTransportOptions
     public bool Stateless { get; init; }
 
     /// <summary>
+    /// 按照 MCP 官方协议规范对传输层的要求：<br/>
+    /// 服务器必须验证所有传入连接的 Origin 标头，以防止 DNS 重绑定攻击。<br/>
+    /// Servers MUST validate the Origin header on all incoming connections to prevent DNS rebinding attacks<br/>
+    /// 当启用时，会验证 Host 和 Origin header，拒绝非本机来源的请求。<br/>
+    /// 默认值：true（推荐）。
+    /// </summary>
+    public bool EnableDnsRebindingProtection { get; init; } = true;
+
+    /// <summary>
     /// 指定是否兼容旧的 SSE传输层协议（2024-11-05）。
     /// </summary>
     [MemberNotNullWhen(true, nameof(SseEndPoint), nameof(SseMessageEndPoint))]

@@ -109,6 +109,15 @@ public class LocalHostStreamableHttpTransport : IServerTransport
             return;
         }
 
+        // 请求安全性验证。
+        var validationError = ValidateRequest(context);
+        if (validationError.HasValue)
+        {
+            Log.Warn($"[McpServer][StreamableHttp][Http] Request validation failed: {validationError.Value.statusCode} - {validationError.Value.message}");
+            context.RespondHttpError(validationError.Value.statusCode, validationError.Value.message);
+            return;
+        }
+
         context.Response.SetCorsHeaders();
 
         if (context.Request.HttpMethod == "OPTIONS")
@@ -251,6 +260,110 @@ public class LocalHostStreamableHttpTransport : IServerTransport
         await session.DisposeAsync();
         Log.Info($"[McpServer][StreamableHttp][Mcp:{sessionId}] Disconnected");
         context.RespondHttpSuccess(HttpStatusCode.OK);
+    }
+
+    /// <summary>
+    /// 按照 MCP 官方协议规范对传输层的要求：<br/>
+    /// 服务器必须验证所有传入连接的 Origin 标头，以防止 DNS 重绑定攻击。<br/>
+    /// Servers MUST validate the Origin header on all incoming connections to prevent DNS rebinding attacks<br/>
+    /// </summary>
+    /// <returns>如果验证失败，返回错误状态码和消息；否则返回 <see langword="null"/>。</returns>
+    private (HttpStatusCode statusCode, string message)? ValidateRequest(HttpListenerContext context)
+    {
+        var request = context.Request;
+        var isPost = request.HttpMethod == "POST";
+
+        // 1. 验证 Content-Type（所有 POST 请求都需要）
+        if (isPost)
+        {
+            var contentType = request.ContentType;
+            if (!ValidateContentType(contentType))
+            {
+                return (HttpStatusCode.BadRequest, "Invalid Content-Type header. Expected: application/json");
+            }
+        }
+
+        // 2. DNS 重绑定防护（可选，默认启用）
+        // Skip remaining validation if DNS rebinding protection is disabled
+        if (!_options.EnableDnsRebindingProtection)
+        {
+            return null;
+        }
+
+        // 3. 验证 Host header
+        // Validate Host header to prevent DNS rebinding attacks
+        var host = request.Headers["Host"];
+        if (!ValidateHost(host))
+        {
+            return (HttpStatusCode.MisdirectedRequest, "Invalid Host header. Expected: localhost, 127.0.0.1, or [::1]");
+        }
+
+        // 4. 验证 Origin header（MCP 2025-11-25 新增要求，PR #1439）
+        // Validate Origin header - servers must respond with HTTP 403 Forbidden for invalid Origin headers
+        var origin = request.Headers["Origin"];
+        if (!ValidateOrigin(origin))
+        {
+            return (HttpStatusCode.Forbidden, "Invalid Origin header. Expected: null or localhost origins");
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// 验证 Content-Type 是否为 application/json。
+    /// </summary>
+    private static bool ValidateContentType(string? contentType)
+    {
+        if (string.IsNullOrWhiteSpace(contentType))
+        {
+            return false;
+        }
+
+        // 支持 "application/json" 和 "application/json; charset=utf-8" 等格式。
+        return contentType.StartsWith("application/json", StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// 验证 Host header 是否为本机地址（防止 DNS 重绑定攻击）。
+    /// </summary>
+    private bool ValidateHost(string? host)
+    {
+        if (string.IsNullOrWhiteSpace(host))
+        {
+            return false;
+        }
+
+        // 移除端口号进行比较。
+        var hostWithoutPort = host.Split(':')[0];
+        return hostWithoutPort.Equals("localhost", StringComparison.OrdinalIgnoreCase)
+               || hostWithoutPort.Equals("127.0.0.1", StringComparison.Ordinal)
+               || hostWithoutPort.Equals("[::1]", StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// 验证 Origin header 是否为本机来源（防止跨域攻击）。<br/>
+    /// 按照 MCP 官方协议规范对传输层的要求：<br/>
+    /// 如果 Origin 标头存在但无效，服务器必须返回 HTTP 403 Forbidden 错误。HTTP 响应正文可以包含一个没有 id 的 JSON-RPC 错误响应。<br/>
+    /// If the Origin header is present and invalid, servers MUST respond with HTTP 403 Forbidden. The HTTP response body MAY comprise a JSON-RPC error response that has no id.<br/>
+    /// </summary>
+    private static bool ValidateOrigin(string? origin)
+    {
+        // Origin header 为空或 null 是允许的（非浏览器客户端）。
+        if (string.IsNullOrWhiteSpace(origin))
+        {
+            return true;
+        }
+
+        // "null" 是浏览器在某些情况下发送的特殊值（例如 file:// 协议）。
+        if (origin.Equals("null", StringComparison.Ordinal))
+        {
+            return true;
+        }
+
+        // 验证是否为本机 Origin。
+        return origin.StartsWith("http://localhost", StringComparison.OrdinalIgnoreCase)
+               || origin.StartsWith("http://127.0.0.1", StringComparison.Ordinal)
+               || origin.StartsWith("http://[::1]", StringComparison.Ordinal);
     }
 
     #endregion
