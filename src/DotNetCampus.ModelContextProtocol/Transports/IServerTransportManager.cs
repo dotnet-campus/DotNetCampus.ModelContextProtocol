@@ -50,11 +50,24 @@ public interface IServerTransportManager
     bool TryGetSession<T>(string sessionId, [NotNullWhen(true)] out T? session) where T : class, IServerTransportSession;
 
     /// <summary>
+    /// 提供给传输层调用。当传输层收到请求字符串行后，调用此方法可以将请求流解析为 JSON-RPC 请求对象。
+    /// </summary>
+    /// <param name="inputMessageText">请求字符串行。</param>
+    /// <returns>解析出来的 JSON-RPC 请求对象，如果无法解析则返回 <see langword="null"/>。</returns>
+    /// <remarks>
+    /// 如果解析失败，此方法会暴露底层的任何解析异常，传输层需处理好此异常（说明请求消息不正确）。
+    /// </remarks>
+    ValueTask<JsonRpcRequest?> ParseRequestAsync(string inputMessageText);
+
+    /// <summary>
     /// 提供给传输层调用。当传输层收到请求流后，调用此方法可以将请求流解析为 JSON-RPC 请求对象。
     /// </summary>
     /// <param name="inputStream">请求流。</param>
     /// <returns>解析出来的 JSON-RPC 请求对象，如果无法解析则返回 <see langword="null"/>。</returns>
-    ValueTask<JsonRpcRequest?> ParseRequestStreamAsync(Stream inputStream);
+    /// <remarks>
+    /// 如果解析失败，此方法会暴露底层的任何解析异常，传输层需处理好此异常（说明请求消息不正确或连接关闭等）。
+    /// </remarks>
+    ValueTask<JsonRpcRequest?> ParseRequestAsync(Stream inputStream);
 
     /// <summary>
     /// 提供给传输层调用。当传输层收到请求后，调用此方法可以将请求交给 MCP 服务器进行处理。

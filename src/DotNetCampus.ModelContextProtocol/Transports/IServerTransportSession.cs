@@ -1,5 +1,4 @@
-﻿using System.Threading.Channels;
-using DotNetCampus.ModelContextProtocol.Protocol.Messages.JsonRpc;
+﻿using DotNetCampus.ModelContextProtocol.Protocol.Messages.JsonRpc;
 
 namespace DotNetCampus.ModelContextProtocol.Transports;
 
@@ -14,11 +13,6 @@ public interface IServerTransportSession : IAsyncDisposable
     /// 而在实质上多对一的传输层（如 http）中，该值为用于唯一区分某个客户端连接的 Id。
     /// </summary>
     string? SessionId { get; }
-
-    /// <summary>
-    /// 用于接收来自其他端消息的通道读取器。
-    /// </summary>
-    ChannelReader<JsonRpcMessage> MessageReader { get; }
 
     /// <summary>
     /// 将消息发送给其他端。

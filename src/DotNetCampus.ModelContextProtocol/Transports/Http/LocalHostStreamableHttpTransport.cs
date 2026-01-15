@@ -194,7 +194,7 @@ public class LocalHostStreamableHttpTransport : IServerTransport
 
     private async ValueTask HandleStreamableHttpMessageAsync(HttpListenerContext context)
     {
-        var message = await _manager.ParseRequestStreamAsync(context.Request.InputStream);
+        var message = await _manager.ParseRequestAsync(context.Request.InputStream);
         if (message?.Method is not { } method)
         {
             Log.Warn($"[McpServer][StreamableHttp][Mcp:no-mcp-session-id] Invalid JSON-RPC message received");

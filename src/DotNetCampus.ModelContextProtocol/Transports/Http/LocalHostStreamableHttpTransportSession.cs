@@ -1,6 +1,5 @@
 ﻿using System.Net;
 using System.Text;
-using System.Threading.Channels;
 using DotNetCampus.ModelContextProtocol.Protocol.Messages.JsonRpc;
 
 namespace DotNetCampus.ModelContextProtocol.Transports.Http;
@@ -39,9 +38,6 @@ public class LocalHostStreamableHttpTransportSession : IServerTransportSession
     /// 当会话被关闭时，此令牌将被取消。
     /// </summary>
     public CancellationToken CancellationToken => _cancellationTokenSource.Token;
-
-    /// <inheritdoc />
-    public ChannelReader<JsonRpcMessage> MessageReader { get; }
 
     /// <inheritdoc />
     public Task SendMessageAsync(JsonRpcMessage message, CancellationToken cancellationToken = default)

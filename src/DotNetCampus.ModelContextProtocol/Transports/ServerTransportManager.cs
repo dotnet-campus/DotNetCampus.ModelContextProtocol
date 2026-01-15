@@ -105,7 +105,17 @@ internal class ServerTransportManager(McpServerContext context) : IServerTranspo
         return _bridge.HandleRequestAsync(services, request, cancellationToken);
     }
 
-    public async ValueTask<JsonRpcRequest?> ParseRequestStreamAsync(Stream inputStream)
+    public ValueTask<JsonRpcRequest?> ParseRequestAsync(string inputMessageText)
+    {
+        var message = JsonSerializer.Deserialize(inputMessageText, McpServerRequestJsonContext.Default.JsonRpcRequest);
+        if (message is { Method: RequestMethods.Initialize, Id: null })
+        {
+            return ValueTask.FromResult<JsonRpcRequest?>(message with { Id = MakeNewSessionId() });
+        }
+        return ValueTask.FromResult<JsonRpcRequest?>(message);
+    }
+
+    public async ValueTask<JsonRpcRequest?> ParseRequestAsync(Stream inputStream)
     {
         var message = await JsonSerializer.DeserializeAsync(inputStream, McpServerRequestJsonContext.Default.JsonRpcRequest);
         if (message is { Method: RequestMethods.Initialize, Id: null })
