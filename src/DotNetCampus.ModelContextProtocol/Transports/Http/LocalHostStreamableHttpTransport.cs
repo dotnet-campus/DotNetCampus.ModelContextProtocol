@@ -274,7 +274,7 @@ public class LocalHostStreamableHttpTransport : IServerTransport
         var request = context.Request;
         var isPost = request.HttpMethod == "POST";
 
-        // 1. 验证 Content-Type（所有 POST 请求都需要）
+        // 1. 验证 Content-Type（所有 POST 请求都需要）。
         if (isPost)
         {
             var contentType = request.ContentType;
@@ -284,23 +284,23 @@ public class LocalHostStreamableHttpTransport : IServerTransport
             }
         }
 
-        // 2. DNS 重绑定防护（可选，默认启用）
-        // Skip remaining validation if DNS rebinding protection is disabled
+        // 2. DNS 重绑定防护（可选，默认启用）。
+        // Skip remaining validation if DNS rebinding protection is disabled.
         if (!_options.EnableDnsRebindingProtection)
         {
             return null;
         }
 
-        // 3. 验证 Host header
-        // Validate Host header to prevent DNS rebinding attacks
+        // 3. 验证 Host header。
+        // Validate Host header to prevent DNS rebinding attacks.
         var host = request.Headers["Host"];
         if (!ValidateHost(host))
         {
             return (HttpStatusCode.MisdirectedRequest, "Invalid Host header. Expected: localhost, 127.0.0.1, or [::1]");
         }
 
-        // 4. 验证 Origin header（MCP 2025-11-25 新增要求，PR #1439）
-        // Validate Origin header - servers must respond with HTTP 403 Forbidden for invalid Origin headers
+        // 4. 验证 Origin header（MCP 2025-11-25 新增要求，PR #1439）。
+        // Validate Origin header - servers must respond with HTTP 403 Forbidden for invalid Origin headers.
         var origin = request.Headers["Origin"];
         if (!ValidateOrigin(origin))
         {
@@ -393,7 +393,7 @@ public class LocalHostStreamableHttpTransport : IServerTransport
 
         try
         {
-            // 旧协议要求：发送 endpoint 事件告知客户端消息发送地址
+            // 旧协议要求：发送 endpoint 事件告知客户端消息发送地址。
             await writer.WriteAsync($"id:{sessionId}\n");
             await writer.WriteAsync($"event:endpoint\n");
             await writer.WriteAsync($"data:{_options.SseMessageEndPoint}?sessionId={sessionId}\n\n");
@@ -459,8 +459,8 @@ public class LocalHostStreamableHttpTransport : IServerTransport
             var response = await _manager.HandleRequestAsync(message,
                 s => s.AddHttpTransportServices(sessionId, context.Request.Headers));
 
-            // Notification：不返回内容
-            // Request：返回 SSE 消息
+            // Notification：不返回内容。
+            // Request：返回 SSE 消息。
             if (response is not null)
             {
                 Log.Debug(
@@ -472,7 +472,7 @@ public class LocalHostStreamableHttpTransport : IServerTransport
             }
             else
             {
-                // Notification：根据 MCP 协议，必须返回 202 Accepted
+                // Notification：根据 MCP 协议，必须返回 202 Accepted。
                 Log.Debug($"[McpServer][StreamableHttp][Legacy:Message:{sessionId}][{message.Method}][Response] Notification received, returning 202 Accepted");
                 context.RespondHttpSuccess(HttpStatusCode.Accepted);
             }

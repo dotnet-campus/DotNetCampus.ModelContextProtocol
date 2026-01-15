@@ -37,12 +37,12 @@ public record LocalHostHttpTransportOptions
     public bool IsCompatibleWithSse { get; init; }
 
     /// <summary>
-    /// SSE endpoint - 用于旧协议 HTTP+SSE (2024-11-05) 兼容
+    /// SSE endpoint - 用于旧协议 HTTP+SSE (2024-11-05) 兼容。
     /// </summary>
     public string? SseEndPoint => IsCompatibleWithSse ? $"{EndPoint}/sse" : null;
 
     /// <summary>
-    /// Message endpoint - 用于旧协议 HTTP+SSE (2024-11-05) 兼容
+    /// Message endpoint - 用于旧协议 HTTP+SSE (2024-11-05) 兼容。
     /// </summary>
     public string? SseMessageEndPoint => IsCompatibleWithSse ? $"{EndPoint}/messages" : null;
 
