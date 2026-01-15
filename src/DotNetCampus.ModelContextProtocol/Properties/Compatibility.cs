@@ -2,6 +2,20 @@
 
 #if NET7_0_OR_GREATER
 #else
+namespace System.IO
+{
+    internal static class CompatibilityExtensions
+    {
+        extension(StreamReader reader)
+        {
+            internal async ValueTask<string?> ReadLineAsync(CancellationToken cancellationToken)
+            {
+                return await reader.ReadLineAsync();
+            }
+        }
+    }
+}
+
 namespace System.Diagnostics
 {
     internal sealed class UnreachableException : Exception

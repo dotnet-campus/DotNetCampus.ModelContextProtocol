@@ -44,8 +44,9 @@ public class StdioServerTransport : IServerTransport
 
         Log.Info($"[McpServer][Stdio] Starting STDIO server transport.");
 
-        var input = new StreamReader(Console.OpenStandardInput(), Encoding.UTF8);
-        var output = new StreamWriter(Console.OpenStandardOutput(), Encoding.UTF8) { AutoFlush = true, NewLine = "\n" };
+        var utf8 = new UTF8Encoding(false);
+        var input = new StreamReader(Console.OpenStandardInput(), utf8);
+        var output = new StreamWriter(Console.OpenStandardOutput(), utf8) { AutoFlush = true, NewLine = "\n" };
         _consoleStreams = (input, output);
         _manager.Add(_session);
 
@@ -99,6 +100,7 @@ public class StdioServerTransport : IServerTransport
             if (response is null)
             {
                 // 按照 MCP 协议规范，本次请求仅需响应而无需回复。
+                await output.WriteLineAsync();
                 continue;
             }
 
@@ -127,12 +129,4 @@ file static class Extensions
         await JsonSerializer.SerializeAsync(writer.BaseStream, response, McpServerResponseJsonContext.Default.JsonRpcResponse, cancellationToken);
         await writer.WriteLineAsync();
     }
-
-#if !NET7_0_OR_GREATER
-    // ReSharper disable once UnusedParameter.Local
-    internal static async ValueTask<string?> ReadLineAsync(this StreamReader reader, CancellationToken cancellationToken)
-    {
-        return await reader.ReadLineAsync();
-    }
-#endif
 }
