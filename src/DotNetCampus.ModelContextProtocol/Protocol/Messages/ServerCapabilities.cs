@@ -54,6 +54,14 @@ public record ServerCapabilities
     public JsonElement? Completions { get; init; }
 
     /// <summary>
+    /// 如果存在，表示服务器支持任务系统。<br/>
+    /// Present if the server supports task system.
+    /// </summary>
+    [JsonPropertyName("tasks")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public TasksServerCapability? Tasks { get; init; }
+
+    /// <summary>
     /// 服务端支持的实验性、非标准能力。<br/>
     /// Experimental, non-standard capabilities that the server supports.
     /// </summary>

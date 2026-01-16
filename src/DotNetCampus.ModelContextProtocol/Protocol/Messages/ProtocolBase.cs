@@ -15,7 +15,7 @@ public abstract record RequestParams
 
     /// <summary>
     /// 元数据字段<br/>
-    /// See <a href="https://modelcontextprotocol.io/specification/2025-06-18/basic/index#meta">
+    /// See <a href="https://modelcontextprotocol.io/specification/2025-11-25/basic/index#meta">
     /// General fields: _meta</a> for notes on _meta usage.
     /// </summary>
     [JsonPropertyName("_meta")]
@@ -35,7 +35,7 @@ public abstract record Result
 
     /// <summary>
     /// 元数据字段<br/>
-    /// See <a href="https://modelcontextprotocol.io/specification/2025-06-18/basic/index#meta">
+    /// See <a href="https://modelcontextprotocol.io/specification/2025-11-25/basic/index#meta">
     /// General fields: _meta</a> for notes on _meta usage.
     /// </summary>
     [JsonPropertyName("_meta")]
@@ -81,4 +81,23 @@ public abstract record PaginatedResult : Result
     [JsonPropertyName("nextCursor")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? NextCursor { get; init; }
+}
+
+/// <summary>
+/// 支持任务增强的请求参数基类<br/>
+/// Base class for task-augmented request parameters
+/// </summary>
+public abstract record TaskAugmentedRequestParams : RequestParams
+{
+    private protected TaskAugmentedRequestParams()
+    {
+    }
+
+    /// <summary>
+    /// 可选的任务元数据，用于将此请求与长时间运行的任务关联。<br/>
+    /// Optional task metadata to associate this request with a long-running task.
+    /// </summary>
+    [JsonPropertyName("task")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public TaskMetadata? Task { get; init; }
 }

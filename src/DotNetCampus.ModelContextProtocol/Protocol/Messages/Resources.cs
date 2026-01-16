@@ -48,6 +48,14 @@ public sealed record Resource : IBaseMetadata
     public string? Description { get; init; }
 
     /// <summary>
+    /// 图标列表<br/>
+    /// List of icons
+    /// </summary>
+    [JsonPropertyName("icons")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public IList<Icon>? Icons { get; init; }
+
+    /// <summary>
     /// 此资源的 MIME 类型（如果已知）。<br/>
     /// The MIME type of this resource, if known.
     /// </summary>
@@ -76,7 +84,7 @@ public sealed record Resource : IBaseMetadata
 
     /// <summary>
     /// 元数据字段<br/>
-    /// See <a href="https://modelcontextprotocol.io/specification/2025-06-18/basic/index#meta">
+    /// See <a href="https://modelcontextprotocol.io/specification/2025-11-25/basic/index#meta">
     /// General fields: _meta</a> for notes on _meta usage.
     /// </summary>
     [JsonPropertyName("_meta")]
@@ -148,7 +156,7 @@ public sealed record ResourceTemplate : IBaseMetadata
 
     /// <summary>
     /// 元数据字段<br/>
-    /// See <a href="https://modelcontextprotocol.io/specification/2025-06-18/basic/index#meta">
+    /// See <a href="https://modelcontextprotocol.io/specification/2025-11-25/basic/index#meta">
     /// General fields: _meta</a> for notes on _meta usage.
     /// </summary>
     [JsonPropertyName("_meta")]

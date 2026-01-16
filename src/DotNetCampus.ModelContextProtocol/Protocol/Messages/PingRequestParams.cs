@@ -1,4 +1,4 @@
-﻿namespace DotNetCampus.ModelContextProtocol.Protocol.Messages;
+namespace DotNetCampus.ModelContextProtocol.Protocol.Messages;
 
 /// <summary>
 /// Ping 请求参数<br/>

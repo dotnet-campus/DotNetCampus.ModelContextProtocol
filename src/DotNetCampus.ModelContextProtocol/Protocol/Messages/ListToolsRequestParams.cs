@@ -1,4 +1,4 @@
-﻿namespace DotNetCampus.ModelContextProtocol.Protocol.Messages;
+namespace DotNetCampus.ModelContextProtocol.Protocol.Messages;
 
 /// <summary>
 /// 列出工具请求参数<br/>

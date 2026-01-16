@@ -44,8 +44,8 @@ src/DotNetCampus.ModelContextProtocol/
 - **协议消息类型规范**：详见 [/docs/knowledge/protocol-messages-guide.md](../docs/knowledge/protocol-messages-guide.md)
   - 所有 Protocol 消息类型必须添加中英双语注释
   - 英文注释必须使用 MCP 官方 Schema 原文
-  - 当前使用协议版本：**2025-06-18**
-  - Schema 文件：[schema.ts](https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/schema/2025-06-18/schema.ts)
+  - 当前使用协议版本：**2025-11-25**
+  - Schema 文件：[schema.ts](https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/schema/2025-11-25/schema.ts)
 
 ### 3. 源代码生成
 

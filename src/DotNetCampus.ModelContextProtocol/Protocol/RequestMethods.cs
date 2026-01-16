@@ -165,4 +165,40 @@ public static class RequestMethods
     /// The server SHOULD NOT send requests other than pings and logging before receiving this notification.
     /// </remarks>
     public const string NotificationsInitialized = "notifications/initialized";
+
+    /// <summary>
+    /// 获取任务详情的请求方法名称。<br/>
+    /// The name of the request method to get task details.
+    /// </summary>
+    public const string TasksGet = "tasks/get";
+
+    /// <summary>
+    /// 获取任务执行结果的请求方法名称。<br/>
+    /// The name of the request method to get task execution result.
+    /// </summary>
+    public const string TasksResult = "tasks/result";
+
+    /// <summary>
+    /// 取消任务的请求方法名称。<br/>
+    /// The name of the request method to cancel a task.
+    /// </summary>
+    public const string TasksCancel = "tasks/cancel";
+
+    /// <summary>
+    /// 列出任务的请求方法名称。<br/>
+    /// The name of the request method to list tasks.
+    /// </summary>
+    public const string TasksList = "tasks/list";
+
+    /// <summary>
+    /// 任务状态更新通知的方法名称。<br/>
+    /// The name of the notification method for task status updates.
+    /// </summary>
+    public const string NotificationsTasksStatus = "notifications/tasks/status";
+
+    /// <summary>
+    /// 引出完成通知的方法名称。<br/>
+    /// The name of the notification method for elicitation completion.
+    /// </summary>
+    public const string NotificationsElicitationComplete = "notifications/elicitation/complete";
 }

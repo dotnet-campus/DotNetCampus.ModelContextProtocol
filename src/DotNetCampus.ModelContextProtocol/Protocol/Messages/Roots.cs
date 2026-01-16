@@ -64,7 +64,7 @@ public sealed record Root
 
     /// <summary>
     /// 元数据字段<br/>
-    /// See <a href="https://modelcontextprotocol.io/specification/2025-06-18/basic/index#meta">
+    /// See <a href="https://modelcontextprotocol.io/specification/2025-11-25/basic/index#meta">
     /// General fields: _meta</a> for notes on _meta usage.
     /// </summary>
     [JsonPropertyName("_meta")]

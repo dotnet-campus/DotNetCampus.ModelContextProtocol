@@ -1,4 +1,4 @@
-﻿namespace DotNetCampus.ModelContextProtocol.Protocol.Messages.JsonRpc;
+namespace DotNetCampus.ModelContextProtocol.Protocol.Messages.JsonRpc;
 
 /// <summary>
 /// JSON-RPC 2.0 错误码定义<br/>
@@ -47,4 +47,10 @@ public enum JsonRpcErrorCode
     /// General MCP protocol error
     /// </summary>
     McpError = -32001,
+
+    /// <summary>
+    /// URL 引出所需错误<br/>
+    /// URL elicitation required error
+    /// </summary>
+    UrlElicitationRequired = -32042,
 }

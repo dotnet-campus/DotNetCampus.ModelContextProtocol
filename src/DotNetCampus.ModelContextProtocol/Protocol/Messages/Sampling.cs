@@ -40,12 +40,31 @@ public sealed record CreateMessageRequestParams : RequestParams
     /// <summary>
     /// 请求包含来自一个或多个 MCP 服务器（包括调用者）的上下文，以附加到提示词。<br/>
     /// 客户端可以忽略此请求。<br/>
+    /// 值 "thisServer" 和 "allServers" 仅在客户端声明 ClientCapabilities.sampling.context 能力时使用，默认值为 "none"。<br/>
     /// A request to include context from one or more MCP servers (including the caller),
-    /// to be attached to the prompt. The client MAY ignore this request.
+    /// to be attached to the prompt. The client MAY ignore this request.<br/>
+    /// Values "thisServer" and "allServers" should only be used when the client declares
+    /// ClientCapabilities.sampling.context capability. Default value is "none".
     /// </summary>
     [JsonPropertyName("includeContext")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? IncludeContext { get; init; }
+
+    /// <summary>
+    /// 可供模型调用的工具列表。<br/>
+    /// List of tools available for the model to call.
+    /// </summary>
+    [JsonPropertyName("tools")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyList<Tool>? Tools { get; init; }
+
+    /// <summary>
+    /// 控制模型如何选择和使用工具。<br/>
+    /// Controls how the model selects and uses tools.
+    /// </summary>
+    [JsonPropertyName("toolChoice")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public ToolChoice? ToolChoice { get; init; }
 
     /// <summary>
     /// 温度参数<br/>
@@ -114,7 +133,9 @@ public sealed record CreateMessageResult : Result
 
     /// <summary>
     /// 采样停止的原因（如果已知）。<br/>
-    /// The reason why sampling stopped, if known.
+    /// 可能的值包括："endTurn"、"stopSequence"、"maxTokens"、"toolUse"。<br/>
+    /// The reason why sampling stopped, if known.<br/>
+    /// Possible values include: "endTurn", "stopSequence", "maxTokens", "toolUse".
     /// </summary>
     [JsonPropertyName("stopReason")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
@@ -143,13 +164,15 @@ public sealed record SamplingMessage
 }
 
 /// <summary>
-/// 采样消息内容（文本、图像或音频）<br/>
-/// Sampling message content (text, image or audio)
+/// 采样消息内容（文本、图像、音频、工具使用或工具结果）<br/>
+/// Sampling message content (text, image, audio, tool use or tool result)
 /// </summary>
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
 [JsonDerivedType(typeof(TextContentBlock), typeDiscriminator: "text")]
 [JsonDerivedType(typeof(ImageContentBlock), typeDiscriminator: "image")]
 [JsonDerivedType(typeof(AudioContentBlock), typeDiscriminator: "audio")]
+[JsonDerivedType(typeof(ToolUseContent), typeDiscriminator: "toolUse")]
+[JsonDerivedType(typeof(ToolResultContent), typeDiscriminator: "toolResult")]
 public abstract record SamplingMessageContent
 {
 }
@@ -245,4 +268,25 @@ public sealed record ModelHint
     [JsonPropertyName("name")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? Name { get; init; }
+}
+
+/// <summary>
+/// 控制模型如何选择和使用工具。<br/>
+/// Controls how the model selects and uses tools.
+/// </summary>
+public sealed record ToolChoice
+{
+    /// <summary>
+    /// 工具选择模式：<br/>
+    /// - "auto": 模型自动决定是否使用工具<br/>
+    /// - "required": 模型必须使用至少一个工具<br/>
+    /// - "none": 模型不得使用任何工具<br/>
+    /// Tool selection mode:<br/>
+    /// - "auto": Model decides whether to use tools<br/>
+    /// - "required": Model must use at least one tool<br/>
+    /// - "none": Model must not use any tools
+    /// </summary>
+    [JsonPropertyName("mode")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Mode { get; init; }
 }

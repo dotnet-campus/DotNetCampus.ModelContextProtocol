@@ -1,4 +1,5 @@
-﻿using System.Text.Json.Nodes;
+﻿using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 
 namespace DotNetCampus.ModelContextProtocol.Protocol.Messages;
@@ -13,6 +14,8 @@ namespace DotNetCampus.ModelContextProtocol.Protocol.Messages;
 [JsonDerivedType(typeof(AudioContentBlock), typeDiscriminator: "audio")]
 [JsonDerivedType(typeof(ResourceLinkContentBlock), typeDiscriminator: "resource_link")]
 [JsonDerivedType(typeof(EmbeddedResourceContentBlock), typeDiscriminator: "resource")]
+[JsonDerivedType(typeof(ToolUseContent), typeDiscriminator: "toolUse")]
+[JsonDerivedType(typeof(ToolResultContent), typeDiscriminator: "toolResult")]
 public abstract record ContentBlock
 {
     /// <summary>
@@ -25,7 +28,7 @@ public abstract record ContentBlock
 
     /// <summary>
     /// 元数据字段<br/>
-    /// See <a href="https://modelcontextprotocol.io/specification/2025-06-18/basic/index#meta">
+    /// See <a href="https://modelcontextprotocol.io/specification/2025-11-25/basic/index#meta">
     /// General fields: _meta</a> for notes on _meta usage.
     /// </summary>
     [JsonPropertyName("_meta")]
@@ -196,7 +199,7 @@ public abstract record ResourceContents
 
     /// <summary>
     /// 元数据字段<br/>
-    /// See <a href="https://modelcontextprotocol.io/specification/2025-06-18/basic/index#meta">
+    /// See <a href="https://modelcontextprotocol.io/specification/2025-11-25/basic/index#meta">
     /// General fields: _meta</a> for notes on _meta usage.
     /// </summary>
     [JsonPropertyName("_meta")]
@@ -231,4 +234,71 @@ public sealed record BlobResourceContents : ResourceContents
     /// </summary>
     [JsonPropertyName("blob")]
     public required string Blob { get; init; }
+}
+
+/// <summary>
+/// 工具使用内容块<br/>
+/// Tool use content block
+/// </summary>
+public sealed record ToolUseContent : ContentBlock
+{
+    /// <summary>
+    /// 工具使用的唯一标识符。<br/>
+    /// Unique identifier for this tool use.
+    /// </summary>
+    [JsonPropertyName("id")]
+    public required string Id { get; init; }
+
+    /// <summary>
+    /// 要调用的工具名称。<br/>
+    /// The name of the tool to call.
+    /// </summary>
+    [JsonPropertyName("name")]
+    public required string Name { get; init; }
+
+    /// <summary>
+    /// 传递给工具的参数。<br/>
+    /// Arguments to pass to the tool.
+    /// </summary>
+    [JsonPropertyName("input")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public JsonElement? Input { get; init; }
+}
+
+/// <summary>
+/// 工具结果内容块<br/>
+/// Tool result content block
+/// </summary>
+public sealed record ToolResultContent : ContentBlock
+{
+    /// <summary>
+    /// 对应的工具使用标识符。<br/>
+    /// The identifier of the corresponding tool use.
+    /// </summary>
+    [JsonPropertyName("toolUseId")]
+    public required string ToolUseId { get; init; }
+
+    /// <summary>
+    /// 非结构化的工具执行结果内容。<br/>
+    /// Unstructured tool execution result content.
+    /// </summary>
+    [JsonPropertyName("content")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyList<ContentBlock>? Content { get; init; }
+
+    /// <summary>
+    /// 结构化的工具执行结果。<br/>
+    /// Structured tool execution result.
+    /// </summary>
+    [JsonPropertyName("structuredContent")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public JsonElement? StructuredContent { get; init; }
+
+    /// <summary>
+    /// 指示工具执行是否遇到错误。<br/>
+    /// Indicates whether the tool execution encountered an error.
+    /// </summary>
+    [JsonPropertyName("isError")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public bool? IsError { get; init; }
 }

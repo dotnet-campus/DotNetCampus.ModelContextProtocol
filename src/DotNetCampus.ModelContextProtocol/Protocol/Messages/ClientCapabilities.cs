@@ -26,7 +26,7 @@ public record ClientCapabilities
     /// </summary>
     [JsonPropertyName("sampling")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public object? Sampling { get; init; }
+    public SamplingCapability? Sampling { get; init; }
 
     /// <summary>
     /// 如果存在，表示客户端支持从服务器引出信息。<br/>
@@ -34,7 +34,15 @@ public record ClientCapabilities
     /// </summary>
     [JsonPropertyName("elicitation")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public object? Elicitation { get; init; }
+    public ElicitationCapability? Elicitation { get; init; }
+
+    /// <summary>
+    /// 如果存在，表示客户端支持任务系统。<br/>
+    /// Present if the client supports task system.
+    /// </summary>
+    [JsonPropertyName("tasks")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public TasksClientCapability? Tasks { get; init; }
 
     /// <summary>
     /// 客户端支持的实验性、非标准能力。<br/>
@@ -43,4 +51,50 @@ public record ClientCapabilities
     [JsonPropertyName("experimental")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public Dictionary<string, object>? Experimental { get; init; }
+}
+
+/// <summary>
+/// 客户端采样能力。<br/>
+/// Client sampling capability.
+/// </summary>
+public sealed record SamplingCapability
+{
+    /// <summary>
+    /// 支持上下文包含。<br/>
+    /// Support for context inclusion.
+    /// </summary>
+    [JsonPropertyName("context")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public object? Context { get; init; }
+
+    /// <summary>
+    /// 支持工具调用。<br/>
+    /// Support for tool calling.
+    /// </summary>
+    [JsonPropertyName("tools")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public object? Tools { get; init; }
+}
+
+/// <summary>
+/// 客户端引出能力。<br/>
+/// Client elicitation capability.
+/// </summary>
+public sealed record ElicitationCapability
+{
+    /// <summary>
+    /// 支持 Form 模式引出。<br/>
+    /// Support for form mode elicitation.
+    /// </summary>
+    [JsonPropertyName("form")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public object? Form { get; init; }
+
+    /// <summary>
+    /// 支持 URL 模式引出。<br/>
+    /// Support for URL mode elicitation.
+    /// </summary>
+    [JsonPropertyName("url")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public object? Url { get; init; }
 }

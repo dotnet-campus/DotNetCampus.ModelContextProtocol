@@ -4,9 +4,9 @@
 
 ## 📌 当前使用的 MCP 协议版本
 
-**最新协议版本**: `2025-06-18`
+**最新协议版本**: `2025-11-25`
 
-**官方 Schema 文件**: [https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/schema/2025-06-18/schema.ts](https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/schema/2025-06-18/schema.ts)
+**官方 Schema 文件**: [https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/schema/2025-11-25/schema.ts](https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/schema/2025-11-25/schema.ts)
 
 ## 📋 注释格式规范
 

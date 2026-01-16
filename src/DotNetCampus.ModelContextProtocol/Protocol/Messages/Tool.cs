@@ -78,11 +78,40 @@ public sealed record Tool : IBaseMetadata
     public IList<Icon>? Icons { get; init; }
 
     /// <summary>
+    /// 工具执行属性。<br/>
+    /// Tool execution properties.
+    /// </summary>
+    [JsonPropertyName("execution")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public ToolExecution? Execution { get; init; }
+
+    /// <summary>
     /// 元数据字段<br/>
-    /// See <a href="https://modelcontextprotocol.io/specification/2025-06-18/basic/index#meta">
+    /// See <a href="https://modelcontextprotocol.io/specification/2025-11-25/basic/index#meta">
     /// General fields: _meta</a> for notes on _meta usage.
     /// </summary>
     [JsonPropertyName("_meta")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public JsonObject? Meta { get; init; }
+}
+
+/// <summary>
+/// 工具执行属性。<br/>
+/// Tool execution properties.
+/// </summary>
+public sealed record ToolExecution
+{
+    /// <summary>
+    /// 任务支持模式：<br/>
+    /// - "forbidden": 禁止工具使用任务增强<br/>
+    /// - "optional": 工具可选地支持任务增强<br/>
+    /// - "required": 工具必须使用任务增强<br/>
+    /// Task support mode:<br/>
+    /// - "forbidden": Tool forbids task augmentation<br/>
+    /// - "optional": Tool optionally supports task augmentation<br/>
+    /// - "required": Tool requires task augmentation
+    /// </summary>
+    [JsonPropertyName("taskSupport")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? TaskSupport { get; init; }
 }

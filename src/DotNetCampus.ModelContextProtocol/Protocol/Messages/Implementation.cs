@@ -36,6 +36,14 @@ public sealed record Implementation : IBaseMetadata
     public required string Version { get; init; }
 
     /// <summary>
+    /// 实现的可选描述。<br/>
+    /// Optional description of the implementation.
+    /// </summary>
+    [JsonPropertyName("description")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Description { get; init; }
+
+    /// <summary>
     /// 图标列表<br/>
     /// List of icons
     /// </summary>

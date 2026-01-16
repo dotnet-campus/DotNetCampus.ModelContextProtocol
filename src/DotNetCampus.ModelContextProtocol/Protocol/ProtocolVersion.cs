@@ -10,7 +10,7 @@ internal class ProtocolVersion
     /// 当前使用的协议版本<br/>
     /// The currently used protocol version
     /// </summary>
-    internal const string Current = "2025-06-18";
+    internal const string Current = "2025-11-25";
 
     /// <summary>
     /// 最早能兼容的协议版本<br/>
@@ -24,6 +24,7 @@ internal class ProtocolVersion
     /// </summary>
     internal static IReadOnlyList<string> SupportedVersions { get; } =
     [
+        "2025-11-25",
         "2025-06-18",
         "2025-03-26",
         "2024-11-05",
