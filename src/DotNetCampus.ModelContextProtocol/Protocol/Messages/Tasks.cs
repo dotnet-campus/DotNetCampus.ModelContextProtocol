@@ -7,55 +7,35 @@ namespace DotNetCampus.ModelContextProtocol.Protocol.Messages;
 #region Task Metadata and Status
 
 /// <summary>
-/// 任务元数据，用于在请求中标识和描述任务。<br/>
-/// Task metadata for identifying and describing tasks in requests.
+/// 任务元数据，用于在请求中增强任务执行。<br/>
+/// Metadata for augmenting a request with task execution.
+/// Include this in the `task` field of the request parameters.
 /// </summary>
 public sealed record TaskMetadata
 {
     /// <summary>
-    /// 任务的唯一标识符。<br/>
-    /// The unique identifier for the task.
+    /// 请求从创建时起保留任务的时长（毫秒）。<br/>
+    /// Requested duration in milliseconds to retain task from creation.
     /// </summary>
-    [JsonPropertyName("id")]
-    public required string Id { get; init; }
-
-    /// <summary>
-    /// 可选的任务标题，用于显示。<br/>
-    /// Optional task title for display purposes.
-    /// </summary>
-    [JsonPropertyName("title")]
+    [JsonPropertyName("ttl")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public string? Title { get; init; }
+    public int? Ttl { get; init; }
 }
 
 /// <summary>
-/// 关联任务的元数据，包含状态信息。<br/>
-/// Metadata for related tasks, including status information.
+/// 关联任务的元数据。<br/>
+/// 包含在 `_meta` 字段中，键名为 `io.modelcontextprotocol/related-task`。<br/>
+/// Metadata for associating messages with a task.<br/>
+/// Include this in the `_meta` field under the key `io.modelcontextprotocol/related-task`.
 /// </summary>
 public sealed record RelatedTaskMetadata
 {
     /// <summary>
-    /// 任务的唯一标识符。<br/>
-    /// The unique identifier for the task.
+    /// 此消息关联的任务标识符。<br/>
+    /// The task identifier this message is associated with.
     /// </summary>
-    [JsonPropertyName("id")]
-    public required string Id { get; init; }
-
-    /// <summary>
-    /// 可选的任务标题。<br/>
-    /// Optional task title.
-    /// </summary>
-    [JsonPropertyName("title")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public string? Title { get; init; }
-
-    /// <summary>
-    /// 任务的当前状态。<br/>
-    /// The current status of the task.
-    /// </summary>
-    [JsonPropertyName("status")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public string? Status { get; init; }
+    [JsonPropertyName("taskId")]
+    public required string TaskId { get; init; }
 }
 
 /// <summary>
@@ -101,63 +81,68 @@ public static class TaskStatus
 
 /// <summary>
 /// 任务完整信息。<br/>
-/// Complete task information.
+/// Data associated with a task.
 /// </summary>
-public sealed record Task
+public sealed record McpTask
 {
     /// <summary>
-    /// 任务的唯一标识符。<br/>
-    /// The unique identifier for the task.
+    /// 任务标识符。<br/>
+    /// The task identifier.
     /// </summary>
-    [JsonPropertyName("id")]
-    public required string Id { get; init; }
+    [JsonPropertyName("taskId")]
+    public required string TaskId { get; init; }
 
     /// <summary>
-    /// 任务的当前状态。<br/>
-    /// The current status of the task.
+    /// 当前任务状态。<br/>
+    /// Current task state.
     /// </summary>
     [JsonPropertyName("status")]
     public required string Status { get; init; }
 
     /// <summary>
-    /// 可选的任务标题。<br/>
-    /// Optional task title.
+    /// 可选的人类可读消息，描述当前任务状态。<br/>
+    /// 这可以为任何状态提供上下文，包括：<br/>
+    /// - "cancelled" 状态的原因<br/>
+    /// - "completed" 状态的摘要<br/>
+    /// - "failed" 状态的诊断信息（例如，错误详情、出了什么问题）<br/>
+    /// Optional human-readable message describing the current task state.<br/>
+    /// This can provide context for any status, including:<br/>
+    /// - Reasons for "cancelled" status<br/>
+    /// - Summaries for "completed" status<br/>
+    /// - Diagnostic information for "failed" status (e.g., error details, what went wrong)
     /// </summary>
-    [JsonPropertyName("title")]
+    [JsonPropertyName("statusMessage")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public string? Title { get; init; }
+    public string? StatusMessage { get; init; }
 
     /// <summary>
-    /// 任务的创建时间（ISO 8601 格式）。<br/>
-    /// The task creation time in ISO 8601 format.
+    /// 任务创建时的 ISO 8601 时间戳。<br/>
+    /// ISO 8601 timestamp when the task was created.
     /// </summary>
-    [JsonPropertyName("created")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public string? Created { get; init; }
+    [JsonPropertyName("createdAt")]
+    public required string CreatedAt { get; init; }
 
     /// <summary>
-    /// 任务的最后更新时间（ISO 8601 格式）。<br/>
-    /// The task last update time in ISO 8601 format.
+    /// 任务最后更新时的 ISO 8601 时间戳。<br/>
+    /// ISO 8601 timestamp when the task was last updated.
     /// </summary>
-    [JsonPropertyName("updated")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public string? Updated { get; init; }
+    [JsonPropertyName("lastUpdatedAt")]
+    public required string LastUpdatedAt { get; init; }
 
     /// <summary>
-    /// 任务的进度信息（0-100 的整数）。<br/>
-    /// Task progress information (integer from 0-100).
+    /// 从创建时起的实际保留时长（毫秒），null 表示无限期。<br/>
+    /// Actual retention duration from creation in milliseconds, null for unlimited.
     /// </summary>
-    [JsonPropertyName("progress")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public int? Progress { get; init; }
+    [JsonPropertyName("ttl")]
+    public required int? Ttl { get; init; }
 
     /// <summary>
-    /// 任务的附加元数据。<br/>
-    /// Additional metadata for the task.
+    /// 建议的轮询间隔（毫秒）。<br/>
+    /// Suggested polling interval in milliseconds.
     /// </summary>
-    [JsonPropertyName("metadata")]
+    [JsonPropertyName("pollInterval")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public JsonElement? Metadata { get; init; }
+    public int? PollInterval { get; init; }
 }
 
 #endregion
@@ -320,11 +305,11 @@ public sealed record TasksServerToolsCapability
 public sealed record GetTaskRequestParams : RequestParams
 {
     /// <summary>
-    /// 任务的唯一标识符。<br/>
-    /// The unique identifier for the task.
+    /// 要查询的任务标识符。<br/>
+    /// The task identifier to query.
     /// </summary>
-    [JsonPropertyName("id")]
-    public required string Id { get; init; }
+    [JsonPropertyName("taskId")]
+    public required string TaskId { get; init; }
 }
 
 /// <summary>
@@ -334,11 +319,11 @@ public sealed record GetTaskRequestParams : RequestParams
 public sealed record GetTaskPayloadRequestParams : RequestParams
 {
     /// <summary>
-    /// 任务的唯一标识符。<br/>
-    /// The unique identifier for the task.
+    /// 要检索结果的任务标识符。<br/>
+    /// The task identifier to retrieve results for.
     /// </summary>
-    [JsonPropertyName("id")]
-    public required string Id { get; init; }
+    [JsonPropertyName("taskId")]
+    public required string TaskId { get; init; }
 }
 
 /// <summary>
@@ -348,19 +333,11 @@ public sealed record GetTaskPayloadRequestParams : RequestParams
 public sealed record CancelTaskRequestParams : RequestParams
 {
     /// <summary>
-    /// 任务的唯一标识符。<br/>
-    /// The unique identifier for the task.
+    /// 要取消的任务标识符。<br/>
+    /// The task identifier to cancel.
     /// </summary>
-    [JsonPropertyName("id")]
-    public required string Id { get; init; }
-
-    /// <summary>
-    /// 可选的取消原因。<br/>
-    /// Optional reason for cancellation.
-    /// </summary>
-    [JsonPropertyName("reason")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public string? Reason { get; init; }
+    [JsonPropertyName("taskId")]
+    public required string TaskId { get; init; }
 }
 
 /// <summary>
@@ -376,17 +353,17 @@ public sealed record ListTasksRequestParams : PaginatedRequestParams
 #region Task Results
 
 /// <summary>
-/// 任务增强请求的响应结果，包含任务标识。<br/>
-/// Response result for task-augmented requests, containing task identification.
+/// 任务增强请求的响应结果。<br/>
+/// A response to a task-augmented request.
 /// </summary>
 public sealed record CreateTaskResult : Result
 {
     /// <summary>
-    /// 创建的任务标识符。<br/>
-    /// The identifier of the created task.
+    /// 创建的任务信息。<br/>
+    /// The created task information.
     /// </summary>
-    [JsonPropertyName("id")]
-    public required string Id { get; init; }
+    [JsonPropertyName("task")]
+    public required McpTask Task { get; init; }
 }
 
 /// <summary>
@@ -400,7 +377,7 @@ public sealed record GetTaskResult : Result
     /// The task information.
     /// </summary>
     [JsonPropertyName("task")]
-    public required Task Task { get; init; }
+    public required McpTask Task { get; init; }
 }
 
 /// <summary>
@@ -436,7 +413,7 @@ public sealed record ListTasksResult : PaginatedResult
     /// The list of tasks.
     /// </summary>
     [JsonPropertyName("tasks")]
-    public required IReadOnlyList<Task> Tasks { get; init; }
+    public required IReadOnlyList<McpTask> Tasks { get; init; }
 }
 
 #endregion
@@ -467,31 +444,52 @@ public sealed record TaskStatusNotificationParams
     /// 任务标识符。<br/>
     /// The task identifier.
     /// </summary>
-    [JsonPropertyName("id")]
-    public required string Id { get; init; }
+    [JsonPropertyName("taskId")]
+    public required string TaskId { get; init; }
 
     /// <summary>
-    /// 任务的新状态。<br/>
-    /// The new status of the task.
+    /// 当前任务状态。<br/>
+    /// Current task state.
     /// </summary>
     [JsonPropertyName("status")]
     public required string Status { get; init; }
 
     /// <summary>
-    /// 可选的进度信息（0-100）。<br/>
-    /// Optional progress information (0-100).
+    /// 可选的人类可读消息，描述当前任务状态。<br/>
+    /// Optional human-readable message describing the current task state.
     /// </summary>
-    [JsonPropertyName("progress")]
+    [JsonPropertyName("statusMessage")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public int? Progress { get; init; }
+    public string? StatusMessage { get; init; }
 
     /// <summary>
-    /// 可选的状态消息。<br/>
-    /// Optional status message.
+    /// 任务创建时的 ISO 8601 时间戳。<br/>
+    /// ISO 8601 timestamp when the task was created.
     /// </summary>
-    [JsonPropertyName("message")]
+    [JsonPropertyName("createdAt")]
+    public required string CreatedAt { get; init; }
+
+    /// <summary>
+    /// 任务最后更新时的 ISO 8601 时间戳。<br/>
+    /// ISO 8601 timestamp when the task was last updated.
+    /// </summary>
+    [JsonPropertyName("lastUpdatedAt")]
+    public required string LastUpdatedAt { get; init; }
+
+    /// <summary>
+    /// 从创建时起的实际保留时长（毫秒），null 表示无限期。<br/>
+    /// Actual retention duration from creation in milliseconds, null for unlimited.
+    /// </summary>
+    [JsonPropertyName("ttl")]
+    public required int? Ttl { get; init; }
+
+    /// <summary>
+    /// 建议的轮询间隔（毫秒）。<br/>
+    /// Suggested polling interval in milliseconds.
+    /// </summary>
+    [JsonPropertyName("pollInterval")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public string? Message { get; init; }
+    public int? PollInterval { get; init; }
 }
 
 #endregion
