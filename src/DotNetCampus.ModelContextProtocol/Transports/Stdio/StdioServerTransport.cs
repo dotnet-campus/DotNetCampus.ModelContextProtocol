@@ -1,6 +1,4 @@
 ﻿using System.Text;
-using System.Text.Json;
-using DotNetCampus.ModelContextProtocol.CompilerServices;
 using DotNetCampus.ModelContextProtocol.Hosting.Logging;
 using DotNetCampus.ModelContextProtocol.Protocol.Messages.JsonRpc;
 
@@ -56,7 +54,7 @@ public class StdioServerTransport : IServerTransport
     /// <inheritdoc />
     public ValueTask DisposeAsync()
     {
-        Log.Info($"Disposing StdioServerTransport");
+        Log.Info($"[McpServer][Stdio] Disposing StdioServerTransport");
 
         // 控制台流不应该关闭，因为其他任何代码都可能会用得上。
         _consoleStreams = null;
@@ -85,7 +83,7 @@ public class StdioServerTransport : IServerTransport
             var request = await _manager.ParseAndCatchRequestAsync(line);
             if (request is null)
             {
-                await output.RespondJsonRpcAsync(new JsonRpcResponse
+                await _manager.RespondJsonRpcAsync(output, new JsonRpcResponse
                 {
                     Error = new JsonRpcError
                     {
@@ -104,29 +102,39 @@ public class StdioServerTransport : IServerTransport
                 continue;
             }
 
-            await output.RespondJsonRpcAsync(response, cancellationToken);
+            await _manager.RespondJsonRpcAsync(output, response, cancellationToken);
         }
     }
 }
 
 file static class Extensions
 {
-    public static async ValueTask<JsonRpcRequest?> ParseAndCatchRequestAsync(this IServerTransportManager manager, string inputMessageText)
+    extension(IServerTransportManager manager)
     {
-        try
+        public async ValueTask<JsonRpcRequest?> ParseAndCatchRequestAsync(string inputMessageText)
         {
-            return await manager.ParseRequestAsync(inputMessageText);
+            try
+            {
+                return await manager.ReadRequestAsync(inputMessageText);
+            }
+            catch
+            {
+                // 请求消息格式不正确，返回 null 后，原样给 MCP 客户端报告错误。
+                return null;
+            }
         }
-        catch
-        {
-            // 请求消息格式不正确，返回 null 后，原样给 MCP 客户端报告错误。
-            return null;
-        }
-    }
 
-    public static async ValueTask RespondJsonRpcAsync(this StreamWriter writer, JsonRpcResponse response, CancellationToken cancellationToken)
-    {
-        await JsonSerializer.SerializeAsync(writer.BaseStream, response, McpServerResponseJsonContext.Default.JsonRpcResponse, cancellationToken);
-        await writer.WriteLineAsync();
+        public async ValueTask RespondJsonRpcAsync(StreamWriter writer, JsonRpcResponse response, CancellationToken cancellationToken)
+        {
+            try
+            {
+                await manager.WriteResponseAsync(writer.BaseStream, response, cancellationToken);
+                await writer.WriteLineAsync();
+            }
+            catch
+            {
+                // 可能目标客户端已退出，重定向的流无法写入。
+            }
+        }
     }
 }

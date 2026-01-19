@@ -50,24 +50,35 @@ public interface IServerTransportManager
     bool TryGetSession<T>(string sessionId, [NotNullWhen(true)] out T? session) where T : class, IServerTransportSession;
 
     /// <summary>
-    /// 提供给传输层调用。当传输层收到请求字符串行后，调用此方法可以将请求流解析为 JSON-RPC 请求对象。
+    /// 提供给传输层调用。当传输层收到请求字符串行后，调用此方法可以将字符串读取为 JSON-RPC 请求对象。
     /// </summary>
-    /// <param name="inputMessageText">请求字符串行。</param>
-    /// <returns>解析出来的 JSON-RPC 请求对象，如果无法解析则返回 <see langword="null"/>。</returns>
+    /// <param name="requestLine">请求字符串行。</param>
+    /// <returns>读取出来的 JSON-RPC 请求对象，如果无法读取则返回 <see langword="null"/>。</returns>
     /// <remarks>
-    /// 如果解析失败，此方法会暴露底层的任何解析异常，传输层需处理好此异常（说明请求消息不正确）。
+    /// 如果读取失败，此方法会暴露底层的任何读取异常，传输层需处理好此异常（说明请求消息不正确）。
     /// </remarks>
-    ValueTask<JsonRpcRequest?> ParseRequestAsync(string inputMessageText);
+    ValueTask<JsonRpcRequest?> ReadRequestAsync(string requestLine);
 
     /// <summary>
-    /// 提供给传输层调用。当传输层收到请求流后，调用此方法可以将请求流解析为 JSON-RPC 请求对象。
+    /// 提供给传输层调用。当传输层收到请求流后，调用此方法可以将请求流读取为 JSON-RPC 请求对象。
     /// </summary>
     /// <param name="inputStream">请求流。</param>
-    /// <returns>解析出来的 JSON-RPC 请求对象，如果无法解析则返回 <see langword="null"/>。</returns>
+    /// <returns>读取出来的 JSON-RPC 请求对象，如果无法读取则返回 <see langword="null"/>。</returns>
     /// <remarks>
-    /// 如果解析失败，此方法会暴露底层的任何解析异常，传输层需处理好此异常（说明请求消息不正确或连接关闭等）。
+    /// 如果读取失败，此方法会暴露底层的任何读取异常，传输层需处理好此异常（说明请求消息不正确或连接关闭等）。
     /// </remarks>
-    ValueTask<JsonRpcRequest?> ParseRequestAsync(Stream inputStream);
+    ValueTask<JsonRpcRequest?> ReadRequestAsync(Stream inputStream);
+
+    /// <summary>
+    /// 提供给传输层调用。当传输层调用 <see cref="HandleRequestAsync"/> 处理完请求并返回了响应后，调用此方法可以将响应 JSON-RPC 对象写入到流中。
+    /// </summary>
+    /// <param name="outputStream">响应流。</param>
+    /// <param name="response">即将写入的 JSON-RPC 响应对象。</param>
+    /// <param name="cancellationToken">如果需要取消写入，则传入此令牌。</param>
+    /// <remarks>
+    /// 如果写入失败，此方法会暴露底层的任何写入异常，传输层需处理好此异常（说明连接关闭等）。
+    /// </remarks>
+    ValueTask WriteResponseAsync(Stream outputStream, JsonRpcResponse response, CancellationToken cancellationToken);
 
     /// <summary>
     /// 提供给传输层调用。当传输层收到请求后，调用此方法可以将请求交给 MCP 服务器进行处理。

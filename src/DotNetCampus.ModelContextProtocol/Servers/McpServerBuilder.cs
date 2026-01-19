@@ -72,6 +72,17 @@ public class McpServerBuilder(string serverName, string serverVersion)
     }
 
     /// <summary>
+    /// 使用此 MCP 服务器通过外部扩展的传输层提供服务。
+    /// </summary>
+    /// <param name="transportFactory">外部扩展的传输层的创建方法。</param>
+    /// <returns>用于链式调用的 MCP 服务器生成器。</returns>
+    public McpServerBuilder WithTransport(Func<IServerTransportManager, IServerTransport> transportFactory)
+    {
+        _transportFactories.Add(transportFactory);
+        return this;
+    }
+
+    /// <summary>
     /// 配置 MCP 服务器的日志记录器。
     /// </summary>
     /// <param name="logger">日志记录器。</param>

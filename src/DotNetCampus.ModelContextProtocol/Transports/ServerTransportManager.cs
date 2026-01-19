@@ -96,18 +96,9 @@ internal class ServerTransportManager(McpServerContext context) : IServerTranspo
         return false;
     }
 
-
-    public ValueTask<JsonRpcResponse?> HandleRequestAsync(JsonRpcRequest? request,
-        Action<IMcpServiceCollection>? additionalServices = null, CancellationToken cancellationToken = default)
+    public ValueTask<JsonRpcRequest?> ReadRequestAsync(string requestLine)
     {
-        var services = new ScopedServiceProvider(context.ServiceProvider);
-        additionalServices?.Invoke(services);
-        return _bridge.HandleRequestAsync(services, request, cancellationToken);
-    }
-
-    public ValueTask<JsonRpcRequest?> ParseRequestAsync(string inputMessageText)
-    {
-        var message = JsonSerializer.Deserialize(inputMessageText, McpServerRequestJsonContext.Default.JsonRpcRequest);
+        var message = JsonSerializer.Deserialize(requestLine, McpServerRequestJsonContext.Default.JsonRpcRequest);
         if (message is { Method: RequestMethods.Initialize, Id: null })
         {
             return ValueTask.FromResult<JsonRpcRequest?>(message with { Id = MakeNewSessionId() });
@@ -115,7 +106,7 @@ internal class ServerTransportManager(McpServerContext context) : IServerTranspo
         return ValueTask.FromResult<JsonRpcRequest?>(message);
     }
 
-    public async ValueTask<JsonRpcRequest?> ParseRequestAsync(Stream inputStream)
+    public async ValueTask<JsonRpcRequest?> ReadRequestAsync(Stream inputStream)
     {
         var message = await JsonSerializer.DeserializeAsync(inputStream, McpServerRequestJsonContext.Default.JsonRpcRequest);
         if (message is { Method: RequestMethods.Initialize, Id: null })
@@ -123,5 +114,18 @@ internal class ServerTransportManager(McpServerContext context) : IServerTranspo
             return message with { Id = MakeNewSessionId() };
         }
         return message;
+    }
+
+    public async ValueTask WriteResponseAsync(Stream outputStream, JsonRpcResponse response, CancellationToken cancellationToken)
+    {
+        await JsonSerializer.SerializeAsync(outputStream, response, McpServerResponseJsonContext.Default.JsonRpcResponse, cancellationToken);
+    }
+
+    public ValueTask<JsonRpcResponse?> HandleRequestAsync(JsonRpcRequest? request,
+        Action<IMcpServiceCollection>? additionalServices = null, CancellationToken cancellationToken = default)
+    {
+        var services = new ScopedServiceProvider(context.ServiceProvider);
+        additionalServices?.Invoke(services);
+        return _bridge.HandleRequestAsync(services, request, cancellationToken);
     }
 }
