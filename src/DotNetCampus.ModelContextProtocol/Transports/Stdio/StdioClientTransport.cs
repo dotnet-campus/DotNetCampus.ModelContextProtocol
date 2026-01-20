@@ -38,10 +38,13 @@ public class StdioClientTransport : IClientTransport
         Log.Info($"[McpClient][Stdio] Starting STDIO client transport.");
 
         await DisconnectAsync(cancellationToken);
-        var info = await StartProcessAsync();
-        _ = RunLoopAsync(cancellationToken);
+        var process = await StartProcessAsync();
+        if (process is { } stdio)
+        {
+            _ = RunLoopAsync(stdio, cancellationToken);
+        }
 
-        _stdio = info;
+        _stdio = process;
     }
 
     /// <inheritdoc />
@@ -57,17 +60,17 @@ public class StdioClientTransport : IClientTransport
     }
 
     /// <inheritdoc />
-    public ValueTask SendMessageAsync(JsonRpcMessage message, CancellationToken cancellationToken)
+    public async ValueTask SendMessageAsync(JsonRpcMessage message, CancellationToken cancellationToken)
     {
         if (_stdio is not { } stdio)
         {
-            return ValueTask.CompletedTask;
+            return;
         }
 
         var line = _manager.WriteRequestAsync(message);
-        stdio.StandardInput.Write(line);
-        stdio.StandardInput.Write('\n');
-        return ValueTask.CompletedTask;
+        await stdio.StandardInput.WriteAsync(line);
+        await stdio.StandardInput.WriteAsync('\n');
+        await stdio.StandardInput.FlushAsync();
     }
 
     /// <inheritdoc />
@@ -82,12 +85,8 @@ public class StdioClientTransport : IClientTransport
         await KillProcessAsync(info.Process);
     }
 
-    private async Task RunLoopAsync(CancellationToken cancellationToken)
+    private async Task RunLoopAsync(StdioProcessInfo stdio, CancellationToken cancellationToken)
     {
-        if (_stdio is not { } stdio)
-        {
-            return;
-        }
         while (!cancellationToken.IsCancellationRequested)
         {
             // 按照 MCP 协议规范对 STDIO 传输层的要求：
