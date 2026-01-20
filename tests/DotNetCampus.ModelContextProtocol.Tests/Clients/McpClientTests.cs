@@ -6,12 +6,17 @@ namespace DotNetCampus.ModelContextProtocol.Tests.Clients;
 public sealed class McpClientTests
 {
     [TestMethod]
-    public void Foo()
+    public async Task Foo()
     {
-        // // Arrange & Act
-        // var client = new McpClient();
-        //
-        // // Assert
-        // Assert.IsNotNull(client);
+        // Arrange & Act
+        await using var client = new McpClientBuilder()
+            .WithStdio("npx", ["-y", "@modelcontextprotocol/server-everything"])
+            .Build();
+
+        // Act
+        var tools = await client.ListToolsAsync();
+
+        // Assert
+        Assert.IsNotNull(tools.Tools.Count > 0);
     }
 }
