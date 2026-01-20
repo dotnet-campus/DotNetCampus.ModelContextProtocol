@@ -127,8 +127,15 @@ public class StdioClientTransport : IClientTransport
 
         static StdioProcessInfo? StartProcessCore(StdioClientTransportOptions options)
         {
+            // 解析命令路径，支持命令名（如 npx）和完整路径
+            var commandPath = ResolveCommandPath(options.Command);
+            if (commandPath is null)
+            {
+                throw new FileNotFoundException($"无法找到命令：{options.Command}");
+            }
+
             var utf8 = new UTF8Encoding(false);
-            var startInfo = new ProcessStartInfo(options.Command)
+            var startInfo = new ProcessStartInfo(commandPath)
             {
                 CreateNoWindow = true,
                 ErrorDialog = false,
@@ -160,6 +167,70 @@ public class StdioClientTransport : IClientTransport
                 StandardOutput = process.StandardOutput,
                 StandardError = process.StandardError,
             };
+        }
+
+        /// <summary>
+        /// 跨平台解析命令路径。<br/>
+        /// 如果命令是完整路径或相对路径，直接返回；<br/>
+        /// 否则在 PATH 环境变量中查找命令。
+        /// </summary>
+        static string? ResolveCommandPath(string command)
+        {
+            // 如果命令包含路径分隔符，说明是路径而非命令名
+            if (command.Contains(Path.DirectorySeparatorChar) || command.Contains(Path.AltDirectorySeparatorChar))
+            {
+                return File.Exists(command) ? Path.GetFullPath(command) : null;
+            }
+
+            // 在 PATH 环境变量中查找命令
+            var pathEnv = Environment.GetEnvironmentVariable("PATH");
+            if (string.IsNullOrEmpty(pathEnv))
+            {
+                return null;
+            }
+
+            var paths = pathEnv.Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries);
+            var extensions = GetExecutableExtensions();
+
+            foreach (var path in paths)
+            {
+                // 在 Windows 上，尝试命令名 + 各种扩展名
+                foreach (var extension in extensions)
+                {
+                    var fullPath = Path.Combine(path, command + extension);
+                    if (File.Exists(fullPath))
+                    {
+                        return fullPath;
+                    }
+                }
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// 获取可执行文件扩展名列表（跨平台）。
+        /// </summary>
+        static string[] GetExecutableExtensions()
+        {
+            if (OperatingSystem.IsWindows())
+            {
+                // Windows 上从 PATHEXT 环境变量获取可执行扩展名
+                var pathExt = Environment.GetEnvironmentVariable("PATHEXT");
+                if (!string.IsNullOrEmpty(pathExt))
+                {
+                    var extensions = pathExt.Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries);
+                    // 确保包含空扩展名（用于无扩展名的可执行文件）
+                    return [.. extensions];
+                }
+                // 默认 Windows 可执行扩展名
+                return [".exe", ".cmd", ".bat", ".com"];
+            }
+            else
+            {
+                // Unix 系统上可执行文件通常没有扩展名
+                return [""];
+            }
         }
     }
 
