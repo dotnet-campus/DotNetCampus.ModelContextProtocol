@@ -1,3 +1,4 @@
+using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace DotNetCampus.ModelContextProtocol.Protocol.Messages.JsonRpc;
@@ -25,7 +26,7 @@ public record JsonRpcResponse : JsonRpcMessage
     /// The ID of the request this response corresponds to
     /// </summary>
     [JsonPropertyName("id")]
-    public object? Id { get; init; }
+    public JsonElement? Id { get; init; }
 
     /// <summary>
     /// 成功响应结果<br/>
@@ -33,7 +34,7 @@ public record JsonRpcResponse : JsonRpcMessage
     /// </summary>
     [JsonPropertyName("result")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public object? Result { get; init; }
+    public JsonElement? Result { get; init; }
 
     /// <summary>
     /// 错误信息（与 result 互斥）<br/>

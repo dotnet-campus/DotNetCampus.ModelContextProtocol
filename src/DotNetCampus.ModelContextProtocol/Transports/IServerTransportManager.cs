@@ -1,6 +1,7 @@
 ﻿using System.Diagnostics.CodeAnalysis;
 using DotNetCampus.ModelContextProtocol.Hosting.Services;
 using DotNetCampus.ModelContextProtocol.Protocol.Messages.JsonRpc;
+using DotNetCampus.ModelContextProtocol.Utils;
 
 namespace DotNetCampus.ModelContextProtocol.Transports;
 
@@ -32,7 +33,7 @@ public interface IServerTransportManager
     /// 对于多对一的传输层，可调用此方法为每一个建立连接的客户端创建一个唯一的 Id。
     /// </summary>
     /// <returns></returns>
-    string MakeNewSessionId();
+    SessionId MakeNewSessionId();
 
     /// <summary>
     /// 提供给传输层调用。当传输层创建了一个新的会话时，调用此方法将会话注册到 MCP 服务器中。

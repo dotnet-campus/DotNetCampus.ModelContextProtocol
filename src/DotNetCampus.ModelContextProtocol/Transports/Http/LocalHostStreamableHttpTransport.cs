@@ -222,7 +222,7 @@ public class LocalHostStreamableHttpTransport : IServerTransport
         }
         else
         {
-            sessionId = _manager.MakeNewSessionId();
+            sessionId = _manager.MakeNewSessionId().ToString();
             context.Response.Headers.Add("Mcp-Session-Id", sessionId);
         }
 

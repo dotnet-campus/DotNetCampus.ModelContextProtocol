@@ -1,4 +1,4 @@
-﻿namespace DotNetCampus.ModelContextProtocol.Exceptions;
+namespace DotNetCampus.ModelContextProtocol.Exceptions;
 
 /// <summary>
 /// MCP 协议相关的异常基类。

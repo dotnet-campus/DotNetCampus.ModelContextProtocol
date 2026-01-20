@@ -115,8 +115,10 @@ internal partial class McpServerToolJsonContext : JsonSerializerContext;
 /// 提供给 MCP 协议中，服务端收到来自客户端的请求数据时使用的 JSON 序列化上下文。
 /// </summary>
 [JsonSerializable(typeof(CallToolRequestParams))]
+[JsonSerializable(typeof(GetPromptRequestParams))]
 [JsonSerializable(typeof(InitializeRequestParams))]
 [JsonSerializable(typeof(JsonElement))]
+[JsonSerializable(typeof(ListPromptsRequestParams))]
 [JsonSerializable(typeof(JsonRpcRequest))]
 [JsonSerializable(typeof(ListResourcesRequestParams))]
 [JsonSerializable(typeof(ListResourceTemplatesRequestParams))]
@@ -138,10 +140,12 @@ internal partial class McpServerRequestJsonContext : JsonSerializerContext;
 [JsonSerializable(typeof(ContentBlock))]
 [JsonSerializable(typeof(EmbeddedResourceContentBlock))]
 [JsonSerializable(typeof(EmptyObject))]
+[JsonSerializable(typeof(GetPromptResult))]
 [JsonSerializable(typeof(ImageContentBlock))]
 [JsonSerializable(typeof(InitializeResult))]
 [JsonSerializable(typeof(JsonElement))]
 [JsonSerializable(typeof(JsonRpcResponse))]
+[JsonSerializable(typeof(ListPromptsResult))]
 [JsonSerializable(typeof(ListResourcesResult))]
 [JsonSerializable(typeof(ListResourceTemplatesResult))]
 [JsonSerializable(typeof(ListToolsResult))]

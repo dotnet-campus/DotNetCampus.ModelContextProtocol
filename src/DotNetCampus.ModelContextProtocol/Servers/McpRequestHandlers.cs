@@ -40,7 +40,7 @@ public class McpRequestHandlers(McpServer server)
         }
         catch (Exception ex)
         {
-            throw new ModelContextProtocolException($"Initialization failed: {ex.Message}", ex);
+            throw new McpServerException($"Initialization failed: {ex.Message}", ex);
         }
     }
 
@@ -65,7 +65,7 @@ public class McpRequestHandlers(McpServer server)
         }
         catch (Exception ex)
         {
-            throw new ModelContextProtocolException($"Ping failed: {ex.Message}", ex);
+            throw new McpServerException($"Ping failed: {ex.Message}", ex);
         }
     }
 
@@ -90,7 +90,7 @@ public class McpRequestHandlers(McpServer server)
         }
         catch (Exception ex)
         {
-            throw new ModelContextProtocolException("SetLoggingLevel failed.", ex);
+            throw new McpServerException("SetLoggingLevel failed.", ex);
         }
     }
 
@@ -115,7 +115,7 @@ public class McpRequestHandlers(McpServer server)
         }
         catch (Exception ex)
         {
-            throw new ModelContextProtocolException("ListResourceTemplates failed.", ex);
+            throw new McpServerException("ListResourceTemplates failed.", ex);
         }
     }
 
@@ -139,7 +139,7 @@ public class McpRequestHandlers(McpServer server)
         }
         catch (Exception ex)
         {
-            throw new ModelContextProtocolException("ListResources failed.", ex);
+            throw new McpServerException("ListResources failed.", ex);
         }
     }
 
@@ -163,11 +163,11 @@ public class McpRequestHandlers(McpServer server)
         }
         catch (McpResourceNotFoundException ex)
         {
-            throw new ModelContextProtocolException("Resource not found.", ex);
+            throw new McpServerException("Resource not found.", ex);
         }
         catch (Exception ex)
         {
-            throw new ModelContextProtocolException("ReadResource failed.", ex);
+            throw new McpServerException("ReadResource failed.", ex);
         }
     }
 
@@ -192,7 +192,7 @@ public class McpRequestHandlers(McpServer server)
         }
         catch (Exception ex)
         {
-            throw new ModelContextProtocolException("ListTools failed.", ex);
+            throw new McpServerException("ListTools failed.", ex);
         }
     }
 

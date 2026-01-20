@@ -3,10 +3,10 @@ using System.Diagnostics.CodeAnalysis;
 using System.Text.Json.Serialization;
 using DotNetCampus.ModelContextProtocol.CompilerServices;
 using DotNetCampus.ModelContextProtocol.Hosting.Logging;
-using DotNetCampus.ModelContextProtocol.Protocol.Messages;
 using DotNetCampus.ModelContextProtocol.Transports;
 using DotNetCampus.ModelContextProtocol.Transports.Http;
 using DotNetCampus.ModelContextProtocol.Transports.Stdio;
+using DotNetCampus.ModelContextProtocol.Utils;
 
 namespace DotNetCampus.ModelContextProtocol.Servers;
 
@@ -309,18 +309,3 @@ public interface IMcpServerToolsBuilder
 /// <param name="defaultHandlers">默认的 MCP 请求处理程序。</param>
 /// <returns>构建的 MCP 请求处理程序。</returns>
 public delegate McpRequestHandlers McpRequestHandlersBuilder(McpServer mcpServer, McpRequestHandlers defaultHandlers);
-
-file sealed class EmptyLogger : IMcpLogger
-{
-    public static readonly EmptyLogger Instance = new();
-
-    private EmptyLogger()
-    {
-    }
-
-    public bool IsEnabled(LoggingLevel loggingLevel) => false;
-
-    public void Log<TState>(LoggingLevel loggingLevel, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
-    {
-    }
-}

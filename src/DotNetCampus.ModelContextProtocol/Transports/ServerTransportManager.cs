@@ -56,14 +56,14 @@ internal class ServerTransportManager(McpServerContext context) : IServerTranspo
         return Task.CompletedTask;
     }
 
-    public string MakeNewSessionId()
+    public SessionId MakeNewSessionId()
     {
-        var newSessionId = SessionId.MakeNew().Id;
-        while (_sessions.ContainsKey(newSessionId))
+        var sessionId = SessionId.MakeNew();
+        while (_sessions.ContainsKey(sessionId.Id))
         {
-            newSessionId = SessionId.MakeNew().Id;
+            sessionId = SessionId.MakeNew();
         }
-        return newSessionId;
+        return sessionId;
     }
 
     public void Add(IServerTransportSession session)
@@ -81,7 +81,7 @@ internal class ServerTransportManager(McpServerContext context) : IServerTranspo
 
         // 一对一的传输层会话。
         var noUseSessionId = MakeNewSessionId();
-        _sessions.AddOrUpdate(noUseSessionId, session, (_, _) => session);
+        _sessions.AddOrUpdate(noUseSessionId.Id, session, (_, _) => session);
     }
 
     public bool TryGetSession<T>(string sessionId, [NotNullWhen(true)] out T? session) where T : class, IServerTransportSession
@@ -101,7 +101,7 @@ internal class ServerTransportManager(McpServerContext context) : IServerTranspo
         var message = JsonSerializer.Deserialize(requestLine, McpServerRequestJsonContext.Default.JsonRpcRequest);
         if (message is { Method: RequestMethods.Initialize, Id: null })
         {
-            return ValueTask.FromResult<JsonRpcRequest?>(message with { Id = MakeNewSessionId() });
+            return ValueTask.FromResult<JsonRpcRequest?>(message with { Id = MakeNewSessionId().ToJsonElement() });
         }
         return ValueTask.FromResult<JsonRpcRequest?>(message);
     }
@@ -111,7 +111,7 @@ internal class ServerTransportManager(McpServerContext context) : IServerTranspo
         var message = await JsonSerializer.DeserializeAsync(inputStream, McpServerRequestJsonContext.Default.JsonRpcRequest);
         if (message is { Method: RequestMethods.Initialize, Id: null })
         {
-            return message with { Id = MakeNewSessionId() };
+            return message with { Id = MakeNewSessionId().ToJsonElement() };
         }
         return message;
     }

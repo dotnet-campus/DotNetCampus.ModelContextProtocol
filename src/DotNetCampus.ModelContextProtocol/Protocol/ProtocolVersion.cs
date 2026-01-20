@@ -4,7 +4,7 @@
 /// 协议版本信息<br/>
 /// Protocol version information
 /// </summary>
-internal class ProtocolVersion
+internal static class ProtocolVersion
 {
     /// <summary>
     /// 当前使用的协议版本<br/>

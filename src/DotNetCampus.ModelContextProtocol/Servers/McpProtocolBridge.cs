@@ -132,7 +132,7 @@ internal class McpProtocolBridge(McpServerContext context)
                 },
             };
         }
-        catch (ModelContextProtocolException ex)
+        catch (McpServerException ex)
         {
             return new JsonRpcResponse
             {
@@ -164,7 +164,7 @@ internal class McpProtocolBridge(McpServerContext context)
         out JsonElement paramsElement,
         [NotNullWhen(false)] out JsonRpcResponse? errorResponse)
     {
-        if (request.Params is JsonElement element)
+        if (request.Params is { } element)
         {
             paramsElement = element;
             errorResponse = null;

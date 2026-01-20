@@ -1,4 +1,6 @@
 ﻿using System.Security.Cryptography;
+using System.Text.Json;
+using DotNetCampus.ModelContextProtocol.CompilerServices;
 
 namespace DotNetCampus.ModelContextProtocol.Utils;
 
@@ -6,12 +8,20 @@ namespace DotNetCampus.ModelContextProtocol.Utils;
 /// 表示 MCP 会话的唯一标识符。
 /// </summary>
 /// <param name="Id">会话 ID 字符串</param>
-internal readonly record struct SessionId(string Id)
+public readonly record struct SessionId(string Id)
 {
     /// <summary>
     /// 获取会话 ID 字符串。
     /// </summary>
     public string Id { get; } = Id;
+
+    /// <summary>
+    /// 返回会话 ID 的 <see cref="JsonElement"/> 对象用于后续 JSON 序列化。
+    /// </summary>
+    public JsonElement ToJsonElement()
+    {
+        return JsonSerializer.SerializeToElement(Id, CompiledSchemaJsonContext.Default.String);
+    }
 
     /// <summary>
     /// 返回会话 ID 的字符串表示形式。

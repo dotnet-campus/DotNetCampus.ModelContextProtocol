@@ -1,3 +1,4 @@
+using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace DotNetCampus.ModelContextProtocol.Protocol.Messages.JsonRpc;
@@ -13,7 +14,7 @@ public record JsonRpcRequest : JsonRpcMessage
     /// A uniquely identifying ID for a request in JSON-RPC.
     /// </summary>
     [JsonPropertyName("id")]
-    public object? Id { get; init; }
+    public JsonElement? Id { get; init; }
 
     /// <summary>
     /// 方法名<br/>
@@ -28,5 +29,5 @@ public record JsonRpcRequest : JsonRpcMessage
     /// </summary>
     [JsonPropertyName("params")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public object? Params { get; init; }
+    public JsonElement? Params { get; init; }
 }
