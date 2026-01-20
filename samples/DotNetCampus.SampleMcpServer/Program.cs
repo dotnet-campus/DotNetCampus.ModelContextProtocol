@@ -27,7 +27,12 @@ internal class Program
 
         var mcpServer = new McpServerBuilder("SampleMcpServer", "1.0.0")
             .WithLogger(new McpLoggerBridge(Log.Current))
-            .WithLocalHostHttp(new LocalHostHttpTransportOptions
+            .WithRequestHandlers((s, h) =>
+            {
+                h.CallToolHandler = (request, token) => h.Raw.CallTool(request, token);
+                return h;
+            })
+            .WithLocalHostHttp(new LocalHostHttpServerTransportOptions
             {
                 Port = 5943,
                 EndPoint = "mcp",

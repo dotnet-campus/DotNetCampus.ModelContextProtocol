@@ -19,7 +19,7 @@ public class StdioServerTransport : IServerTransport
     /// <summary>
     /// 当 STDIO 传输层启用后，此字段会包含用于 MCP 协议传输层输入输出的流。
     /// </summary>
-    private (StreamReader Input, StreamWriter Output)? _consoleStreams;
+    private StdioProcessInfo? _stdio;
 
     /// <summary>
     /// 初始化 <see cref="StdioServerTransport"/> 类的新实例。
@@ -45,7 +45,11 @@ public class StdioServerTransport : IServerTransport
         var utf8 = new UTF8Encoding(false);
         var input = new StreamReader(Console.OpenStandardInput(), utf8);
         var output = new StreamWriter(Console.OpenStandardOutput(), utf8) { AutoFlush = true, NewLine = "\n" };
-        _consoleStreams = (input, output);
+        _stdio = new StdioProcessInfo
+        {
+            StandardInput = input,
+            StandardOutput = output,
+        };
         _manager.Add(_session);
 
         return Task.FromResult(RunLoopAsync(cancellationToken));
@@ -57,18 +61,18 @@ public class StdioServerTransport : IServerTransport
         Log.Info($"[McpServer][Stdio] Disposing StdioServerTransport");
 
         // 控制台流不应该关闭，因为其他任何代码都可能会用得上。
-        _consoleStreams = null;
+        _stdio = null;
 
         return ValueTask.CompletedTask;
     }
 
     private async Task RunLoopAsync(CancellationToken cancellationToken)
     {
-        if (_consoleStreams is not { } streams)
+        if (_stdio is not { } stdio)
         {
             return;
         }
-        var (input, output) = streams;
+        var (input, output) = stdio;
         while (!cancellationToken.IsCancellationRequested)
         {
             // 按照 MCP 协议规范对 STDIO 传输层的要求：
@@ -103,6 +107,19 @@ public class StdioServerTransport : IServerTransport
             }
 
             await _manager.RespondJsonRpcAsync(output, response, cancellationToken);
+        }
+    }
+
+    private readonly record struct StdioProcessInfo
+    {
+        public required StreamReader StandardInput { get; init; }
+
+        public required StreamWriter StandardOutput { get; init; }
+
+        public void Deconstruct(out StreamReader standardInput, out StreamWriter standardOutput)
+        {
+            standardInput = StandardInput;
+            standardOutput = StandardOutput;
         }
     }
 }

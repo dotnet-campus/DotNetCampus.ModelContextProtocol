@@ -17,19 +17,19 @@ namespace DotNetCampus.ModelContextProtocol.Transports.Http;
 /// <summary>
 /// 仅限监听本机回环地址（localhost）的 Streamable HTTP 传输层实现。
 /// </summary>
-public class LocalHostStreamableHttpTransport : IServerTransport
+public class LocalHostStreamableHttpServerTransport : IServerTransport
 {
     private readonly IServerTransportManager _manager;
-    private readonly LocalHostHttpTransportOptions _options;
+    private readonly LocalHostHttpServerTransportOptions _options;
     private readonly HttpListener _listener = new();
     private readonly ConcurrentDictionary<string, LegacySseSession> _legacySseSessions = [];
 
     /// <summary>
-    /// 初始化 <see cref="LocalHostStreamableHttpTransport"/> 类的新实例。
+    /// 初始化 <see cref="LocalHostStreamableHttpServerTransport"/> 类的新实例。
     /// </summary>
     /// <param name="manager">辅助管理 MCP 传输层的管理器。</param>
     /// <param name="options">Streamable HTTP 传输层配置选项。</param>
-    public LocalHostStreamableHttpTransport(IServerTransportManager manager, LocalHostHttpTransportOptions options)
+    public LocalHostStreamableHttpServerTransport(IServerTransportManager manager, LocalHostHttpServerTransportOptions options)
     {
         _manager = manager;
         _options = options;
@@ -189,7 +189,7 @@ public class LocalHostStreamableHttpTransport : IServerTransport
         }
 
         Log.Info($"[McpServer][StreamableHttp][Mcp:{sessionId}] Establishing connection");
-        _manager.Add(new LocalHostStreamableHttpTransportSession(sessionId, context));
+        _manager.Add(new LocalHostStreamableHttpServerTransportSession(sessionId, context));
         return ValueTask.CompletedTask;
     }
 
@@ -213,7 +213,7 @@ public class LocalHostStreamableHttpTransport : IServerTransport
                 return;
             }
             if (method != RequestMethods.NotificationsInitialized
-                && !_manager.TryGetSession<LocalHostStreamableHttpTransportSession>(sessionId, out _))
+                && !_manager.TryGetSession<LocalHostStreamableHttpServerTransportSession>(sessionId, out _))
             {
                 Log.Warn($"[McpServer][StreamableHttp][Mcp:{sessionId}][{method}][Request] Message handling failed due to unknown Mcp-Session-Id");
                 context.RespondHttpError(HttpStatusCode.BadRequest, "Unknown Mcp-Session-Id");
@@ -251,7 +251,7 @@ public class LocalHostStreamableHttpTransport : IServerTransport
             return;
         }
 
-        if (!_manager.TryGetSession<LocalHostStreamableHttpTransportSession>(sessionId, out var session))
+        if (!_manager.TryGetSession<LocalHostStreamableHttpServerTransportSession>(sessionId, out var session))
         {
             Log.Debug($"[McpServer][StreamableHttp][Mcp:{sessionId}] Disconnected but session not found (already terminated?)");
             context.RespondHttpSuccess(HttpStatusCode.OK);

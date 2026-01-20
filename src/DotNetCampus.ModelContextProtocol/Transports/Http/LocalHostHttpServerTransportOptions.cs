@@ -5,7 +5,7 @@ namespace DotNetCampus.ModelContextProtocol.Transports.Http;
 /// <summary>
 /// HTTP 传输层配置选项。
 /// </summary>
-public record LocalHostHttpTransportOptions
+public record LocalHostHttpServerTransportOptions
 {
     /// <summary>
     /// 指定用于传输的端口号。

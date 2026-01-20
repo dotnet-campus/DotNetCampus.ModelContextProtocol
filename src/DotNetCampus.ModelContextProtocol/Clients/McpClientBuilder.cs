@@ -10,8 +10,8 @@ namespace DotNetCampus.ModelContextProtocol.Clients;
 /// </summary>
 public class McpClientBuilder
 {
-    private string _clientName = "MCP Client";
-    private string _clientVersion = "1.0.0";
+    private string _clientName = "<Unknown>";
+    private string _clientVersion = "0.0.0";
     private IMcpLogger? _logger;
     private IServiceProvider? _serviceProvider;
     private Func<IClientTransportManager, IClientTransport>? _transportFactory;
@@ -20,13 +20,13 @@ public class McpClientBuilder
     /// <summary>
     /// 设置客户端名称和版本。
     /// </summary>
-    /// <param name="name">客户端名称。</param>
-    /// <param name="version">客户端版本。</param>
+    /// <param name="clientName">客户端名称。</param>
+    /// <param name="clientVersion">客户端版本。</param>
     /// <returns>用于链式调用的 MCP 客户端生成器。</returns>
-    public McpClientBuilder WithClientInfo(string name, string version)
+    public McpClientBuilder WithClientInfo(string clientName, string clientVersion)
     {
-        _clientName = name;
-        _clientVersion = version;
+        _clientName = clientName;
+        _clientVersion = clientVersion;
         return this;
     }
 

@@ -1,3 +1,4 @@
+using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace DotNetCampus.ModelContextProtocol.Protocol.Messages.JsonRpc;
@@ -21,5 +22,5 @@ public record JsonRpcNotification : JsonRpcMessage
     /// </summary>
     [JsonPropertyName("params")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public object? Params { get; init; }
+    public JsonElement? Params { get; init; }
 }

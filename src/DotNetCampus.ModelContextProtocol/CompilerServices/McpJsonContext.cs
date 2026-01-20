@@ -119,6 +119,7 @@ internal partial class McpServerToolJsonContext : JsonSerializerContext;
 [JsonSerializable(typeof(InitializeRequestParams))]
 [JsonSerializable(typeof(JsonElement))]
 [JsonSerializable(typeof(ListPromptsRequestParams))]
+[JsonSerializable(typeof(JsonRpcNotification))]
 [JsonSerializable(typeof(JsonRpcRequest))]
 [JsonSerializable(typeof(ListResourcesRequestParams))]
 [JsonSerializable(typeof(ListResourceTemplatesRequestParams))]

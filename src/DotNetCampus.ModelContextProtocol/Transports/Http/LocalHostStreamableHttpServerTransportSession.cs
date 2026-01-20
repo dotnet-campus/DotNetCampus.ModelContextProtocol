@@ -7,7 +7,7 @@ namespace DotNetCampus.ModelContextProtocol.Transports.Http;
 /// <summary>
 /// Streamable HTTP 传输层的一个会话。
 /// </summary>
-public class LocalHostStreamableHttpTransportSession : IServerTransportSession
+public class LocalHostStreamableHttpServerTransportSession : IServerTransportSession
 {
     private readonly CancellationTokenSource _cancellationTokenSource = new();
     private readonly StreamWriter _writer;
@@ -17,7 +17,7 @@ public class LocalHostStreamableHttpTransportSession : IServerTransportSession
     /// </summary>
     /// <param name="sessionId">会话 Id。</param>
     /// <param name="httpContext">HTTP 上下文。</param>
-    public LocalHostStreamableHttpTransportSession(string sessionId, HttpListenerContext httpContext)
+    public LocalHostStreamableHttpServerTransportSession(string sessionId, HttpListenerContext httpContext)
     {
         SessionId = sessionId;
         _writer = new StreamWriter(httpContext.Response.OutputStream, Encoding.UTF8)

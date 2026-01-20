@@ -106,9 +106,9 @@ internal class ServerTransportManager(McpServerContext context) : IServerTranspo
         return ValueTask.FromResult<JsonRpcRequest?>(message);
     }
 
-    public async ValueTask<JsonRpcRequest?> ReadRequestAsync(Stream inputStream)
+    public async ValueTask<JsonRpcRequest?> ReadRequestAsync(Stream requestStream)
     {
-        var message = await JsonSerializer.DeserializeAsync(inputStream, McpServerRequestJsonContext.Default.JsonRpcRequest);
+        var message = await JsonSerializer.DeserializeAsync(requestStream, McpServerRequestJsonContext.Default.JsonRpcRequest);
         if (message is { Method: RequestMethods.Initialize, Id: null })
         {
             return message with { Id = MakeNewSessionId().ToJsonElement() };
@@ -116,9 +116,9 @@ internal class ServerTransportManager(McpServerContext context) : IServerTranspo
         return message;
     }
 
-    public async ValueTask WriteResponseAsync(Stream outputStream, JsonRpcResponse response, CancellationToken cancellationToken)
+    public async ValueTask WriteResponseAsync(Stream responseStream, JsonRpcResponse response, CancellationToken cancellationToken)
     {
-        await JsonSerializer.SerializeAsync(outputStream, response, McpServerResponseJsonContext.Default.JsonRpcResponse, cancellationToken);
+        await JsonSerializer.SerializeAsync(responseStream, response, McpServerResponseJsonContext.Default.JsonRpcResponse, cancellationToken);
     }
 
     public ValueTask<JsonRpcResponse?> HandleRequestAsync(JsonRpcRequest? request,

@@ -17,7 +17,7 @@ public class McpRequestHandlers(McpServer server)
     /// 获取最基本的 MCP 请求相应的处理器集合。<br/>
     /// 通过调用该属性内的方法而不是本类型的方法，可以绕过异常处理逻辑，直接获得底层的请求处理能力。
     /// </summary>
-    public readonly McpRawRequestHandlers Raw = new(server);
+    public McpRawRequestHandlers Raw { get; } = new(server);
 
     /// <summary>
     /// 获取或设置初始化请求处理程序。

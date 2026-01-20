@@ -1,3 +1,5 @@
+using DotNetCampus.ModelContextProtocol.Protocol.Messages.JsonRpc;
+
 namespace DotNetCampus.ModelContextProtocol.Transports;
 
 /// <summary>
@@ -5,11 +7,6 @@ namespace DotNetCampus.ModelContextProtocol.Transports;
 /// </summary>
 public interface IClientTransport : IAsyncDisposable
 {
-    /// <summary>
-    /// 获取传输层是否已连接。
-    /// </summary>
-    bool IsConnected { get; }
-
     /// <summary>
     /// 连接到 MCP 服务器。
     /// </summary>
@@ -23,4 +20,12 @@ public interface IClientTransport : IAsyncDisposable
     /// <param name="cancellationToken">取消令牌。</param>
     /// <returns>断开连接后返回。</returns>
     Task DisconnectAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 将消息发送给服务器。
+    /// </summary>
+    /// <param name="message">要发送给服务器的消息。</param>
+    /// <param name="cancellationToken">取消令牌。</param>
+    /// <returns>消息发送完成后返回（不会等待回应）。</returns>
+    ValueTask SendMessageAsync(JsonRpcMessage message, CancellationToken cancellationToken);
 }
