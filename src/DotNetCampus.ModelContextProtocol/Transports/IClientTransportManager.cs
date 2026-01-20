@@ -4,7 +4,7 @@ using DotNetCampus.ModelContextProtocol.Utils;
 namespace DotNetCampus.ModelContextProtocol.Transports;
 
 /// <summary>
-/// 用于管理 MCP 客户端传输层的管理器接口。
+/// 提供给 MCP 客户端传输层的实现使用，用于将传输层对接到应用层。
 /// </summary>
 public interface IClientTransportManager
 {
@@ -12,18 +12,6 @@ public interface IClientTransportManager
     /// 获取用于传输层的上下文信息。
     /// </summary>
     IClientTransportContext Context { get; }
-
-    /// <summary>
-    /// 连接到服务器。
-    /// </summary>
-    /// <param name="cancellationToken">取消令牌。</param>
-    Task ConnectAsync(CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// 断开连接。
-    /// </summary>
-    /// <param name="cancellationToken">取消令牌。</param>
-    Task DisconnectAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
     /// 客户端的每次请求都会生成一个 Id，使用此方法可生成确保唯一的请求 Id。

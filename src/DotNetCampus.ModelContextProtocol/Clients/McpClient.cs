@@ -33,6 +33,11 @@ public class McpClient : IAsyncDisposable
     public bool IsConnected { get; private set; }
 
     /// <summary>
+    /// 获取 MCP 客户端传输层管理器的实现。
+    /// </summary>
+    private ClientTransportManager Transport => (ClientTransportManager)_context.Transport;
+
+    /// <summary>
     /// 获取或初始化客户端名称。
     /// </summary>
     public required string ClientName { get; init; }
@@ -51,11 +56,6 @@ public class McpClient : IAsyncDisposable
     /// 获取服务器信息（初始化后可用）。
     /// </summary>
     public InitializeResult? ServerInfo => _serverInfo;
-
-    /// <summary>
-    /// 获取 MCP 客户端传输层管理器的实现。
-    /// </summary>
-    private ClientTransportManager Transport => (ClientTransportManager)_context.Transport;
 
     /// <summary>
     /// 启用调试模式。<br/>
@@ -86,43 +86,8 @@ public class McpClient : IAsyncDisposable
                 return;
             }
 
-            // 发送 initialize 请求。
-            var request = new JsonRpcRequest
-            {
-                Id = Transport.MakeNewRequestId().ToJsonElement(),
-                Method = RequestMethods.Initialize,
-                Params = JsonSerializer.SerializeToElement(new InitializeRequestParams
-                {
-                    ProtocolVersion = ProtocolVersion.Current,
-                    ClientInfo = new Implementation
-                    {
-                        Name = ClientName,
-                        Version = ClientVersion,
-                    },
-                    Capabilities = Capabilities,
-                }, McpServerRequestJsonContext.Default.InitializeRequestParams),
-            };
+            _serverInfo = await Transport.ConnectAndInitializeAsync(this, cancellationToken);
 
-            var response = await Transport.SendRequestAsync(request, cancellationToken).ConfigureAwait(false);
-
-            if (response.Error is not null)
-            {
-                throw new McpClientException($"初始化失败: {response.Error.Message}");
-            }
-
-            if (response.Result is not { } responseResult)
-            {
-                throw new McpClientException("初始化响应格式不正确");
-            }
-
-            _serverInfo = responseResult.Deserialize<InitializeResult>(McpServerResponseJsonContext.Default.InitializeResult)
-                          ?? throw new McpClientException("无法解析初始化响应");
-
-            // 发送 initialized 通知。
-            await Transport.SendNotificationAsync(new JsonRpcNotification
-            {
-                Method = RequestMethods.NotificationsInitialized,
-            }, cancellationToken).ConfigureAwait(false);
             IsConnected = true;
         }
         finally
@@ -306,7 +271,7 @@ public class McpClient : IAsyncDisposable
     /// <inheritdoc />
     public async ValueTask DisposeAsync()
     {
-        await _context.Transport.DisconnectAsync().ConfigureAwait(false);
+        await Transport.DisconnectAsync().ConfigureAwait(false);
         _connectionLock.Dispose();
         GC.SuppressFinalize(this);
     }

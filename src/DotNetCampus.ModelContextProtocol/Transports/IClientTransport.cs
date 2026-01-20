@@ -12,14 +12,14 @@ public interface IClientTransport : IAsyncDisposable
     /// </summary>
     /// <param name="cancellationToken">取消令牌。</param>
     /// <returns>连接成功后返回。</returns>
-    Task ConnectAsync(CancellationToken cancellationToken = default);
+    ValueTask ConnectAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
     /// 断开与 MCP 服务器的连接。
     /// </summary>
     /// <param name="cancellationToken">取消令牌。</param>
     /// <returns>断开连接后返回。</returns>
-    Task DisconnectAsync(CancellationToken cancellationToken = default);
+    ValueTask DisconnectAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
     /// 将消息发送给服务器。

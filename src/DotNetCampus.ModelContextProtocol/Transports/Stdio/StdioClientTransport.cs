@@ -33,7 +33,7 @@ public class StdioClientTransport : IClientTransport
     private IMcpLogger Log => _manager.Context.Logger;
 
     /// <inheritdoc />
-    public async Task ConnectAsync(CancellationToken cancellationToken = default)
+    public async ValueTask ConnectAsync(CancellationToken cancellationToken = default)
     {
         Log.Info($"[McpClient][Stdio] Starting STDIO client transport.");
 
@@ -45,11 +45,11 @@ public class StdioClientTransport : IClientTransport
     }
 
     /// <inheritdoc />
-    public Task DisconnectAsync(CancellationToken cancellationToken = default)
+    public ValueTask DisconnectAsync(CancellationToken cancellationToken = default)
     {
         if (_stdio is not { } info)
         {
-            return Task.CompletedTask;
+            return ValueTask.CompletedTask;
         }
 
         _stdio = null;
@@ -164,9 +164,9 @@ public class StdioClientTransport : IClientTransport
         }
     }
 
-    private Task KillProcessAsync(Process process)
+    private async ValueTask KillProcessAsync(Process process)
     {
-        return Task.Run(() =>
+        await Task.Run(() =>
         {
             try
             {

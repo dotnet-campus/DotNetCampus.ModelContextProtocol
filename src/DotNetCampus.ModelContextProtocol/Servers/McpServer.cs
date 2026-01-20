@@ -1,4 +1,6 @@
-﻿namespace DotNetCampus.ModelContextProtocol.Servers;
+﻿using DotNetCampus.ModelContextProtocol.Transports;
+
+namespace DotNetCampus.ModelContextProtocol.Servers;
 
 /// <summary>
 /// MCP 服务器。
@@ -15,6 +17,11 @@ public class McpServer
     {
         _context = context;
     }
+
+    /// <summary>
+    /// 获取 MCP 服务端传输层管理器的实现。
+    /// </summary>
+    private ServerTransportManager Transport => (ServerTransportManager)_context.Transport;
 
     /// <summary>
     /// 获取或初始化服务器名称。
@@ -61,6 +68,6 @@ public class McpServer
     /// <param name="cancellationToken">用于取消运行的取消令牌。</param>
     public Task RunAsync(CancellationToken cancellationToken = default)
     {
-        return _context.Transport.RunAsync(cancellationToken);
+        return Transport.RunAsync(cancellationToken);
     }
 }

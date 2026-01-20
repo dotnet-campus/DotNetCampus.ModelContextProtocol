@@ -6,7 +6,7 @@ using DotNetCampus.ModelContextProtocol.Utils;
 namespace DotNetCampus.ModelContextProtocol.Transports;
 
 /// <summary>
-/// 用于管理 MCP 服务器传输层的管理器接口。
+/// 提供给 MCP 服务器传输层的实现使用，用于将传输层对接到应用层。
 /// </summary>
 public interface IServerTransportManager
 {
@@ -14,20 +14,6 @@ public interface IServerTransportManager
     /// 获取用于传输层的上下文信息。
     /// </summary>
     IServerTransportContext Context { get; }
-
-    /// <summary>
-    /// 立即启动所有已注册的传输层。
-    /// </summary>
-    /// <param name="cancellationToken">取消令牌。</param>
-    /// <returns>会一直等到所有的传输层已停止后异步返回。</returns>
-    Task RunAsync(CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// 立即停止所有已注册的传输层。
-    /// </summary>
-    /// <param name="cancellationToken">取消令牌。</param>
-    /// <returns>发起停止操作后异步返回。</returns>
-    Task StopAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
     /// 对于多对一的传输层，可调用此方法为每一个建立连接的客户端创建一个唯一的 Id。

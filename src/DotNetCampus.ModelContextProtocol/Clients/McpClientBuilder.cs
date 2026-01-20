@@ -1,6 +1,7 @@
 ﻿using DotNetCampus.ModelContextProtocol.Hosting.Logging;
 using DotNetCampus.ModelContextProtocol.Protocol.Messages;
 using DotNetCampus.ModelContextProtocol.Transports;
+using DotNetCampus.ModelContextProtocol.Transports.Stdio;
 using DotNetCampus.ModelContextProtocol.Utils;
 
 namespace DotNetCampus.ModelContextProtocol.Clients;
@@ -55,10 +56,42 @@ public class McpClientBuilder
     /// <summary>
     /// 使用自定义的传输层。
     /// </summary>
+    /// <param name="command">要启动的命令。</param>
+    /// <param name="arguments">命令的启动参数。</param>
+    /// <param name="environmentVariables">命令执行的环境变量。</param>
+    /// <returns>用于链式调用的 MCP 客户端生成器。</returns>
+    public McpClientBuilder WithStdio(string command, IReadOnlyList<string>? arguments = null, IDictionary<string, string>? environmentVariables = null)
+    {
+        return WithTransport(m => new StdioClientTransport(m, new StdioClientTransportOptions
+        {
+            Command = command,
+            Arguments = arguments ?? [],
+            EnvironmentVariables = environmentVariables ?? new Dictionary<string, string>(),
+        }));
+    }
+
+    /// <summary>
+    /// 使用自定义的传输层。
+    /// </summary>
+    /// <param name="options">STDIO 传输层的连接信息。</param>
+    /// <returns>用于链式调用的 MCP 客户端生成器。</returns>
+    public McpClientBuilder WithStdio(StdioClientTransportOptions options)
+    {
+        return WithTransport(m => new StdioClientTransport(m, options));
+    }
+
+    /// <summary>
+    /// 使用自定义的传输层。
+    /// </summary>
     /// <param name="transportFactory">传输层工厂方法。</param>
     /// <returns>用于链式调用的 MCP 客户端生成器。</returns>
     public McpClientBuilder WithTransport(Func<IClientTransportManager, IClientTransport> transportFactory)
     {
+        if (_transportFactory is not null)
+        {
+            throw new InvalidOperationException("MCP 客户端在设计上只能通过一个传输层对接一个服务器。");
+        }
+
         _transportFactory = transportFactory;
         return this;
     }

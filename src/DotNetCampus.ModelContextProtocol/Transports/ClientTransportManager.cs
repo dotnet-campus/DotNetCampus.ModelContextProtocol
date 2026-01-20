@@ -1,6 +1,10 @@
 using System.Collections.Concurrent;
 using System.Text.Json;
+using DotNetCampus.ModelContextProtocol.Clients;
 using DotNetCampus.ModelContextProtocol.CompilerServices;
+using DotNetCampus.ModelContextProtocol.Exceptions;
+using DotNetCampus.ModelContextProtocol.Protocol;
+using DotNetCampus.ModelContextProtocol.Protocol.Messages;
 using DotNetCampus.ModelContextProtocol.Protocol.Messages.JsonRpc;
 using DotNetCampus.ModelContextProtocol.Utils;
 
@@ -129,32 +133,76 @@ internal class ClientTransportManager(IClientTransportContext context) : IClient
         return SendMessageAsync(notification, cancellationToken);
     }
 
-    /// <inheritdoc />
-    public Task ConnectAsync(CancellationToken cancellationToken = default)
+    /// <summary>
+    /// 连接到 MCP 服务器，然后发送 MCP 的 <see cref="RequestMethods.Initialize"/> 请求进行初始化。
+    /// </summary>
+    /// <param name="client"><see cref="McpClient"/> 的实例。</param>
+    /// <param name="cancellationToken">取消令牌。</param>
+    /// <returns>已连接成功服务器，发送完初始化请求，收到初始化响应，然后发送完初始化完成通知后，再返回。</returns>
+    public async ValueTask<InitializeResult> ConnectAndInitializeAsync(McpClient client, CancellationToken cancellationToken = default)
     {
         if (_transport is null)
         {
             throw new InvalidOperationException("传输层未初始化");
         }
 
-        return _transport.ConnectAsync(cancellationToken);
+        await _transport.ConnectAsync(cancellationToken);
+
+        // 发送 initialize 请求。
+        var request = new JsonRpcRequest
+        {
+            Id = MakeNewRequestId().ToJsonElement(),
+            Method = RequestMethods.Initialize,
+            Params = JsonSerializer.SerializeToElement(new InitializeRequestParams
+            {
+                ProtocolVersion = ProtocolVersion.Current,
+                ClientInfo = new Implementation
+                {
+                    Name = client.ClientName,
+                    Version = client.ClientVersion,
+                },
+                Capabilities = client.Capabilities,
+            }, McpServerRequestJsonContext.Default.InitializeRequestParams),
+        };
+
+        var response = await SendRequestAsync(request, cancellationToken).ConfigureAwait(false);
+
+        if (response.Error is not null)
+        {
+            throw new McpClientException($"初始化失败: {response.Error.Message}");
+        }
+
+        if (response.Result is not { } responseResult)
+        {
+            throw new McpClientException("初始化响应格式不正确");
+        }
+
+        var result = responseResult.Deserialize<InitializeResult>(McpServerResponseJsonContext.Default.InitializeResult)
+                     ?? throw new McpClientException("无法解析初始化响应");
+
+        // 发送 initialized 通知。
+        await SendNotificationAsync(new JsonRpcNotification
+        {
+            Method = RequestMethods.NotificationsInitialized,
+        }, cancellationToken).ConfigureAwait(false);
+
+        return result;
     }
 
-    /// <inheritdoc />
-    public Task DisconnectAsync(CancellationToken cancellationToken = default)
+    public async ValueTask DisconnectAsync(CancellationToken cancellationToken = default)
     {
         if (_transport is null)
         {
             throw new InvalidOperationException("传输层未初始化");
         }
 
-        return _transport.DisconnectAsync(cancellationToken);
+        await _transport.DisconnectAsync(cancellationToken);
     }
 
     /// <summary>
     /// 发送 JSON-RPC 消息（由具体传输层实现调用）。
     /// </summary>
-    protected virtual ValueTask SendMessageAsync(JsonRpcMessage message, CancellationToken cancellationToken)
+    private ValueTask SendMessageAsync(JsonRpcMessage message, CancellationToken cancellationToken)
     {
         if (_transport is null)
         {
