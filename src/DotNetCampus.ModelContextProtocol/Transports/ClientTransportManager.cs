@@ -1,7 +1,7 @@
 using System.Collections.Concurrent;
 using DotNetCampus.ModelContextProtocol.Protocol.Messages.JsonRpc;
 
-namespace DotNetCampus.ModelContextProtocol.Clients.Transports;
+namespace DotNetCampus.ModelContextProtocol.Transports;
 
 /// <summary>
 /// 用于管理 MCP 客户端传输层的管理器。

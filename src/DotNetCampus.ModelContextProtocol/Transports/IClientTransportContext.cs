@@ -1,6 +1,6 @@
 using DotNetCampus.ModelContextProtocol.Hosting.Logging;
 
-namespace DotNetCampus.ModelContextProtocol.Clients.Transports;
+namespace DotNetCampus.ModelContextProtocol.Transports;
 
 /// <summary>
 /// MCP 客户端传输层的上下文信息。

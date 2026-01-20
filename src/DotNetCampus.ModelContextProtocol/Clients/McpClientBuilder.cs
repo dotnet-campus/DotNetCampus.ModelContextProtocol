@@ -1,6 +1,6 @@
-﻿using DotNetCampus.ModelContextProtocol.Clients.Transports;
-using DotNetCampus.ModelContextProtocol.Hosting.Logging;
+﻿using DotNetCampus.ModelContextProtocol.Hosting.Logging;
 using DotNetCampus.ModelContextProtocol.Protocol.Messages;
+using DotNetCampus.ModelContextProtocol.Transports;
 using DotNetCampus.ModelContextProtocol.Utils;
 
 namespace DotNetCampus.ModelContextProtocol.Clients;

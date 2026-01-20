@@ -1,6 +1,5 @@
-using DotNetCampus.ModelContextProtocol.Clients.Transports;
-using DotNetCampus.ModelContextProtocol.CompilerServices;
 using DotNetCampus.ModelContextProtocol.Hosting.Logging;
+using DotNetCampus.ModelContextProtocol.Transports;
 
 namespace DotNetCampus.ModelContextProtocol.Clients;
 

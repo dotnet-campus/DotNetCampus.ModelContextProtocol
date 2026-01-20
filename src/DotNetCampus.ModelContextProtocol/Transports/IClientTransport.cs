@@ -1,4 +1,4 @@
-namespace DotNetCampus.ModelContextProtocol.Clients.Transports;
+namespace DotNetCampus.ModelContextProtocol.Transports;
 
 /// <summary>
 /// MCP 客户端的传输层。
