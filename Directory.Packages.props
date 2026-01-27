@@ -15,5 +15,6 @@
     <PackageVersion Include="MSTest.TestFramework" Version="3.4.3" />
     <PackageVersion Include="System.Collections.Immutable" Version="8.0.0" />
     <PackageVersion Include="System.Text.Json" Version="10.0.0" />
+    <PackageVersion Include="TouchSocket" Version="4.0.8.10-beta" />
   </ItemGroup>
 </Project>

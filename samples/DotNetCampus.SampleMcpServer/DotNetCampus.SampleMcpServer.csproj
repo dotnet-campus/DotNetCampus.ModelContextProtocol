@@ -12,6 +12,7 @@
     <PackageReference Include="DotNetCampus.CommandLine" />
     <PackageReference Include="DotNetCampus.LatestCSharpFeatures" />
     <PackageReference Include="DotNetCampus.Logger" />
+    <PackageReference Include="TouchSocket" />
   </ItemGroup>
 
   <ItemGroup>
