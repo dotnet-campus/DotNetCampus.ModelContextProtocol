@@ -6,10 +6,12 @@
     <IsPackable>false</IsPackable>
     <PublishAot>true</PublishAot>
     <InvariantGlobalization>true</InvariantGlobalization>
+    <DotNetCampusModelContextProtocolGenerateTransports>true</DotNetCampusModelContextProtocolGenerateTransports>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="DotNetCampus.CommandLine" />
+    <PackageReference Include="dotnetCampus.Ipc" />
     <PackageReference Include="DotNetCampus.LatestCSharpFeatures" />
     <PackageReference Include="DotNetCampus.Logger" />
     <PackageReference Include="TouchSocket" />

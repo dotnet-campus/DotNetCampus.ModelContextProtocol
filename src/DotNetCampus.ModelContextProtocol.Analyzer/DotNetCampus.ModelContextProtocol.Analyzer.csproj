@@ -32,4 +32,8 @@
     <Compile Include="..\DotNetCampus.ModelContextProtocol\Servers\CreationMode.cs" LinkBase="CompilerServices" />
   </ItemGroup>
 
+  <ItemGroup>
+    <EmbeddedResource Include="..\DotNetCampus.ModelContextProtocol.Ipc\**\*.cs" LinkBase="Transports\DotNetCampus.Ipc" />
+  </ItemGroup>
+
 </Project>

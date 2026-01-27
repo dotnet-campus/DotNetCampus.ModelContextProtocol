@@ -9,6 +9,10 @@
     -->
     <WarningsAsErrors>$(WarningsAsErrors);CS8785;CS9057</WarningsAsErrors>
 
+    <!-- 默认不生成传输层代码，除非项目显式指定。 -->
+    <DotNetCampusModelContextProtocolGenerateTransports Condition="'$(DotNetCampusModelContextProtocolGenerateTransports)' == ''">false</DotNetCampusModelContextProtocolGenerateTransports>
+
+    <!-- 默认使用拦截器，除非项目显式关闭。 -->
     <DotNetCampusModelContextProtocolUseInterceptor Condition="'$(DotNetCampusModelContextProtocolUseInterceptor)' == ''">true</DotNetCampusModelContextProtocolUseInterceptor>
     <InterceptorsNamespaces>$(InterceptorsNamespaces);DotNetCampus.ModelContextProtocol.Compiler</InterceptorsNamespaces>
 
@@ -24,6 +28,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <CompilerVisibleProperty Include="DotNetCampusModelContextProtocolGenerateTransports" />
     <CompilerVisibleProperty Include="DotNetCampusModelContextProtocolUseInterceptor" />
   </ItemGroup>
 

@@ -43,6 +43,6 @@
     <PackageProjectUrl>https://github.com/dotnet-campus/DotNetCampus.ModelContextProtocol</PackageProjectUrl>
   </PropertyGroup>
 
-  <Import Project="$(MSBuildThisFileDirectory)src\DotNetCampus.ModelContextProtocol\Package\build\Package.props" />
+  <Import Project="$(MSBuildThisFileDirectory)src\DotNetCampus.ModelContextProtocol\Package\buildTransitive\Package.props" />
 
 </Project>
