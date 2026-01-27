@@ -11,7 +11,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="TouchSocket" />
+    <PackageReference Include="TouchSocket.Http" />
   </ItemGroup>
 
 </Project>

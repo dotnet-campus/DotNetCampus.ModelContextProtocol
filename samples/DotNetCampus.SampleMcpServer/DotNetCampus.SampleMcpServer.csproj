@@ -14,7 +14,7 @@
     <PackageReference Include="dotnetCampus.Ipc" />
     <PackageReference Include="DotNetCampus.LatestCSharpFeatures" />
     <PackageReference Include="DotNetCampus.Logger" />
-    <PackageReference Include="TouchSocket" />
+    <PackageReference Include="TouchSocket.Http" />
   </ItemGroup>
 
   <ItemGroup>
