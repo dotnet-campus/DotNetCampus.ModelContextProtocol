@@ -2,5 +2,8 @@
 
 namespace DotNetCampus.SampleMcpServer;
 
-[GenerateMcpTransport(McpTransportPackageId.TouchSocketHttp, McpSide.Server)]
+[GenerateMcpServerTransport(McpServerTransportPackageId.TouchSocketHttp)]
 public partial class TouchSocketHttpServerTransport;
+
+[GenerateMcpClientTransport(McpClientTransportPackageId.DotNetCampusIpc)]
+public partial class TouchSocketHttpClientTransport;

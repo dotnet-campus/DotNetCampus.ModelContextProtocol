@@ -29,7 +29,6 @@
     <Compile Include="..\DotNetCampus.ModelContextProtocol\Properties\Compatibility.cs" LinkBase="Properties" />
     <Compile Include="..\DotNetCampus.ModelContextProtocol\CompilerServices\*Attribute.cs" LinkBase="CompilerServices" />
     <Compile Include="..\DotNetCampus.ModelContextProtocol\CompilerServices\CompiledJsonSchema.cs" LinkBase="CompilerServices" />
-    <Compile Include="..\DotNetCampus.ModelContextProtocol\CompilerServices\McpSide.cs" LinkBase="CompilerServices" />
     <Compile Include="..\DotNetCampus.ModelContextProtocol\Servers\CreationMode.cs" LinkBase="CompilerServices" />
   </ItemGroup>
 
