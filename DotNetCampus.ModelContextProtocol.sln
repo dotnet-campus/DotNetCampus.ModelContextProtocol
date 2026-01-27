@@ -40,6 +40,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "5.extensions", "5.extension
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DotNetCampus.ModelContextProtocol.Ipc", "src\DotNetCampus.ModelContextProtocol.Ipc\DotNetCampus.ModelContextProtocol.Ipc.csproj", "{8990631C-4717-4CC2-AB2E-FB417EB0F437}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DotNetCampus.ModelContextProtocol.TouchSocket", "src\DotNetCampus.ModelContextProtocol.TouchSocket\DotNetCampus.ModelContextProtocol.TouchSocket.csproj", "{D11BF8A7-BF21-4467-8F77-81498CB1111F}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -122,6 +124,18 @@ Global
 		{8990631C-4717-4CC2-AB2E-FB417EB0F437}.Release|x64.Build.0 = Release|Any CPU
 		{8990631C-4717-4CC2-AB2E-FB417EB0F437}.Release|x86.ActiveCfg = Release|Any CPU
 		{8990631C-4717-4CC2-AB2E-FB417EB0F437}.Release|x86.Build.0 = Release|Any CPU
+		{D11BF8A7-BF21-4467-8F77-81498CB1111F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D11BF8A7-BF21-4467-8F77-81498CB1111F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D11BF8A7-BF21-4467-8F77-81498CB1111F}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{D11BF8A7-BF21-4467-8F77-81498CB1111F}.Debug|x64.Build.0 = Debug|Any CPU
+		{D11BF8A7-BF21-4467-8F77-81498CB1111F}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{D11BF8A7-BF21-4467-8F77-81498CB1111F}.Debug|x86.Build.0 = Debug|Any CPU
+		{D11BF8A7-BF21-4467-8F77-81498CB1111F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D11BF8A7-BF21-4467-8F77-81498CB1111F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D11BF8A7-BF21-4467-8F77-81498CB1111F}.Release|x64.ActiveCfg = Release|Any CPU
+		{D11BF8A7-BF21-4467-8F77-81498CB1111F}.Release|x64.Build.0 = Release|Any CPU
+		{D11BF8A7-BF21-4467-8F77-81498CB1111F}.Release|x86.ActiveCfg = Release|Any CPU
+		{D11BF8A7-BF21-4467-8F77-81498CB1111F}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -131,5 +145,6 @@ Global
 		{F37E2CC6-EAA1-4572-B472-16D62ACBDAC3} = {F04A0D77-F872-48D9-818B-18C0AAAC466F}
 		{AD8AA6E1-2503-4D70-935D-1ECC5CF1B745} = {458BB005-58E1-45A0-AFAB-0D7D540319D7}
 		{8990631C-4717-4CC2-AB2E-FB417EB0F437} = {EE30C78E-21D1-46DA-AEC2-89654AC30FE3}
+		{D11BF8A7-BF21-4467-8F77-81498CB1111F} = {EE30C78E-21D1-46DA-AEC2-89654AC30FE3}
 	EndGlobalSection
 EndGlobal
