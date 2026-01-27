@@ -67,7 +67,7 @@ public class McpServerBuilder(string serverName, string serverVersion)
     /// </remarks>
     public McpServerBuilder WithLocalHostHttp(LocalHostHttpServerTransportOptions options)
     {
-        _transportFactories.Add(m => new LocalHostStreamableHttpServerTransport(m, options));
+        _transportFactories.Add(m => new LocalHostHttpServerTransport(m, options));
         return this;
     }
 
