@@ -1,5 +1,7 @@
-﻿using System.Collections.Concurrent;
+﻿using System.Buffers;
+using System.Collections.Concurrent;
 using System.Diagnostics.CodeAnalysis;
+using System.IO.Pipelines;
 using System.Text.Json;
 using DotNetCampus.ModelContextProtocol.CompilerServices;
 using DotNetCampus.ModelContextProtocol.Hosting.Services;
@@ -109,6 +111,17 @@ internal class ServerTransportManager(McpServerContext context) : IServerTranspo
     public async ValueTask<JsonRpcRequest?> ReadRequestAsync(Stream requestStream)
     {
         var message = await JsonSerializer.DeserializeAsync(requestStream, McpServerRequestJsonContext.Default.JsonRpcRequest);
+        if (message is { Method: RequestMethods.Initialize, Id: null })
+        {
+            return message with { Id = MakeNewSessionId().ToJsonElement() };
+        }
+        return message;
+    }
+
+    public async ValueTask<JsonRpcRequest?> ReadRequestAsync(ReadOnlyMemory<byte> requestMemory)
+    {
+        var pipeReader = PipeReader.Create(new ReadOnlySequence<byte>(requestMemory));
+        var message = await JsonSerializer.DeserializeAsync(pipeReader, McpServerRequestJsonContext.Default.JsonRpcRequest);
         if (message is { Method: RequestMethods.Initialize, Id: null })
         {
             return message with { Id = MakeNewSessionId().ToJsonElement() };
