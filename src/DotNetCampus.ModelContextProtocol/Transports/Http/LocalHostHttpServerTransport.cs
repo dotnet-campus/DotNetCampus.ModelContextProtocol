@@ -19,6 +19,7 @@ namespace DotNetCampus.ModelContextProtocol.Transports.Http;
 /// </summary>
 public class LocalHostHttpServerTransport : IServerTransport
 {
+    private static readonly Encoding Utf8 = new UTF8Encoding(false, false);
     private readonly IServerTransportManager _manager;
     private readonly LocalHostHttpServerTransportOptions _options;
     private readonly HttpListener _listener = new();
@@ -85,7 +86,7 @@ public class LocalHostHttpServerTransport : IServerTransport
                         }
                         catch
                         {
-                            // 可能连接已关闭
+                            // 可能连接已关闭。
                         }
                     }
                 }, cancellationToken);
@@ -381,7 +382,7 @@ public class LocalHostHttpServerTransport : IServerTransport
 
         context.Response.SetSseResponseHeaders();
 
-        var writer = new StreamWriter(context.Response.OutputStream, Encoding.UTF8) { AutoFlush = true };
+        var writer = new StreamWriter(context.Response.OutputStream, Utf8) { AutoFlush = true };
         var session = new LegacySseSession(sessionId, writer, new CancellationTokenSource());
 
         if (!_legacySseSessions.TryAdd(sessionId, session))
@@ -499,6 +500,8 @@ public class LocalHostHttpServerTransport : IServerTransport
 
 file static class Extensions
 {
+    private static readonly Encoding Utf8 = new UTF8Encoding(false, false);
+
     extension(HttpListenerContext context)
     {
         /// <summary>
@@ -534,7 +537,7 @@ file static class Extensions
 
             if (!string.IsNullOrEmpty(message))
             {
-                var errorBytes = Encoding.UTF8.GetBytes(message);
+                var errorBytes = Utf8.GetBytes(message);
                 context.Response.OutputStream.Write(errorBytes, 0, errorBytes.Length);
             }
 

@@ -41,13 +41,14 @@ public class McpServerBuilder(string serverName, string serverVersion)
     /// <param name="endPoint">
     /// MCP 服务器将监听的路由端点，例如指定为 mcp 时，完整的 URL 为 http://localhost:{port}/mcp。<br/>
     /// 所有的 MCP 请求都将发送到该端点；除非客户端使用旧版本（2024-11-05）的 SSE 协议传输时，会自动改为使用 /mcp/sse 端点。<br/>
+    /// 如果不指定，会使用默认的 /mcp 端点；如果希望监听根路径，请指定为空字符串 ""。
     /// </param>
     /// <returns>用于链式调用的 MCP 服务器生成器。</returns>
     /// <remarks>
     /// 在无依赖的情况下，本 MCP 库只支持监听本机回环地址（localhost）的请求。<br/>
-    /// 如果需要监听其他地址，请安装 DotNetCampus.ModelContextProtocol.AspNetCore / DotNetCampus.ModelContextProtocol.TouchSocket 等包。
+    /// 如果需要监听其他地址，请 TouchSocket.Http 等包，或将项目 SDK 改为 Microsoft.NET.Sdk.Web 以使用 ASP.NET Core 内置的 HTTP 服务器。
     /// </remarks>
-    public McpServerBuilder WithLocalHostHttp(int port, [StringSyntax("Route")] string endPoint)
+    public McpServerBuilder WithLocalHostHttp(int port, [StringSyntax("Route")] string? endPoint = null)
     {
         return WithLocalHostHttp(new LocalHostHttpServerTransportOptions
         {
@@ -63,7 +64,7 @@ public class McpServerBuilder(string serverName, string serverVersion)
     /// <returns>用于链式调用的 MCP 服务器生成器。</returns>
     /// <remarks>
     /// 在无依赖的情况下，本 MCP 库只支持监听本机回环地址（localhost）的请求。<br/>
-    /// 如果需要监听其他地址，请安装 DotNetCampus.ModelContextProtocol.AspNetCore / DotNetCampus.ModelContextProtocol.TouchSocket 等包。
+    /// 如果需要监听其他地址，请 TouchSocket.Http 等包，或将项目 SDK 改为 Microsoft.NET.Sdk.Web 以使用 ASP.NET Core 内置的 HTTP 服务器。
     /// </remarks>
     public McpServerBuilder WithLocalHostHttp(LocalHostHttpServerTransportOptions options)
     {
