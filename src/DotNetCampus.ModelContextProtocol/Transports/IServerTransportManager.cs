@@ -11,6 +11,16 @@ namespace DotNetCampus.ModelContextProtocol.Transports;
 public interface IServerTransportManager
 {
     /// <summary>
+    /// 获取或初始化服务器名称。
+    /// </summary>
+    string ServerName { get; }
+
+    /// <summary>
+    /// 获取或初始化服务器版本。
+    /// </summary>
+    string ServerVersion { get; }
+
+    /// <summary>
     /// 获取用于传输层的上下文信息。
     /// </summary>
     IServerTransportContext Context { get; }

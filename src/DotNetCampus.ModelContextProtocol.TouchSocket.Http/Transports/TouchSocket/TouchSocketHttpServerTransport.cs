@@ -23,6 +23,7 @@ public class TouchSocketHttpServerTransport : PluginBase, IHttpPlugin, IServerTr
 {
     private readonly IServerTransportManager _manager;
     private readonly TouchSocketHttpServerTransportOptions _options;
+    private readonly TouchSocketConfig _config;
     private readonly HttpService _httpService = new();
 
     /// <summary>
@@ -34,7 +35,16 @@ public class TouchSocketHttpServerTransport : PluginBase, IHttpPlugin, IServerTr
     {
         _manager = manager;
         _options = options;
-        _httpService.PluginManager.Add(this);
+
+        _config = new TouchSocketConfig()
+            .SetListenIPHosts(_options.Listen.Select(x => new IPHost(x)).ToArray())
+            .SetServerName(_manager.ServerName)
+            .ConfigurePlugins(p =>
+            {
+                // p.UseCors()
+                p.Add(this);
+                p.UseDefaultHttpServicePlugin();
+            });
     }
 
     private IMcpLogger Log => _manager.Context.Logger;
@@ -42,15 +52,12 @@ public class TouchSocketHttpServerTransport : PluginBase, IHttpPlugin, IServerTr
     /// <inheritdoc />
     public async Task<Task> StartAsync(CancellationToken cancellationToken = default)
     {
-        var config = new TouchSocketConfig()
-            .SetListenIPHosts(_options.Listen.Select(x => new IPHost(x)).ToArray());
+        await _httpService.SetupAsync(_config);
+        await _httpService.StartAsync(cancellationToken);
 
-        await _httpService.SetupAsync(config);
-        var task = _httpService.StartAsync(cancellationToken);
+        Log.Info($"[McpServer][TouchSocket] listening on {string.Join(", ", _options.Listen)}, endpoint: {_options.EndPoint}");
 
-        Log.Info($"[McpServer][TouchSocket] listening on {_options.Listen}, endpoint: {_options.EndPoint}");
-
-        return Task.FromResult(task);
+        return Task.Delay(Timeout.Infinite, cancellationToken);
     }
 
     /// <inheritdoc />
@@ -76,6 +83,7 @@ public class TouchSocketHttpServerTransport : PluginBase, IHttpPlugin, IServerTr
             {
                 await e.Context.Response
                     .SetStatus(HttpStatusCode.InternalServerError, ex.Message)
+                    .SetContent(ex.ToString())
                     .AnswerAsync();
             }
             catch
@@ -98,22 +106,16 @@ public class TouchSocketHttpServerTransport : PluginBase, IHttpPlugin, IServerTr
         {
             var (statusCode, message) = validationError.Value;
             Log.Warn($"[McpServer][TouchSocket][Http] Request validation failed: {statusCode} - {message}");
-            context.Response.StatusCode = statusCode;
-            context.Response.SetContent(message, Encoding.UTF8);
-            await context.Response.AnswerAsync();
+            await context.Response
+                .SetStatus(statusCode, message)
+                .SetContent("")
+                .AnswerAsync();
             return;
         }
 
         context.Response.SetCorsHeaders();
 
         var method = context.Request.Method.ToString();
-
-        if (method == "OPTIONS")
-        {
-            context.Response.StatusCode = HttpStatusCode.OK;
-            await context.Response.AnswerAsync();
-            return;
-        }
 
         // Streamable HTTP: 客户端建立连接。
         if (method == "GET" && endpoint.Equals(_options.EndPoint, StringComparison.OrdinalIgnoreCase))
@@ -137,8 +139,7 @@ public class TouchSocketHttpServerTransport : PluginBase, IHttpPlugin, IServerTr
         }
 
         Log.Warn($"[McpServer][TouchSocket] No handler found for {method} {endpoint}");
-        context.Response.StatusCode = HttpStatusCode.NotFound;
-        await context.Response.AnswerAsync();
+        await e.InvokeNext();
     }
 
     #endregion
@@ -160,7 +161,8 @@ public class TouchSocketHttpServerTransport : PluginBase, IHttpPlugin, IServerTr
 
         Log.Info($"[McpServer][TouchSocket][Mcp:{sessionId}] Establishing connection");
         _manager.Add(new TouchSocketHttpServerTransportSession(sessionId, context));
-        await context.Response.AnswerAsync();
+
+        // TODO 卡住
     }
 
     private async ValueTask HandleStreamableHttpMessageAsync(HttpContext context)
@@ -293,11 +295,14 @@ file static class Extensions
         internal async ValueTask RespondJsonRpcAsync(IServerTransportManager manager, int statusCode, JsonRpcResponse response)
         {
             context.Response.ContentType = "application/json";
-            context.Response.StatusCode = statusCode;
+            context.Response.SetStatus(statusCode, "");
 
-            await using var stream = context.Response.CreateWriteStream();
-            await manager.WriteResponseAsync(stream, response, CancellationToken.None);
-            await context.Response.AnswerAsync();
+            context.Response.IsChunk = true;
+            await using (var stream = context.Response.CreateWriteStream())
+            {
+                await manager.WriteResponseAsync(stream, response, CancellationToken.None);
+            }
+            await context.Response.CompleteChunkAsync();
         }
 
         /// <summary>
@@ -306,8 +311,10 @@ file static class Extensions
         /// <param name="statusCode">HTTP 状态码。</param>
         internal async ValueTask RespondHttpSuccess(int statusCode)
         {
-            context.Response.StatusCode = statusCode;
-            await context.Response.AnswerAsync();
+            await context.Response
+                .SetStatus(statusCode, "")
+                .SetContent("")
+                .AnswerAsync();
         }
 
         /// <summary>
@@ -315,16 +322,10 @@ file static class Extensions
         /// </summary>
         internal async ValueTask RespondHttpError(int statusCode, string? message = null)
         {
-            context.Response.StatusCode = statusCode;
-
-            if (!string.IsNullOrEmpty(message))
-            {
-                var errorBytes = Utf8.GetBytes(message);
-                await using var stream = context.Response.CreateWriteStream();
-                await stream.WriteAsync(errorBytes);
-            }
-
-            await context.Response.AnswerAsync();
+            await context.Response
+                .SetStatus(statusCode, message)
+                .SetContent("")
+                .AnswerAsync();
         }
     }
 

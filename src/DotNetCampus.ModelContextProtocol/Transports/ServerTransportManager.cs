@@ -12,7 +12,7 @@ using DotNetCampus.ModelContextProtocol.Utils;
 
 namespace DotNetCampus.ModelContextProtocol.Transports;
 
-internal class ServerTransportManager(McpServerContext context) : IServerTransportManager
+internal class ServerTransportManager(McpServer server, McpServerContext context) : IServerTransportManager
 {
     private readonly CancellationTokenSource _runningCancellationTokenSource = new();
 
@@ -35,6 +35,16 @@ internal class ServerTransportManager(McpServerContext context) : IServerTranspo
     /// 桥接 MCP 协议的传输层与 MCP 协议的应用层。
     /// </summary>
     private readonly McpProtocolBridge _bridge = new(context);
+
+    /// <summary>
+    /// 获取或初始化服务器名称。
+    /// </summary>
+    public string ServerName => server.ServerName;
+
+    /// <summary>
+    /// 获取或初始化服务器版本。
+    /// </summary>
+    public string ServerVersion => server.ServerVersion;
 
     public IServerTransportContext Context => context;
 

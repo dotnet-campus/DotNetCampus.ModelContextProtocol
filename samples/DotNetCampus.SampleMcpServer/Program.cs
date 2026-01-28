@@ -4,6 +4,7 @@ using DotNetCampus.Logging.Writers;
 using DotNetCampus.ModelContextProtocol.Hosting.Logging;
 using DotNetCampus.ModelContextProtocol.Protocol.Messages;
 using DotNetCampus.ModelContextProtocol.Servers;
+using DotNetCampus.ModelContextProtocol.Transports.Http;
 using DotNetCampus.ModelContextProtocol.Transports.TouchSocket;
 using DotNetCampus.SampleMcpServer.McpResources;
 using DotNetCampus.SampleMcpServer.McpTools;
@@ -32,18 +33,6 @@ internal class Program
                 h.CallToolHandler = (request, token) => h.Raw.CallTool(request, token);
                 return h;
             })
-            .WithTouchSocketHttp(new TouchSocketHttpServerTransportOptions
-            {
-                Listen = ["0.0.0.0:5943", "[::]:5943"],
-                EndPoint = "mcp",
-            })
-            // .WithLocalHostHttp(new LocalHostHttpServerTransportOptions
-            // {
-            //     Port = 5943,
-            //     EndPoint = "mcp",
-            //     IsCompatibleWithSse = true,
-            // })
-            // .WithStdio()
             .WithJsonSerializer(McpToolJsonContext.Default)
             .WithTools(t => t
                 .WithTool(() => new SampleTool())
@@ -55,6 +44,18 @@ internal class Program
             .WithResources(r => r
                 .WithResource(() => new SampleResource())
             )
+            .WithTouchSocketHttp(new TouchSocketHttpServerTransportOptions
+            {
+                Listen = ["localhost:5943", "0.0.0.0:5943", "[::]:5943"],
+                EndPoint = "mcp",
+            })
+            // .WithLocalHostHttp(new LocalHostHttpServerTransportOptions
+            // {
+            //     Port = 5943,
+            //     EndPoint = "mcp",
+            //     IsCompatibleWithSse = true,
+            // })
+            // .WithStdio()
             .Build();
         mcpServer.EnableDebugMode();
         await mcpServer.RunAsync();

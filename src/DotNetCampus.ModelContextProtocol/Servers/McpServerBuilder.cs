@@ -180,7 +180,7 @@ public class McpServerBuilder(string serverName, string serverVersion)
         context.Handlers = _requestHandlers is { } requestHandlers
             ? requestHandlers(server, new McpRequestHandlers(server))
             : new McpRequestHandlers(server);
-        var transportManager = new ServerTransportManager(context);
+        var transportManager = new ServerTransportManager(server, context);
         context.Transport = transportManager;
         foreach (var factory in _transportFactories)
         {
