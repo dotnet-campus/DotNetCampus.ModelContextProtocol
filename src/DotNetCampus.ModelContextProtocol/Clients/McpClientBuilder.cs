@@ -1,6 +1,7 @@
 ﻿using DotNetCampus.ModelContextProtocol.Hosting.Logging;
 using DotNetCampus.ModelContextProtocol.Protocol.Messages;
 using DotNetCampus.ModelContextProtocol.Transports;
+using DotNetCampus.ModelContextProtocol.Transports.Http;
 using DotNetCampus.ModelContextProtocol.Transports.Stdio;
 using DotNetCampus.ModelContextProtocol.Utils;
 
@@ -54,7 +55,7 @@ public class McpClientBuilder
     }
 
     /// <summary>
-    /// 使用自定义的传输层。
+    /// 使用 STDIO 传输层连接到 MCP 服务器。
     /// </summary>
     /// <param name="command">要启动的命令。</param>
     /// <param name="arguments">命令的启动参数。</param>
@@ -71,13 +72,35 @@ public class McpClientBuilder
     }
 
     /// <summary>
-    /// 使用自定义的传输层。
+    /// 使用 STDIO 传输层连接到 MCP 服务器。
     /// </summary>
     /// <param name="options">STDIO 传输层的连接信息。</param>
     /// <returns>用于链式调用的 MCP 客户端生成器。</returns>
     public McpClientBuilder WithStdio(StdioClientTransportOptions options)
     {
         return WithTransport(m => new StdioClientTransport(m, options));
+    }
+
+    /// <summary>
+    /// 使用 Streamable HTTP 传输层连接到 MCP 服务器。
+    /// </summary>
+    /// <param name="url">要连接的 MCP 服务器的 URL。</param>
+    /// <returns>用于链式调用的 MCP 客户端生成器。</returns>
+    public McpClientBuilder WithHttp(string url)
+    {
+        return WithTransport(m => new HttpClientTransport(m, new HttpClientTransportOptions
+        {
+        }));
+    }
+
+    /// <summary>
+    /// 使用 Streamable HTTP 传输层连接到 MCP 服务器。
+    /// </summary>
+    /// <param name="options">Streamable HTTP 传输层的连接信息。</param>
+    /// <returns>用于链式调用的 MCP 客户端生成器。</returns>
+    public McpClientBuilder WithHttp(HttpClientTransportOptions options)
+    {
+        return WithTransport(m => new HttpClientTransport(m, options));
     }
 
     /// <summary>
