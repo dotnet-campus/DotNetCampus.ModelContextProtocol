@@ -48,14 +48,14 @@ public class IpcServerTransport : IServerTransport
     private IMcpLogger Log => _manager.Context.Logger;
 
     /// <inheritdoc />
-    public Task<Task> StartAsync(CancellationToken cancellationToken = default)
+    public Task<Task> StartAsync(CancellationToken startingCancellationToken, CancellationToken runningCancellationToken)
     {
         Log.Info($"[McpServer][Ipc] Starting DotNetCampus.Ipc server transport.");
 
         _server.StartServer();
         _server.PeerConnected += OnPeerConnected;
 
-        cancellationToken.Register(() => _taskCompletionSource.TrySetCanceled());
+        runningCancellationToken.Register(() => _taskCompletionSource.TrySetResult());
         return Task.FromResult<Task>(_taskCompletionSource.Task);
     }
 
@@ -68,8 +68,6 @@ public class IpcServerTransport : IServerTransport
         {
             _server.Dispose();
         }
-
-        _taskCompletionSource.TrySetResult();
 
         return ValueTask.CompletedTask;
     }

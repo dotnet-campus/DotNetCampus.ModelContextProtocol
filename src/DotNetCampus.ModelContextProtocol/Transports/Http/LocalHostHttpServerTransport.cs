@@ -44,12 +44,12 @@ public class LocalHostHttpServerTransport : IServerTransport
     private IMcpLogger Log => _manager.Context.Logger;
 
     /// <inheritdoc />
-    public Task<Task> StartAsync(CancellationToken cancellationToken = default)
+    public Task<Task> StartAsync(CancellationToken startingCancellationToken, CancellationToken runningCancellationToken)
     {
         _listener.Start();
         Log.Info($"[McpServer][StreamableHttp] listening on {string.Join(", ", _listener.Prefixes)}, endpoint: {_options.EndPoint}");
 
-        return Task.FromResult(RunLoopAsync(cancellationToken));
+        return Task.FromResult(RunLoopAsync(runningCancellationToken));
     }
 
     /// <inheritdoc />

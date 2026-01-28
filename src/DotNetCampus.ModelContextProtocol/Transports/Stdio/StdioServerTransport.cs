@@ -34,7 +34,7 @@ public class StdioServerTransport : IServerTransport
     private IMcpLogger Log => _manager.Context.Logger;
 
     /// <inheritdoc />
-    public Task<Task> StartAsync(CancellationToken cancellationToken = default)
+    public Task<Task> StartAsync(CancellationToken startingCancellationToken, CancellationToken runningCancellationToken)
     {
 #if DEBUG
         // System.Diagnostics.Debugger.Launch();
@@ -52,7 +52,7 @@ public class StdioServerTransport : IServerTransport
         };
         _manager.Add(_session);
 
-        return Task.FromResult(RunLoopAsync(cancellationToken));
+        return Task.FromResult(RunLoopAsync(runningCancellationToken));
     }
 
     /// <inheritdoc />

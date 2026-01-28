@@ -60,12 +60,12 @@ public class TouchSocketHttpServerTransport : PluginBase, IHttpPlugin, IServerTr
     private IMcpLogger Log => _manager.Context.Logger;
 
     /// <inheritdoc />
-    public async Task<Task> StartAsync(CancellationToken cancellationToken = default)
+    public async Task<Task> StartAsync(CancellationToken startingCancellationToken, CancellationToken runningCancellationToken)
     {
         if (_httpService is not null)
         {
             await _httpService.SetupAsync(_config!);
-            await _httpService.StartAsync(cancellationToken);
+            await _httpService.StartAsync(startingCancellationToken);
 
             Log.Info($"[McpServer][TouchSocket] listening on {string.Join(", ", _httpService.Monitors
                 .Select(x => x.Option.IpHost.ToString()))}, endpoint: {_options.EndPoint}");
@@ -76,7 +76,7 @@ public class TouchSocketHttpServerTransport : PluginBase, IHttpPlugin, IServerTr
                 $"[McpServer][TouchSocket] TouchSocketHttpServerTransport started in an external TouchSocket.Http.HttpServer, endpoint: {_options.EndPoint}");
         }
 
-        return Task.Delay(Timeout.Infinite, cancellationToken);
+        return Task.Delay(Timeout.Infinite, runningCancellationToken);
     }
 
     /// <inheritdoc />

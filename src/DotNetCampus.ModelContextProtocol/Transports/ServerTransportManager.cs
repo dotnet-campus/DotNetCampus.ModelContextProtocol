@@ -14,6 +14,9 @@ namespace DotNetCampus.ModelContextProtocol.Transports;
 
 internal class ServerTransportManager(McpServer server, McpServerContext context) : IServerTransportManager
 {
+    /// <summary>
+    /// 表示 MCP 服务正在运行的 <see cref="CancellationTokenSource"/>。
+    /// </summary>
     private readonly CancellationTokenSource _runningCancellationTokenSource = new();
 
     /// <summary>
@@ -57,15 +60,28 @@ internal class ServerTransportManager(McpServer server, McpServerContext context
     {
         var source = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _runningCancellationTokenSource.Token);
         var runTasks = _transports
-            .Select(t => t.StartAsync(source.Token).Unwrap())
+            .Select(t => t.StartAsync(source.Token, source.Token).Unwrap())
             .ToList();
         await Task.WhenAll(runTasks);
     }
 
-    public Task StopAsync(CancellationToken cancellationToken = default)
+    public async Task StartAsync(CancellationToken cancellationToken)
     {
+        var source = _runningCancellationTokenSource;
+        var startTasks = _transports
+            .Select(t => t.StartAsync(cancellationToken, source.Token))
+            .ToList();
+        await Task.WhenAll(startTasks);
+    }
+
+    public async Task StopAsync(CancellationToken cancellationToken = default)
+    {
+#if NET8_0_OR_GREATER
+        await _runningCancellationTokenSource.CancelAsync();
+#else
+        await Task.Yield();
         _runningCancellationTokenSource.Cancel();
-        return Task.CompletedTask;
+#endif
     }
 
     public SessionId MakeNewSessionId()

@@ -63,11 +63,29 @@ public class McpServer
     }
 
     /// <summary>
-    /// 运行 MCP 服务器。此异步任务会一直运行，直到取消或程序退出为止。
+    /// 运行 MCP 服务器。此异步任务会一直运行，直到取消令牌取消、调用 <see cref="StopAsync"/> 或程序退出为止。
     /// </summary>
     /// <param name="cancellationToken">用于取消运行的取消令牌。</param>
     public Task RunAsync(CancellationToken cancellationToken = default)
     {
         return Transport.RunAsync(cancellationToken);
+    }
+
+    /// <summary>
+    /// 运行 MCP 服务器。当服务启动完成后，此异步任务即返回；而后 MCP 服务器一直保持运行。
+    /// </summary>
+    /// <param name="cancellationToken">用于取消启动的取消令牌。当启动完成后，此取消令牌不会影响 MCP 服务器的运行。</param>
+    public Task StartAsync(CancellationToken cancellationToken = default)
+    {
+        return Transport.StartAsync(cancellationToken);
+    }
+
+    /// <summary>
+    /// 停止 MCP 服务器。当服务停止后，此异步任务即返回。
+    /// </summary>
+    /// <param name="cancellationToken">用于取消停止的取消令牌。</param>
+    public Task StopAsync(CancellationToken cancellationToken = default)
+    {
+        return Transport.StopAsync(cancellationToken);
     }
 }
