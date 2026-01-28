@@ -13,6 +13,8 @@ namespace DotNetCampus.ModelContextProtocol.Servers;
 /// <summary>
 /// 用于构建 MCP 服务器的生成器。
 /// </summary>
+/// <param name="serverName">MCP 服务器名称。</param>
+/// <param name="serverVersion">MCP 服务器版本。</param>
 public class McpServerBuilder(string serverName, string serverVersion)
 {
     private readonly List<Func<ServerTransportManager, IServerTransport>> _transportFactories = [];

@@ -1,6 +1,7 @@
 ﻿using System.Diagnostics.CodeAnalysis;
 using DotNetCampus.ModelContextProtocol.Transports.TouchSocket;
 using TouchSocket.Core;
+using TouchSocket.Http;
 
 namespace DotNetCampus.ModelContextProtocol.Servers;
 
@@ -11,13 +12,25 @@ public static class McpServerBuilderTouchSocketHttpExtensions
 {
     extension(IPluginManager pluginManager)
     {
-        public void UseMcpServerTransport(string serverName, string serverVersion, Action<McpServerBuilder> builder)
+        /// <summary>
+        /// 利用现有的 <see cref="HttpService"/> 作为传输层，建立一个 MCP 服务器，其监听端点为 "/end"。
+        /// </summary>
+        /// <param name="serverName">MCP 服务器名称。</param>
+        /// <param name="serverVersion">MCP 服务器版本。</param>
+        /// <param name="builder">MCP 服务器的生成器。</param>
+        public void UseMcpServer(string serverName, string serverVersion, Action<McpServerBuilder> builder)
         {
-            pluginManager.UseMcpServerTransport(serverName, serverVersion, "/mcp", builder);
+            pluginManager.UseMcpServer(serverName, serverVersion, "/mcp", builder);
         }
 
-        public void UseMcpServerTransport(string serverName, string serverVersion, [StringSyntax("Route")] string endPoint,
-            Action<McpServerBuilder> builder)
+        /// <summary>
+        /// 利用现有的 <see cref="HttpService"/> 作为传输层，建立一个 MCP 服务器，其监听端点为 <paramref name="endPoint"/>。
+        /// </summary>
+        /// <param name="serverName">MCP 服务器名称。</param>
+        /// <param name="serverVersion">MCP 服务器版本。</param>
+        /// <param name="endPoint">要监听的 MCP 服务端点。</param>
+        /// <param name="builder">MCP 服务器的生成器。</param>
+        public void UseMcpServer(string serverName, string serverVersion, [StringSyntax("Route")] string endPoint, Action<McpServerBuilder> builder)
         {
             var mcpServerBuilder = new McpServerBuilder(serverName, serverVersion);
             mcpServerBuilder.WithTransport(m =>

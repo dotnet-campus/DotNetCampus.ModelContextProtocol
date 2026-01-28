@@ -9,6 +9,25 @@ namespace DotNetCampus.ModelContextProtocol.Servers;
 /// </summary>
 public static class McpServerBuilderIpcExtensions
 {
+    /// <param name="ipcProvider"></param>
+    extension(IpcProvider ipcProvider)
+    {
+        /// <summary>
+        /// 利用现有的 <see cref="IpcProvider"/> 作为传输层，建立一个 MCP 服务器。
+        /// </summary>
+        /// <param name="serverName">MCP 服务器名称。</param>
+        /// <param name="serverVersion">MCP 服务器版本。</param>
+        /// <param name="builder">MCP 服务器的生成器。</param>
+        public void UseMcpServer(string serverName, string serverVersion, Action<McpServerBuilder> builder)
+        {
+            var mcpServerBuilder = new McpServerBuilder(serverName, serverVersion);
+            mcpServerBuilder.WithTransport(m => new IpcServerTransport(m, ipcProvider));
+            builder(mcpServerBuilder);
+            var mcpServer = mcpServerBuilder.Build();
+            _ = mcpServer.RunAsync();
+        }
+    }
+
     /// <param name="builder">用于链式调用的 MCP 服务器生成器。</param>
     extension(McpServerBuilder builder)
     {
