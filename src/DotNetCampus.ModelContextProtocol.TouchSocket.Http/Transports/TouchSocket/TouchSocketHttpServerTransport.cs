@@ -1,5 +1,4 @@
 ﻿using System.Collections.Specialized;
-using System.Text;
 using DotNetCampus.ModelContextProtocol.Hosting.Logging;
 using DotNetCampus.ModelContextProtocol.Hosting.Services;
 using DotNetCampus.ModelContextProtocol.Protocol;
@@ -22,9 +21,21 @@ namespace DotNetCampus.ModelContextProtocol.Transports.TouchSocket;
 public class TouchSocketHttpServerTransport : PluginBase, IHttpPlugin, IServerTransport
 {
     private readonly IServerTransportManager _manager;
-    private readonly TouchSocketHttpServerTransportOptions _options;
-    private readonly TouchSocketConfig _config;
-    private readonly HttpService _httpService = new();
+    private readonly ITouchSocketHttpServerTransportOptions _options;
+
+    private readonly TouchSocketConfig? _config;
+    private readonly HttpService? _httpService;
+
+    /// <summary>
+    /// 初始化 <see cref="TouchSocketHttpServerTransport"/> 类的新实例。
+    /// </summary>
+    /// <param name="manager">辅助管理 MCP 传输层的管理器。</param>
+    /// <param name="options">TouchSocket HTTP 传输层配置选项。</param>
+    public TouchSocketHttpServerTransport(IServerTransportManager manager, ExternalTouchSocketHttpServerTransportOptions options)
+    {
+        _manager = manager;
+        _options = options;
+    }
 
     /// <summary>
     /// 初始化 <see cref="TouchSocketHttpServerTransport"/> 类的新实例。
@@ -33,15 +44,14 @@ public class TouchSocketHttpServerTransport : PluginBase, IHttpPlugin, IServerTr
     /// <param name="options">TouchSocket HTTP 传输层配置选项。</param>
     public TouchSocketHttpServerTransport(IServerTransportManager manager, TouchSocketHttpServerTransportOptions options)
     {
+        _httpService = new HttpService();
         _manager = manager;
         _options = options;
-
         _config = new TouchSocketConfig()
-            .SetListenIPHosts(_options.Listen.Select(x => new IPHost(x)).ToArray())
+            .SetListenIPHosts(options.Listen.Select(x => new IPHost(x)).ToArray())
             .SetServerName(_manager.ServerName)
             .ConfigurePlugins(p =>
             {
-                // p.UseCors()
                 p.Add(this);
                 p.UseDefaultHttpServicePlugin();
             });
@@ -52,10 +62,19 @@ public class TouchSocketHttpServerTransport : PluginBase, IHttpPlugin, IServerTr
     /// <inheritdoc />
     public async Task<Task> StartAsync(CancellationToken cancellationToken = default)
     {
-        await _httpService.SetupAsync(_config);
-        await _httpService.StartAsync(cancellationToken);
+        if (_httpService is not null)
+        {
+            await _httpService.SetupAsync(_config!);
+            await _httpService.StartAsync(cancellationToken);
 
-        Log.Info($"[McpServer][TouchSocket] listening on {string.Join(", ", _options.Listen)}, endpoint: {_options.EndPoint}");
+            Log.Info($"[McpServer][TouchSocket] listening on {string.Join(", ", _httpService.Monitors
+                .Select(x => x.Option.IpHost.ToString()))}, endpoint: {_options.EndPoint}");
+        }
+        else
+        {
+            Log.Info(
+                $"[McpServer][TouchSocket] TouchSocketHttpServerTransport started in an external TouchSocket.Http.HttpServer, endpoint: {_options.EndPoint}");
+        }
 
         return Task.Delay(Timeout.Infinite, cancellationToken);
     }
@@ -63,9 +82,16 @@ public class TouchSocketHttpServerTransport : PluginBase, IHttpPlugin, IServerTr
     /// <inheritdoc />
     public async ValueTask DisposeAsync()
     {
-        await _httpService.StopAsync();
-        Log.Info($"[McpServer][TouchSocket] stopped listening");
-        _httpService.Dispose();
+        if (_httpService is { } httpService)
+        {
+            await httpService.StopAsync();
+            Log.Info($"[McpServer][TouchSocket] TouchSocketHttpServerTransport stopped.");
+            httpService.Dispose();
+        }
+        else
+        {
+            Log.Info($"[McpServer][TouchSocket] TouchSocketHttpServerTransport stopped. External TouchSocket.Http.HttpServer is still alive.");
+        }
     }
 
     #region HTTP
@@ -282,8 +308,6 @@ public class TouchSocketHttpServerTransport : PluginBase, IHttpPlugin, IServerTr
 
 file static class Extensions
 {
-    private static readonly Encoding Utf8 = new UTF8Encoding(false, false);
-
     extension(HttpContext context)
     {
         /// <summary>

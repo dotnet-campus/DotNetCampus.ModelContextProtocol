@@ -1,5 +1,6 @@
 ﻿using System.Diagnostics.CodeAnalysis;
 using DotNetCampus.ModelContextProtocol.Transports.TouchSocket;
+using TouchSocket.Core;
 
 namespace DotNetCampus.ModelContextProtocol.Servers;
 
@@ -8,6 +9,32 @@ namespace DotNetCampus.ModelContextProtocol.Servers;
 /// </summary>
 public static class McpServerBuilderTouchSocketHttpExtensions
 {
+    extension(IPluginManager pluginManager)
+    {
+        public void UseMcpServerTransport(string serverName, string serverVersion, Action<McpServerBuilder> builder)
+        {
+            pluginManager.UseMcpServerTransport(serverName, serverVersion, "/mcp", builder);
+        }
+
+        public void UseMcpServerTransport(string serverName, string serverVersion, [StringSyntax("Route")] string endPoint,
+            Action<McpServerBuilder> builder)
+        {
+            var mcpServerBuilder = new McpServerBuilder(serverName, serverVersion);
+            mcpServerBuilder.WithTransport(m =>
+            {
+                var transport = new TouchSocketHttpServerTransport(m, new ExternalTouchSocketHttpServerTransportOptions
+                {
+                    EndPoint = endPoint,
+                });
+                pluginManager.Add(transport);
+                return transport;
+            });
+            builder(mcpServerBuilder);
+            var mcpServer = mcpServerBuilder.Build();
+            _ = mcpServer.RunAsync();
+        }
+    }
+
     /// <param name="builder">用于链式调用的 MCP 服务器生成器。</param>
     extension(McpServerBuilder builder)
     {
