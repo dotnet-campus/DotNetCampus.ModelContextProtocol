@@ -34,6 +34,7 @@
 
   <ItemGroup>
     <EmbeddedResource Include="..\DotNetCampus.ModelContextProtocol.Ipc\**\*.cs" LinkBase="Transports\DotNetCampus.Ipc" />
+    <EmbeddedResource Include="..\DotNetCampus.ModelContextProtocol.TouchSocket.Http\**\*.cs" LinkBase="Transports\TouchSocket.Http" />
   </ItemGroup>
 
 </Project>

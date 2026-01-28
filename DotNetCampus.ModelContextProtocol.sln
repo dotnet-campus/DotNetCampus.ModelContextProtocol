@@ -40,7 +40,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "5.extensions", "5.extension
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DotNetCampus.ModelContextProtocol.Ipc", "src\DotNetCampus.ModelContextProtocol.Ipc\DotNetCampus.ModelContextProtocol.Ipc.csproj", "{8990631C-4717-4CC2-AB2E-FB417EB0F437}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DotNetCampus.ModelContextProtocol.TouchSocket", "src\DotNetCampus.ModelContextProtocol.TouchSocket\DotNetCampus.ModelContextProtocol.TouchSocket.csproj", "{D11BF8A7-BF21-4467-8F77-81498CB1111F}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DotNetCampus.ModelContextProtocol.TouchSocket.Http", "src\DotNetCampus.ModelContextProtocol.TouchSocket.Http\DotNetCampus.ModelContextProtocol.TouchSocket.Http.csproj", "{D11BF8A7-BF21-4467-8F77-81498CB1111F}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

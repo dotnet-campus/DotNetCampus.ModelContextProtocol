@@ -1,8 +1,7 @@
 ﻿using System.Diagnostics.CodeAnalysis;
-using DotNetCampus.ModelContextProtocol.Servers;
-using DotNetCampus.ModelContextProtocol.TouchSocket.Transports.TouchSocket;
+using DotNetCampus.ModelContextProtocol.Transports.TouchSocket;
 
-namespace DotNetCampus.ModelContextProtocol.TouchSocket.Servers;
+namespace DotNetCampus.ModelContextProtocol.Servers;
 
 /// <summary>
 /// 扩展 <see cref="McpServerBuilder"/> 以支持 TouchSocket.Http 相关功能。
@@ -23,7 +22,7 @@ public static class McpServerBuilderTouchSocketHttpExtensions
         /// <returns>用于链式调用的 MCP 服务器生成器。</returns>
         public McpServerBuilder WithTouchSocketHttp(int port, [StringSyntax("Route")] string? endPoint = null)
         {
-            builder.WithTouchSocketHttp(new TouchSocketServerTransportOptions
+            builder.WithTouchSocketHttp(new TouchSocketHttpServerTransportOptions
             {
                 Listen = [$"localhost:{port}", $"127.0.0.1:{port}", $"[::1]:{port}"],
                 EndPoint = endPoint,
@@ -49,7 +48,7 @@ public static class McpServerBuilderTouchSocketHttpExtensions
         /// <returns>用于链式调用的 MCP 服务器生成器。</returns>
         public McpServerBuilder WithTouchSocketHttp(IReadOnlyList<string> listen, [StringSyntax("Route")] string? endPoint = null)
         {
-            builder.WithTouchSocketHttp(new TouchSocketServerTransportOptions
+            builder.WithTouchSocketHttp(new TouchSocketHttpServerTransportOptions
             {
                 Listen = listen,
                 EndPoint = endPoint,
@@ -62,9 +61,9 @@ public static class McpServerBuilderTouchSocketHttpExtensions
         /// </summary>
         /// <param name="options">TouchSocket.Http 服务选项。</param>
         /// <returns>用于链式调用的 MCP 服务器生成器。</returns>
-        public McpServerBuilder WithTouchSocketHttp(TouchSocketServerTransportOptions options)
+        public McpServerBuilder WithTouchSocketHttp(TouchSocketHttpServerTransportOptions options)
         {
-            builder.WithTransport(m => new TouchSocketServerTransport(m, options));
+            builder.WithTransport(m => new TouchSocketHttpServerTransport(m, options));
             return builder;
         }
     }

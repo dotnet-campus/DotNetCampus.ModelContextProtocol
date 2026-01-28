@@ -17,7 +17,7 @@ public class GenerateMcpTransportGenerator : IIncrementalGenerator
         // Value: NuGet Package Id.
         //        We generate one supported transport codes per supported nuget package
         ["dotnetCampus.Ipc"] = "dotnetCampus.Ipc",
-        ["TouchSocket"] = "TouchSocket",
+        ["TouchSocket.Http"] = "TouchSocket.Http",
     };
 
     public void Initialize(IncrementalGeneratorInitializationContext context)

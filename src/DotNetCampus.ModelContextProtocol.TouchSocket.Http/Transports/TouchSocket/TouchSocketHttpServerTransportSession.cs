@@ -1,14 +1,13 @@
 using System.Text;
 using DotNetCampus.ModelContextProtocol.Protocol.Messages.JsonRpc;
-using DotNetCampus.ModelContextProtocol.Transports;
 using TouchSocket.Http;
 
-namespace DotNetCampus.ModelContextProtocol.TouchSocket.Transports.TouchSocket;
+namespace DotNetCampus.ModelContextProtocol.Transports.TouchSocket;
 
 /// <summary>
 /// HTTP 传输层的一个会话。
 /// </summary>
-public class TouchSocketServerTransportSession : IServerTransportSession
+public class TouchSocketHttpServerTransportSession : IServerTransportSession
 {
     private static readonly Encoding Utf8 = new UTF8Encoding(false, false);
     private readonly CancellationTokenSource _cancellationTokenSource = new();
@@ -19,7 +18,7 @@ public class TouchSocketServerTransportSession : IServerTransportSession
     /// </summary>
     /// <param name="sessionId">会话 Id。</param>
     /// <param name="httpContext">HTTP 上下文。</param>
-    public TouchSocketServerTransportSession(string sessionId, HttpContext httpContext)
+    public TouchSocketHttpServerTransportSession(string sessionId, HttpContext httpContext)
     {
         SessionId = sessionId;
         _writer = new StreamWriter(httpContext.Response.CreateWriteStream(), Utf8)

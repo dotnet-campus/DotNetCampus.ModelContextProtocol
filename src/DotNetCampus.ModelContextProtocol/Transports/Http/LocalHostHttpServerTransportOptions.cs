@@ -36,7 +36,7 @@ public record LocalHostHttpServerTransportOptions
     public bool EnableDnsRebindingProtection { get; init; } = true;
 
     /// <summary>
-    /// 指定是否兼容旧的 SSE传输层协议（2024-11-05）。默认为 <see langword="false"/>。
+    /// 指定是否兼容旧的 SSE 传输层协议（2024-11-05）。默认为 <see langword="false"/>。
     /// </summary>
     [MemberNotNullWhen(true, nameof(SseEndPoint), nameof(SseMessageEndPoint))]
     public bool IsCompatibleWithSse { get; init; }

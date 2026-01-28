@@ -5,29 +5,32 @@ using DotNetCampus.ModelContextProtocol.Hosting.Services;
 using DotNetCampus.ModelContextProtocol.Protocol;
 using DotNetCampus.ModelContextProtocol.Protocol.Messages.JsonRpc;
 using DotNetCampus.ModelContextProtocol.Servers;
-using DotNetCampus.ModelContextProtocol.Transports;
+using DotNetCampus.ModelContextProtocol.Transports.Http;
 using TouchSocket.Core;
 using TouchSocket.Http;
 using TouchSocket.Sockets;
 
-namespace DotNetCampus.ModelContextProtocol.TouchSocket.Transports.TouchSocket;
+namespace DotNetCampus.ModelContextProtocol.Transports.TouchSocket;
 
 /// <summary>
-/// 基于 TouchSocket 的 HTTP 传输层实现。<br/>
-/// 支持监听 0.0.0.0 等所有网络接口。
+/// 基于 TouchSocket.Http 的 Streamable HTTP 传输层实现。
 /// </summary>
-public class TouchSocketServerTransport : PluginBase, IHttpPlugin, IServerTransport
+/// <remarks>
+/// TouchSocket.Http 的服务端传输层暂时没考虑兼容旧的 SSE 传输层协议（2024-11-05），
+/// 若要兼容 SSE，请使用 MCP 库自带的 <see cref="LocalHostHttpServerTransport"/> 传输层。
+/// </remarks>
+public class TouchSocketHttpServerTransport : PluginBase, IHttpPlugin, IServerTransport
 {
     private readonly IServerTransportManager _manager;
-    private readonly TouchSocketServerTransportOptions _options;
+    private readonly TouchSocketHttpServerTransportOptions _options;
     private readonly HttpService _httpService = new();
 
     /// <summary>
-    /// 初始化 <see cref="TouchSocketServerTransport"/> 类的新实例。
+    /// 初始化 <see cref="TouchSocketHttpServerTransport"/> 类的新实例。
     /// </summary>
     /// <param name="manager">辅助管理 MCP 传输层的管理器。</param>
     /// <param name="options">TouchSocket HTTP 传输层配置选项。</param>
-    public TouchSocketServerTransport(IServerTransportManager manager, TouchSocketServerTransportOptions options)
+    public TouchSocketHttpServerTransport(IServerTransportManager manager, TouchSocketHttpServerTransportOptions options)
     {
         _manager = manager;
         _options = options;
@@ -156,7 +159,7 @@ public class TouchSocketServerTransport : PluginBase, IHttpPlugin, IServerTransp
         }
 
         Log.Info($"[McpServer][TouchSocket][Mcp:{sessionId}] Establishing connection");
-        _manager.Add(new TouchSocketServerTransportSession(sessionId, context));
+        _manager.Add(new TouchSocketHttpServerTransportSession(sessionId, context));
         await context.Response.AnswerAsync();
     }
 
@@ -181,7 +184,7 @@ public class TouchSocketServerTransport : PluginBase, IHttpPlugin, IServerTransp
                 return;
             }
             if (method != RequestMethods.NotificationsInitialized
-                && !_manager.TryGetSession<TouchSocketServerTransportSession>(sessionId, out _))
+                && !_manager.TryGetSession<TouchSocketHttpServerTransportSession>(sessionId, out _))
             {
                 Log.Warn($"[McpServer][TouchSocket][Mcp:{sessionId}][{method}][Request] Message handling failed due to unknown Mcp-Session-Id");
                 await context.RespondHttpError(HttpStatusCode.BadRequest, "Unknown Mcp-Session-Id");
@@ -219,7 +222,7 @@ public class TouchSocketServerTransport : PluginBase, IHttpPlugin, IServerTransp
             return;
         }
 
-        if (!_manager.TryGetSession<TouchSocketServerTransportSession>(sessionId, out var session))
+        if (!_manager.TryGetSession<TouchSocketHttpServerTransportSession>(sessionId, out var session))
         {
             Log.Debug($"[McpServer][TouchSocket][Mcp:{sessionId}] Disconnected but session not found (already terminated?)");
             await context.RespondHttpSuccess(HttpStatusCode.OK);
