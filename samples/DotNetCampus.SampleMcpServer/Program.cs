@@ -46,7 +46,7 @@ internal class Program
             )
             .WithTouchSocketHttp(new TouchSocketHttpServerTransportOptions
             {
-                Listen = ["localhost:5943", "0.0.0.0:5943", "[::]:5943"],
+                Listen = ["0.0.0.0:5943", "[::]:5943"],
                 EndPoint = "mcp",
             })
             // .WithLocalHostHttp(new LocalHostHttpServerTransportOptions
