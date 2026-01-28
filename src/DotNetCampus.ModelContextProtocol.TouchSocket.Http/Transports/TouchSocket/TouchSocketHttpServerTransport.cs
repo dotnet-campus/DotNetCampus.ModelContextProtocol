@@ -160,9 +160,9 @@ public class TouchSocketHttpServerTransport : PluginBase, IHttpPlugin, IServerTr
         }
 
         Log.Info($"[McpServer][TouchSocket][Mcp:{sessionId}] Establishing connection");
-        _manager.Add(new TouchSocketHttpServerTransportSession(sessionId, context));
-
-        // TODO 卡住
+        var session = new TouchSocketHttpServerTransportSession(sessionId, context);
+        _manager.Add(session);
+        await session.WaitForDisconnectedAsync();
     }
 
     private async ValueTask HandleStreamableHttpMessageAsync(HttpContext context)

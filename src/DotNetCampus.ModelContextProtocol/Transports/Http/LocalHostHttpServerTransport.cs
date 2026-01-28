@@ -190,8 +190,9 @@ public class LocalHostHttpServerTransport : IServerTransport
         }
 
         Log.Info($"[McpServer][StreamableHttp][Mcp:{sessionId}] Establishing connection");
-        _manager.Add(new LocalHostHttpServerTransportSession(sessionId, context));
-        return ValueTask.CompletedTask;
+        var session = new LocalHostHttpServerTransportSession(sessionId, context);
+        _manager.Add(session);
+        return session.WaitForDisconnectedAsync();
     }
 
     private async ValueTask HandleStreamableHttpMessageAsync(HttpListenerContext context)
