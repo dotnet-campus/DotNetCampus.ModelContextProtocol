@@ -121,7 +121,9 @@ public class HttpClientTransport : IClientTransport
                 request.Headers.Add("Mcp-Session-Id", currentSessionId);
             }
 
-            request.Headers.Add("Accept", "application/json");
+            // 根据 MCP 2025-11-25 规范：客户端必须在 Accept header 中同时列出 application/json 和 text/event-stream
+            // The client MUST include an Accept header, listing both application/json and text/event-stream as supported content types.
+            request.Headers.Add("Accept", "application/json, text/event-stream");
 
             var jsonContent = _manager.WriteRequestAsync(message);
             request.Content = new StringContent(jsonContent, Encoding.UTF8, "application/json");

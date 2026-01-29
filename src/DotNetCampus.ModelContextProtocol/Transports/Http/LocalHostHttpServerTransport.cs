@@ -286,14 +286,26 @@ public class LocalHostHttpServerTransport : IServerTransport
             }
         }
 
-        // 2. DNS 重绑定防护（可选，默认启用）。
+        // 2. 验证 Accept header（所有 POST 请求都需要）。
+        // 根据 MCP 2025-11-25 规范：客户端必须在 Accept header 中同时列出 application/json 和 text/event-stream
+        // The client MUST include an Accept header, listing both application/json and text/event-stream as supported content types.
+        if (isPost)
+        {
+            var accept = request.Headers["Accept"];
+            if (!ValidateAccept(accept))
+            {
+                return (HttpStatusCode.NotAcceptable, "Not Acceptable: Client must accept both application/json and text/event-stream");
+            }
+        }
+
+        // 3. DNS 重绑定防护（可选，默认启用）。
         // Skip remaining validation if DNS rebinding protection is disabled.
         if (!_options.EnableDnsRebindingProtection)
         {
             return null;
         }
 
-        // 3. 验证 Host header。
+        // 4. 验证 Host header。
         // Validate Host header to prevent DNS rebinding attacks.
         var host = request.Headers["Host"];
         if (!ValidateHost(host))
@@ -301,7 +313,7 @@ public class LocalHostHttpServerTransport : IServerTransport
             return (HttpStatusCode.MisdirectedRequest, "Invalid Host header. Expected: localhost, 127.0.0.1, or [::1]");
         }
 
-        // 4. 验证 Origin header（MCP 2025-11-25 新增要求，PR #1439）。
+        // 5. 验证 Origin header（MCP 2025-11-25 新增要求，PR #1439）。
         // Validate Origin header - servers must respond with HTTP 403 Forbidden for invalid Origin headers.
         var origin = request.Headers["Origin"];
         if (!ValidateOrigin(origin))
@@ -324,6 +336,24 @@ public class LocalHostHttpServerTransport : IServerTransport
 
         // 支持 "application/json" 和 "application/json; charset=utf-8" 等格式。
         return contentType.StartsWith("application/json", StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// 验证 Accept header 是否包含必需的 MIME 类型。<br/>
+    /// 根据 MCP 2025-11-25 规范：客户端必须在 Accept header 中同时列出 application/json 和 text/event-stream<br/>
+    /// The client MUST include an Accept header, listing both application/json and text/event-stream as supported content types.
+    /// </summary>
+    private static bool ValidateAccept(string? accept)
+    {
+        if (string.IsNullOrWhiteSpace(accept))
+        {
+            return false;
+        }
+
+        // Accept header 可能包含多个值，用逗号分隔，且可能带有 q 参数
+        // 例如: "application/json, text/event-stream" 或 "application/json;q=0.9, text/event-stream"
+        return accept.Contains("application/json", StringComparison.OrdinalIgnoreCase)
+               && accept.Contains("text/event-stream", StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>
@@ -555,7 +585,9 @@ file static class Extensions
         {
             response.Headers.Add("Access-Control-Allow-Origin", "*");
             response.Headers.Add("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS");
-            response.Headers.Add("Access-Control-Allow-Headers", "Content-Type, Mcp-Session-Id");
+            response.Headers.Add("Access-Control-Allow-Headers", "Content-Type, Mcp-Session-Id, Mcp-Protocol-Version");
+            // 根据 MCP 协议，必须暴露这些头部供客户端访问
+            response.Headers.Add("Access-Control-Expose-Headers", "Mcp-Session-Id, Last-Event-Id, Mcp-Protocol-Version");
         }
 
         /// <summary>
