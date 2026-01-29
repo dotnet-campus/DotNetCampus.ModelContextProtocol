@@ -4,7 +4,6 @@ using System.Diagnostics;
 using System.Net;
 using System.Text;
 using System.Text.Json;
-using DotNetCampus.ModelContextProtocol.CompilerServices;
 using DotNetCampus.ModelContextProtocol.Hosting.Logging;
 using DotNetCampus.ModelContextProtocol.Hosting.Services;
 using DotNetCampus.ModelContextProtocol.Protocol;
@@ -240,7 +239,7 @@ public class LocalHostHttpServerTransport : IServerTransport
         }
 
         Log.Debug($"[McpServer][StreamableHttp][Mcp:{sessionId}][{method}][Response] Sending response for message[{message.Id}]");
-        await context.RespondJsonRpcAsync(HttpStatusCode.OK, response);
+        await context.RespondJsonRpcAsync(_manager, HttpStatusCode.OK, response);
     }
 
     private async ValueTask HandleStreamableHttpDisconnectionAsync(HttpListenerContext context)
@@ -500,9 +499,9 @@ public class LocalHostHttpServerTransport : IServerTransport
             {
                 Log.Debug(
                     $"[McpServer][StreamableHttp][Legacy:Message:{sessionId}][{message.Method}][Response] Sending SSE response for message[{message.Id}]");
-                await session.Writer.WriteAsync("event:message\n");
-                var responseText = JsonSerializer.Serialize(response, McpServerResponseJsonContext.Default.JsonRpcResponse);
-                await session.Writer.WriteAsync($"data:{responseText}\n\n");
+                await session.Writer.WriteAsync("event:message\ndata:");
+                await _manager.WriteResponseAsync(session.Writer.BaseStream, response, CancellationToken.None);
+                await session.Writer.WriteAsync("\n\n");
                 context.RespondHttpSuccess(HttpStatusCode.OK);
             }
             else
@@ -541,14 +540,15 @@ file static class Extensions
         /// <summary>
         /// 返回 JSON-RPC 响应。
         /// </summary>
+        /// <param name="manager">服务端传输管理器。</param>
         /// <param name="statusCode">HTTP 状态码。</param>
         /// <param name="response">JSON-RPC 响应对象。</param>
-        internal async ValueTask RespondJsonRpcAsync(HttpStatusCode statusCode, JsonRpcResponse response)
+        internal async ValueTask RespondJsonRpcAsync(IServerTransportManager manager, HttpStatusCode statusCode, JsonRpcResponse response)
         {
             context.Response.ContentType = "application/json";
             context.Response.StatusCode = (int)statusCode;
 
-            await JsonSerializer.SerializeAsync(context.Response.OutputStream, response, McpServerResponseJsonContext.Default.JsonRpcResponse);
+            await manager.WriteResponseAsync(context.Response.OutputStream, response, CancellationToken.None);
             context.Response.Close();
         }
 
