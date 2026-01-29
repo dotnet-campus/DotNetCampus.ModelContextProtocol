@@ -40,22 +40,35 @@ public interface IClientTransportManager
     ValueTask<JsonRpcResponse?> ReadResponseAsync(Stream responseStream);
 
     /// <summary>
-    /// 提供给传输层调用。用于将请求 JSON-RPC 对象转换成字符串待传输层写入。
+    /// 提供给传输层调用，用于将请求 JSON-RPC 对象转换成字符串待传输层写入。
+    /// <list type="bullet">
+    /// <item>当客户端希望发送请求给服务端时，调用此方法可以将请求 JSON-RPC 对象转换成字符串。</item>
+    /// <item>当客户端希望给服务端发送通知时，调用此方法可以将通知 JSON-RPC 对象转换成字符串。</item>
+    /// <item>如果服务端也想请求客户端完成某些事情，客户端也可以处理完请求并返回了响应后，调用此方法可以将响应 JSON-RPC 对象转换成字符串。</item>
+    /// </list>
     /// </summary>
-    /// <param name="message">即将写入的 JSON-RPC 请求对象。</param>
+    /// <param name="message">即将写入的 JSON-RPC 请求对象、通知对象、响应对象。</param>
+    /// <remarks>
+    /// 如果写入失败，此方法会暴露底层的任何写入异常，传输层需处理好此异常（说明连接关闭等）。
+    /// </remarks>
     /// <returns>请求 JSON-RPC 对象的字符串内容。</returns>
-    string WriteRequestAsync(JsonRpcMessage message);
+    string WriteMessageAsync(JsonRpcMessage message);
 
     /// <summary>
-    /// 提供给传输层调用。用于将请求 JSON-RPC 对象写入到流中。
+    /// 提供给传输层调用，用于发送消息给 MCP 服务端。
+    /// <list type="bullet">
+    /// <item>当客户端希望发送请求给服务端时，调用此方法可以将请求 JSON-RPC 对象写入到流中。</item>
+    /// <item>当客户端希望给服务端发送通知时，调用此方法可以将通知 JSON-RPC 对象写入到流中。</item>
+    /// <item>如果服务端也想请求客户端完成某些事情，客户端也可以处理完请求并返回了响应后，调用此方法可以将响应 JSON-RPC 对象写入到流中。</item>
+    /// </list>
     /// </summary>
     /// <param name="requestStream">请求流。</param>
-    /// <param name="message">即将写入的 JSON-RPC 请求对象。</param>
+    /// <param name="message">即将写入的 JSON-RPC 请求对象、通知对象、响应对象。</param>
     /// <param name="cancellationToken">如果需要取消写入，则传入此令牌。</param>
     /// <remarks>
     /// 如果写入失败，此方法会暴露底层的任何写入异常，传输层需处理好此异常（说明连接关闭等）。
     /// </remarks>
-    ValueTask WriteRequestAsync(Stream requestStream, JsonRpcMessage message, CancellationToken cancellationToken);
+    ValueTask WriteMessageAsync(Stream requestStream, JsonRpcMessage message, CancellationToken cancellationToken);
 
     /// <summary>
     /// 提供给传输层调用。当传输层收到响应后，调用此方法可以将响应交给 MCP 客户端进行处理。

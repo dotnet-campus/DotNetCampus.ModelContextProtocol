@@ -67,7 +67,7 @@ public class StdioClientTransport : IClientTransport
             return;
         }
 
-        var line = _manager.WriteRequestAsync(message);
+        var line = _manager.WriteMessageAsync(message);
         await stdio.StandardInput.WriteAsync(line);
         await stdio.StandardInput.WriteAsync('\n');
         await stdio.StandardInput.FlushAsync();

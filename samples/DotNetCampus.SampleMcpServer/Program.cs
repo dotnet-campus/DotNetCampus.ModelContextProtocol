@@ -44,17 +44,17 @@ internal class Program
             .WithResources(r => r
                 .WithResource(() => new SampleResource())
             )
-            .WithTouchSocketHttp(new TouchSocketHttpServerTransportOptions
-            {
-                Listen = ["0.0.0.0:5943", "[::]:5943"],
-                EndPoint = "mcp",
-            })
-            // .WithLocalHostHttp(new LocalHostHttpServerTransportOptions
+            // .WithTouchSocketHttp(new TouchSocketHttpServerTransportOptions
             // {
-            //     Port = 5943,
+            //     Listen = ["0.0.0.0:5943", "[::]:5943"],
             //     EndPoint = "mcp",
-            //     IsCompatibleWithSse = true,
             // })
+            .WithLocalHostHttp(new LocalHostHttpServerTransportOptions
+            {
+                Port = 5943,
+                EndPoint = "mcp",
+                IsCompatibleWithSse = true,
+            })
             // .WithStdio()
             .Build();
         mcpServer.EnableDebugMode();

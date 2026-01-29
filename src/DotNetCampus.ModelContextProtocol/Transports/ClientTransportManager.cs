@@ -50,7 +50,7 @@ internal class ClientTransportManager(IClientTransportContext context) : IClient
     }
 
     /// <inheritdoc />
-    public string WriteRequestAsync(JsonRpcMessage message) => message switch
+    public string WriteMessageAsync(JsonRpcMessage message) => message switch
     {
         JsonRpcRequest request => JsonSerializer.Serialize(request, McpServerRequestJsonContext.Default.JsonRpcRequest),
         JsonRpcNotification notification => JsonSerializer.Serialize(notification, McpServerRequestJsonContext.Default.JsonRpcNotification),
@@ -58,7 +58,7 @@ internal class ClientTransportManager(IClientTransportContext context) : IClient
     };
 
     /// <inheritdoc />
-    public async ValueTask WriteRequestAsync(Stream requestStream, JsonRpcMessage message, CancellationToken cancellationToken)
+    public async ValueTask WriteMessageAsync(Stream requestStream, JsonRpcMessage message, CancellationToken cancellationToken)
     {
         await (message switch
         {
