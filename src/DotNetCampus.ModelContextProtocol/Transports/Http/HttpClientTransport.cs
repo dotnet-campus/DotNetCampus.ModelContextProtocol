@@ -200,22 +200,41 @@ public class HttpClientTransport : IClientTransport
                 response.EnsureSuccessStatusCode();
 
                 var contentType = response.Content.Headers.ContentType?.MediaType;
+                var isInitializeUpgradedToSse = contentType?.Equals("text/event-stream", StringComparison.OrdinalIgnoreCase) is true;
 
                 // 4. 处理响应内容
-                if (contentType?.Equals("text/event-stream", StringComparison.OrdinalIgnoreCase) is true)
+                if (isInitializeUpgradedToSse)
                 {
                     // 情况 A: 服务端升级了连接为 SSE (通常仅在 Initialize 时发生)
                     Log.Debug($"[McpClient][Http][Mcp:{_sessionId}][{message.Method}] Connection upgraded to SSE stream");
 
-                    // 接管 Response Stream
+                    // 响应流 StreamReader 将被传递给后台循环，生命周期由 Loop 结束时管理
                     var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
+                    var reader = new StreamReader(stream, Encoding.UTF8, leaveOpen: true);
 
-                    // 在升级模式下，同步读取并处理第一条消息（即 Initialize 响应）
-                    var reader = await ReadFirstSseMessageAsync(stream, cancellationToken);
+                    // 在升级模式下，同步读取第一条消息（期望是 Initialize 响应）
+                    // 这使我们能在握手阶段立即获得结果，而不是等待后台循环启动
+                    JsonRpcResponse? jsonRpcResponse = null;
+                    try
+                    {
+                        jsonRpcResponse = await ReadFirstSseMessageAsync(reader, cancellationToken);
+                    }
+                    catch (Exception ex)
+                    {
+                        // 仅记录警告，不中断，因为 Loop 可能会恢复
+                        Log.Warn($"[McpClient][Http] Error reading first SSE message: {ex.Message}");
+                    }
 
-                    // 将 Reader 和 Response 的所有权移交给后台循环
+                    // 将 Reader 和 Response 的所有权移交给后台循环 (Reader 游标已移动到第一条消息之后)
                     StartSseLoop(_sessionId!, reader, response);
                     handover = true;
+
+                    // 统一处理响应逻辑 (和情况 B 一致)
+                    if (jsonRpcResponse != null)
+                    {
+                        Log.Debug($"[McpClient][Http][Mcp:{_sessionId}][{message.Method}][Response] Received response[{jsonRpcResponse.Id}] via SSE Upgrade");
+                        await _manager.HandleRespondAsync(jsonRpcResponse, cancellationToken);
+                    }
                 }
                 else
                 {
@@ -291,9 +310,9 @@ public class HttpClientTransport : IClientTransport
         }
     }
 
-    private async Task<StreamReader> ReadFirstSseMessageAsync(Stream stream, CancellationToken cancellationToken)
+    private async Task<JsonRpcResponse?> ReadFirstSseMessageAsync(StreamReader reader, CancellationToken cancellationToken)
     {
-        var reader = new StreamReader(stream, Encoding.UTF8); // Default buffer size, handle BOM
+        // StreamReader 由调用者 (SendRequestAsync) 传入，不在此处 dispose
 
         string? line;
         string? eventType = null;
@@ -307,11 +326,19 @@ public class HttpClientTransport : IClientTransport
                 // End of event
                 if (dataBuilder.Length > 0)
                 {
-                    var data = dataBuilder.ToString();
-                    await ProcessSseEventAsync(_sessionId!, eventType, data, cancellationToken);
+                    // 忽略 legacy endpoint 事件，继续寻找下一条
+                    if (eventType == "endpoint")
+                    {
+                        eventType = null;
+                        dataBuilder.Clear();
+                        continue;
+                    }
 
-                    // 返回 Reader 以供后续使用
-                    return reader;
+                    var data = dataBuilder.ToString();
+
+                    // 尝试解析为 Response 返回
+                    // 注意：按照建议，我们不在此处做完整 dispatch，而是直接返回对象由调用方统一处理
+                    return await _manager.ReadResponseAsync(data);
                 }
 
                 // 忽略没有数据的事件（如心跳）
@@ -330,7 +357,7 @@ public class HttpClientTransport : IClientTransport
             }
         }
 
-        throw new IOException("Stream closed before receiving first SSE message");
+        return null;
     }
 
     private void StartSseLoop(string sessionId, StreamReader? existingReader = null, HttpResponseMessage? existingResponse = null)
