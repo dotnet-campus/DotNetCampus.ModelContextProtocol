@@ -27,13 +27,23 @@
     *   **Header 要求**：
         *   `Accept: application/json, text/event-stream`
         *   `MCP-Protocol-Version: 2025-11-25`
-    *   **处理响应**：
-        *   读取响应 Header `Mcp-Session-Id`，**必须**保存此 ID，后续所有请求都要带上。
-        *   解析 Body (`InitializeResult`)。
-        *   (*注意：此时尚未建立 SSE 连接，仅完成了握手*)。
+    *   **处理响应 (Upgrade Check)**：
+        *   **Check Content-Type**：
+            *   如果是 `application/json`：
+                *   读取 `Mcp-Session-Id` header (REQUIRED)。
+                *   解析 Body (`InitializeResult`)。
+                *   **下一步**：启动一个独立的 GET 请求任务去建立 SSE 监听（参见 Step 3）。
+            *   如果是 `text/event-stream`（Server 升级策略）：
+                *   读取 `Mcp-Session-Id` header (REQUIRED)。
+                *   **立即**将此 Response Stream 视为 SSE Event Loop。
+                *   在此流中等待第一个 SSE Event，其中应包含 `InitializeResult`。
+                *   一旦收到 `InitializeResult`，完成 `ConnectAsync` 的握手部分，并将剩余的 Stream 读取转交给后台任务（Message Loop）。
+                *   **注意**：在此模式下，不需要再发起额外的 GET 请求。
+
 3.  **建立 SSE 监听 (Start Listening)**：
-    *   在握手成功且拿到 Session ID 后，**立即**启动一个后台 Task。
-    *   该 Task 发起 GET 请求到 Endpoint。
+    *   *仅当 Initialize 未升级为 SSE 时执行此步骤。*
+    *   启动一个后台 Task。
+    *   Task 发起 GET 请求到 Endpoint。
     *   Header 包含 `Mcp-Session-Id` 和 `Accept: text/event-stream`。
     *   一旦连接建立，开始循环读取流数据。
 
@@ -57,7 +67,7 @@
         *   服务端已接收，但没有立即返回结果（或者是 Notification）。
         *   不做任何处理，结果（如果有）稍后会通过 SSE 收到。
     *   **情况 3 (200 OK + SSE)**：
-        *   极少见，但协议允许 POST 响应也是 SSE 流。如果不处理复杂场景，可以视为错误或通过临时读取流来处理。建议主要依赖 GET SSE 通道。
+        *   极少见。如果发生，应像 Initialize 那样临时读取流。但通常只有 Initialize 会这样做。
 
 ### C. 接收消息 (Message Loop)
 
@@ -134,7 +144,7 @@ public class HttpClientTransport : IClientTransport
 
 *   **HTTP 404 on POST**：Session 过期。应抛出异常或触发断开连接事件。
 *   **HTTP 400**：请求格式错误。
-*   **连接重试**：建议使用 [Polly](https://github.com/App-vNext/Polly) 或手写简单的重试逻辑来处理 SSE 连接的暂时性网络抖动。
+*   **连接重试**：鉴于本库零依赖的原则，建议手写简单的指数退避（Exponential Backoff）重试逻辑来处理 SSE 连接的暂时性网络抖动。更复杂的策略（如引入 Polly）应在扩展包中实现，避免核心库添加额外依赖。
 
 ## 5. 待办事项 (Checklist)
 

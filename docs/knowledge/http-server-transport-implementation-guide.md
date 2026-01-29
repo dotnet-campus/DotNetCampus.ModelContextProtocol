@@ -6,7 +6,8 @@
 
 ## 1. 架构设计
 
-为了保证两个实现（LocalHost 和 TouchSocket）的行为一致性，核心协议逻辑应与具体 HTTP 库解耦。这两个 Transport 的主要职责是将底层的 HTTP 请求映射为 MCP 的通用操作。
+为了保证两个实现（LocalHost 和 TouchSocket）行为的规范与一致性，我们定义了统一的逻辑流程。
+**注意**：由于 `System.Net` 和 `TouchSocket` 拥有完全不同的类型系统（如 Context, Request, Response 对象），因此很难在代码层面进行深度复用。这里的“解耦”更多是指**逻辑解耦**——即 Session 管理、协议检查、SSE 格式化等纯逻辑应尽量保持独立，避免依赖特定 HTTP 库。
 
 ### 核心职责
 
@@ -14,6 +15,7 @@
 2.  **安全防护**：检查 `Origin` Header。
 3.  **会话管理 (Session Management)**：维护 `SessionId` 到 `IServerTransportSession` 的映射。
 4.  **消息分发**：区别处理 POST（JSON-RPC 消息）和 GET（SSE 连接）。
+5.  **版本协商**：确保客户端支持最低版本 `2025-03-26`，优先使用 `2025-11-25`。
 
 ## 2. 通用实现规范
 
@@ -39,18 +41,20 @@
 `HandlePostRequestAsync(context)`
 
 1.  **读取 Session ID**：从 Header `Mcp-Session-Id` 读取。
-2.  **特殊处理 - 初始化**：
+2.  **协议版本检查 (Protocol Version Check)**：
+    *   读取 `MCP-Protocol-Version` header。
+    *   如果 Header 不存在，服务端应默认视为 `2025-03-26` 处理（或更高兼容）。
+    *   如果 Header 存在但低于 `2025-03-26`，或者包含不支持的版本格式，**必须**返回 `400 Bad Request`（参考官方规范 §2.7）。
+3.  **特殊处理 - 初始化**：
     *   如果请求体解析出的 JSON-RPC method 是 `initialize`：
         *   创建一个新的 Session。
         *   生成唯一的 `Mcp-Session-Id`。
         *   将此 ID 写入响应 Header `Mcp-Session-Id`。
         *   继续处理消息。
-3.  **常规处理 - 非初始化**：
+4.  **常规处理 - 非初始化**：
     *   如果 Header 缺少 `Mcp-Session-Id` 或 ID 对应的 Session 不存在：
         *   返回 `400 Bad Request` 或 `404 Not Found` (未找到会话)。
         *   不要处理消息体。
-4.  **协议版本检查**：
-    *   检查 `MCP-Protocol-Version` header。虽然可以宽容处理，但最好记录或验证。
 5.  **消息处理**：
     *   反序列化 Body 为 `JsonRpcMessage`。
     *   将消息通过 `OnMessageReceived` 传递给上层 MCP Server 处理。
@@ -71,7 +75,7 @@
 
 `HandleGetRequestAsync(context)`
 
-1.  **协商检查**：检查 `Accept` header 是否包含 `text/event-stream`。若不包含，返回 `405` 或 `400`。
+1.  **协商检查**：检查 `Accept` header 是否包含 `text/event-stream`。若不包含，**必须**返回 `405 Method Not Allowed`（参考官方规范 §2.2.3）。
 2.  **Session 关联**：
     *   **必须**要求 Header `Mcp-Session-Id`。
     *   如果 ID 不存在，返回 `404 Not Found`。
@@ -83,7 +87,8 @@
 4.  **注册发送通道**：
     *   将当前 HTTP Response 流包装为一个 `IAsyncWriter` 或类似接口。
     *   注册到 Session 对象中，作为服务端向客户端推送消息的通道（Server-to-Client Messenger）。
-    *   **注意**：一个 Session 可能同时有多个 SSE 连接（虽然不推荐，但协议允许）。或者新连接顶替旧连接。建议实现为：新连接加入，旧连接断开或共存。
+    *   **多连接共存策略**：MCP 协议规范 §2.3.1 明确指出 *“The client MAY remain connected to multiple SSE streams simultaneously.”*。因此，服务端**应支持**每个 Session 维护一个活跃连接列表，并将消息广播到所有连接（或仅主连接）。
+    *   *实现简化建议*：遵循协议精神，服务端应允许新连接加入而不强制断开旧连接。
 5.  **发送 Prime Event**：
     *   立即发送一个空事件 `event: message\ndata: \n\n` 或仅 `:\n\n` (Comment) 以保活。
     *   根据 SSE 规范，发送 `id` 字段以支持重连。
@@ -107,15 +112,16 @@
 ### LocalHostHttpServerTransport (`System.Net.HttpListener`)
 
 *   **监听器**：使用 `HttpListener` 绑定前缀（如 `http://127.0.0.1:8080/mcp/`）。
-*   **并发模型**：这是关键。`HttpListener.GetContextAsync` 是一个接一个的。需要在一个循环中获取 Context，然后 `Task.Run` 处理它，不要阻塞主循环，否则无法处理并发请求（主要是一个 GET SSE 挂着时，POST 进不来）。
-*   **SSE 写入**：使用 `context.Response.OutputStream.WriteAsync`，每次写入后记得 `FlushAsync`。
+*   **并发模型**：这是关键。`HttpListener.GetContextAsync` 是一个接一个的。需要在一个循环中获取 Context，然后 `Task.Run` 处理它，不要阻塞主循环。
+*   **SSE 写入**：使用 `context.Response.OutputStream.WriteAsync`，每次写入后记得 `FlushAsync`。尽量使用 `StreamWriter` 并设置 `AutoFlush = true` 来简化操作。
 
 ### TouchSocketHttpServerTransport
 
+*   **优势**：相比 `HttpListener` 必须需要管理员权限才能监听非 localhost 地址，TouchSocket 可以轻松监听 `0.0.0.0`，极其适合局域网部署和远程调试场景。
 *   **插件机制**：继承 `HttpPluginBase`。
 *   **请求拦截**：在 `OnHttpRequest` 中判断 `e.Context.Request.Url` 是否匹配。
-*   **SSE 支持**：TouchSocket 的 `HttpResponse` 支持分块传输。需要确认是否支持保持连接不关闭并持续写入。通常需要将 `Context.Response` 标记为已处理但不关闭，然后在另一个 Task 中控制写入。或者使用 WebSockets (但 MCP 标准是 SSE)。
-    *   *提示*: TouchSocket 可能需要特殊配置以支持长连接流式写入而不超时。
+*   **SSE 支持**：需要确保 TouchSocket 支持类似 `Chunked` 传输或长连接保持。通常需要将处理模式设置为不要立即关闭连接，并持续向 `HttpResponse` 写入数据。
+
 
 ## 4. 关键数据结构：Session Store
 
