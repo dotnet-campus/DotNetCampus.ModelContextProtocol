@@ -7,7 +7,7 @@ namespace DotNetCampus.ModelContextProtocol.Tests.Clients;
 [TestClass]
 public sealed class McpClientTests
 {
-    [TestMethod]
+    [TestMethod("使用 @modelcontextprotocol/server-everything STDIO：失败则证明客户端错误")]
     public async Task ServerEverything_Stdio()
     {
         // Arrange & Act
@@ -22,7 +22,7 @@ public sealed class McpClientTests
         Assert.IsNotNull(tools.Tools.Count > 0);
     }
 
-    [TestMethod]
+    [TestMethod("使用 @modelcontextprotocol/server-everything HTTP：失败则证明客户端错误")]
     public async Task ServerEverything_Http()
     {
         // Arrange
@@ -42,7 +42,7 @@ public sealed class McpClientTests
         {
             // Act
             await using var client = new McpClientBuilder()
-                .WithHttp($"http://localhost:{port}/")
+                .WithHttp($"http://localhost:{port}/mcp")
                 .Build();
             var tools = await client.ListToolsAsync();
 
@@ -51,7 +51,7 @@ public sealed class McpClientTests
         }
         finally
         {
-            process?.Kill(true);
+            process?.Kill();
         }
     }
 }
