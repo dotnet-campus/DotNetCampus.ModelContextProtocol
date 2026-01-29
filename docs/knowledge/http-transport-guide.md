@@ -95,6 +95,9 @@ endpoint.Equals(EndPoint, StringComparison.OrdinalIgnoreCase)
 
 ## 📚 相关文档
 
+- [详细的 2025-11-25 协议规范分析与总结](./mcp-http-transport-spec-2025-11-25-analysis.md) - **推荐阅读**：包含端与会话的深度辨析及完整职责清单
+- [HTTP 服务端传输层实现指南](./http-server-transport-implementation-guide.md) - 针对本库 `LocalHost` 和 `TouchSocket` 实现的具体指导
+- [HTTP 客户端传输层实现指南](./http-client-transport-implementation-guide.md) - 针对本库 `HttpClientTransport` 重写的具体指导
 - [详细开发指南](../.github/copilot-instructions.md)
 - [MCP 官方规范 2025-11-25](https://modelcontextprotocol.io/specification/2025-11-25/basic/transports) - **最新版本**
 - [MCP 官方规范 2025-06-18](https://modelcontextprotocol.io/specification/2025-06-18/basic/transports)
