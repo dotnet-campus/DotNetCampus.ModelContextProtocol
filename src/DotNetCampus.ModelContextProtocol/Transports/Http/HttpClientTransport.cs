@@ -165,47 +165,55 @@ public class HttpClientTransport : IClientTransport
             var jsonContent = _manager.WriteMessageAsync(message);
             request.Content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
 
-            // 发送请求（不使用 Dispose Response，因为我们可能需要保留 Stream）
+            // 发送请求
+            // 注意：我们不能立即 Dispose response，因为在 SSE 升级场景下需要移交控制权
             var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+            var handover = false;
 
-            // 3. 处理握手 (Initialize) 的会话 ID
-            if (isInitialize)
+            try
             {
-                if (response.Headers.TryGetValues("Mcp-Session-Id", out var sessionIds))
+                // 3. 处理握手 (Initialize) 的会话 ID
+                if (isInitialize)
                 {
-                    _sessionId = sessionIds.FirstOrDefault();
-                    Log.Debug($"[McpClient][Http][Mcp:{_sessionId}] Received session ID from server");
+                    if (response.Headers.TryGetValues("Mcp-Session-Id", out var sessionIds))
+                    {
+                        var newSessionId = sessionIds.FirstOrDefault();
+                        if (!string.IsNullOrEmpty(newSessionId))
+                        {
+                            _sessionId = newSessionId;
+                            Log.Debug($"[McpClient][Http][Mcp:{_sessionId}] Received session ID from server");
+                        }
+                    }
+
+                    if (string.IsNullOrEmpty(_sessionId))
+                    {
+                        Log.Warn($"[McpClient][Http] Server did not return Mcp-Session-Id on initialize");
+                    }
                 }
 
-                if (string.IsNullOrEmpty(_sessionId))
+                response.EnsureSuccessStatusCode();
+
+                var contentType = response.Content.Headers.ContentType?.MediaType;
+
+                // 4. 处理响应内容
+                if (contentType?.Equals("text/event-stream", StringComparison.OrdinalIgnoreCase) is true)
                 {
-                    Log.Warn($"[McpClient][Http] Server did not return Mcp-Session-Id on initialize");
-                    // 某些实现允许旧协议通过 Body 返回，但这里我们严格遵循新规范
+                    // 情况 A: 服务端升级了连接为 SSE (通常仅在 Initialize 时发生)
+                    Log.Debug($"[McpClient][Http][Mcp:{_sessionId}][{message.Method}] Connection upgraded to SSE stream");
+
+                    // 接管 Response Stream
+                    var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
+
+                    // 在升级模式下，同步读取并处理第一条消息（即 Initialize 响应）
+                    var reader = await ReadFirstSseMessageAsync(stream, cancellationToken);
+
+                    // 将 Reader 和 Response 的所有权移交给后台循环
+                    StartSseLoop(_sessionId!, reader, response);
+                    handover = true;
                 }
-            }
-
-            response.EnsureSuccessStatusCode();
-
-            var contentType = response.Content.Headers.ContentType?.MediaType;
-
-            // 4. 处理响应内容
-            if (contentType?.Equals("text/event-stream", StringComparison.OrdinalIgnoreCase) is true)
-            {
-                // 情况 A: 服务端升级了连接为 SSE (通常仅在 Initialize 时发生)
-                Log.Debug($"[McpClient][Http][Mcp:{_sessionId}][{message.Method}] Connection upgraded to SSE stream");
-
-                // 接管 Response Stream
-                var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
-
-                // 在升级模式下，第一个 SSE 事件必须是 Initialize 的响应
-                // 我们读取它，然后启动后台循环
-                await HandleSseUpgradeAsync(stream, message.Id, cancellationToken);
-            }
-            else
-            {
-                // 情况 B: 普通 JSON 响应
-                using (response)
+                else
                 {
+                    // 情况 B: 普通 JSON 响应
                     var responseStream = await response.Content.ReadAsStreamAsync(cancellationToken);
 
                     // 读取并处理响应（由 Manager 反序列化）
@@ -217,12 +225,19 @@ public class HttpClientTransport : IClientTransport
                         // 手动注入响应到处理管道
                         await _manager.HandleRespondAsync(jsonRpcResponse, cancellationToken);
                     }
-                }
 
-                // 如果这是 Initialize 请求且我们还没有启动 SSE 监听，现在启动
-                if (isInitialize && _sseLoopTask == null && _sessionId != null)
+                    // 如果这是 Initialize 请求且我们还没有启动 SSE 监听，现在启动
+                    if (isInitialize && _sseLoopTask == null && _sessionId != null)
+                    {
+                        StartSseLoop(_sessionId!);
+                    }
+                }
+            }
+            finally
+            {
+                if (!handover)
                 {
-                    StartSseLoop(_sessionId);
+                    response.Dispose();
                 }
             }
         }
@@ -233,60 +248,49 @@ public class HttpClientTransport : IClientTransport
         }
     }
 
-    private async Task HandleSseUpgradeAsync(Stream stream, IJsonRpcMessageId? expectedRequestId, CancellationToken cancellationToken)
+    private async Task<StreamReader> ReadFirstSseMessageAsync(Stream stream, CancellationToken cancellationToken)
     {
-        // 这是一个复杂的场景：我们必须从 Stream 中读取第一个消息作为当前 Request 的响应，
-        // 然后将 Stream 的剩余部分交给后台任务。
-        // 由于 Stream不可 克隆，我们必须由同一个 Reader 处理。
+        var reader = new StreamReader(stream, Encoding.UTF8); // Default buffer size, handle BOM
 
-        // 这里的策略是：直接启动 SSE Loop，但在 Loop 内部有一个机制来捕获第一个消息的完成，
-        // 或者我们简单地让 Loop 运行，它会自动分发消息。
-        // 关键点：SendRequestAsync 需要等待直到 Response 被处理吗？
-        // ClientTransport 的 SendMessageAsync 是 fire-and-forget (ValueTask)，
-        // 或者是等待发送完成？通常是等待“发送”完成。响应是异步回来的。
-        // 所以，针对 HttpClientTransport，我们只要确保 SSE Loop 开始读取即可。
-        // 当 Loop 读到第一个消息并调用 _manager.HandleRespondAsync 时，McpClient 层会匹配 ID 并完成 Task。
+        string? line;
+        string? eventType = null;
+        var dataBuilder = new StringBuilder();
 
-        // 所以我们只需要把这个 Stream 包装进 SSE Loop 即可。
-        StartSseLoop(_sessionId!, stream);
-
-        // 为了确保 Connected 状态一致性，我们在这里不做额外的 Await，
-        // 只要 Loop 开始运行，它很快就会读到第一个包。
-    }
-
-    private async ValueTask SendNotificationAsync(JsonRpcNotification message, CancellationToken cancellationToken)
-    {
-        var currentSessionId = _sessionId;
-        if (currentSessionId is null)
+        // 仅读取第一条完整的 SSE 消息
+        while ((line = await reader.ReadLineAsync(cancellationToken)) != null)
         {
-            throw new InvalidOperationException("Not initialized.");
-        }
-
-        try
-        {
-            using var request = new HttpRequestMessage(HttpMethod.Post, _options.ServerUrl);
-            request.Headers.Add("Mcp-Session-Id", currentSessionId);
-            request.Headers.Add("Accept", "application/json");
-
-            var jsonContent = _manager.WriteMessageAsync(message);
-            request.Content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
-
-            using var response = await _httpClient.SendAsync(request, cancellationToken);
-
-            // 202 Accepted 是正常的通知响应，200 OK 也可以
-            if (!response.IsSuccessStatusCode)
+            if (string.IsNullOrEmpty(line))
             {
-                Log.Warn($"[McpClient][Http][Mcp:{currentSessionId}] Notification sent but server returned {response.StatusCode}");
+                // End of event
+                if (dataBuilder.Length > 0)
+                {
+                    var data = dataBuilder.ToString();
+                    await ProcessSseEventAsync(_sessionId!, eventType, data, cancellationToken);
+
+                    // 返回 Reader 以供后续使用
+                    return reader;
+                }
+
+                // 忽略没有数据的事件（如心跳）
+                eventType = null;
+                dataBuilder.Clear();
+                continue;
+            }
+
+            if (line.StartsWith("event:", StringComparison.Ordinal))
+            {
+                eventType = line.Substring(6).Trim();
+            }
+            else if (line.StartsWith("data:", StringComparison.Ordinal))
+            {
+                dataBuilder.Append(line.Substring(5).Trim());
             }
         }
-        catch (Exception ex)
-        {
-            Log.Error($"[McpClient][Http] Failed to send notification", ex);
-            throw;
-        }
+
+        throw new IOException("Stream closed before receiving first SSE message");
     }
 
-    private void StartSseLoop(string sessionId, Stream? existingStream = null)
+    private void StartSseLoop(string sessionId, StreamReader? existingReader = null, HttpResponseMessage? existingResponse = null)
     {
         if (_sseLoopTask != null)
         {
@@ -294,19 +298,15 @@ public class HttpClientTransport : IClientTransport
         }
 
         _sseCts = new CancellationTokenSource();
-        _sseLoopTask = Task.Run(() => SseLoopAsync(sessionId, existingStream, _sseCts.Token));
+        _sseLoopTask = Task.Run(() => SseLoopAsync(sessionId, existingReader, existingResponse, _sseCts.Token));
     }
 
-    private async Task SseLoopAsync(string sessionId, Stream? initialStream, CancellationToken cancellationToken)
+    private async Task SseLoopAsync(string sessionId, StreamReader? initialReader, HttpResponseMessage? initialResponse, CancellationToken cancellationToken)
     {
         Log.Info($"[McpClient][Http][Mcp:{sessionId}] Starting SSE message loop");
 
-        // 如果只有 initialStream，我们需要在它结束后（如果它是被关闭了）考虑是否重连？
-        // 通常 initialStream (来自 Initialize) 如果断开，就意味着连接需要重连。
-        // 如果没有 initialStream，我们需要发起 GET 请求。
-
-        Stream? currentStream = initialStream;
-        HttpResponseMessage? currentResponse = null; // 用于保持引用以免 Stream 被 Dispose
+        var currentReader = initialReader;
+        var currentResponse = initialResponse;
 
         try
         {
@@ -314,7 +314,7 @@ public class HttpClientTransport : IClientTransport
             {
                 try
                 {
-                    if (currentStream == null)
+                    if (currentReader == null)
                     {
                         // 发起 GET /mcp 连接
                         var request = new HttpRequestMessage(HttpMethod.Get, _options.ServerUrl);
@@ -324,40 +324,36 @@ public class HttpClientTransport : IClientTransport
                         // 长时间运行的请求
                         currentResponse = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
                         currentResponse.EnsureSuccessStatusCode();
-                        currentStream = await currentResponse.Content.ReadAsStreamAsync(cancellationToken);
+                        var stream = await currentResponse.Content.ReadAsStreamAsync(cancellationToken);
+                        currentReader = new StreamReader(stream, Encoding.UTF8);
                         Log.Debug($"[McpClient][Http][Mcp:{sessionId}] SSE Connected");
                     }
 
-                    using (var reader = new StreamReader(currentStream, Encoding.UTF8, leaveOpen: false))
+                    string? eventType = null;
+                    var dataBuilder = new StringBuilder();
+
+                    while (await currentReader.ReadLineAsync(cancellationToken) is { } line)
                     {
-                        string? line;
-                        string? eventType = null;
-                        var dataBuilder = new StringBuilder();
-
-                        while ((line = await reader.ReadLineAsync(cancellationToken)) != null)
+                        if (string.IsNullOrEmpty(line))
                         {
-                            if (string.IsNullOrEmpty(line))
+                            // End of event
+                            if (dataBuilder.Length > 0)
                             {
-                                // End of event
-                                if (dataBuilder.Length > 0)
-                                {
-                                    var data = dataBuilder.ToString();
-                                    dataBuilder.Clear();
-                                    await ProcessSseEventAsync(sessionId, eventType, data, cancellationToken);
-                                }
-                                eventType = null;
-                                continue;
+                                var data = dataBuilder.ToString();
+                                dataBuilder.Clear();
+                                await ProcessSseEventAsync(sessionId, eventType, data, cancellationToken);
                             }
+                            eventType = null;
+                            continue;
+                        }
 
-                            if (line.StartsWith("event:", StringComparison.Ordinal))
-                            {
-                                eventType = line.Substring(6).Trim();
-                            }
-                            else if (line.StartsWith("data:", StringComparison.Ordinal))
-                            {
-                                dataBuilder.Append(line.Substring(5).Trim());
-                            }
-                            // Ignore id, retry, and comments
+                        if (line.StartsWith("event:", StringComparison.Ordinal))
+                        {
+                            eventType = line.Substring(6).Trim();
+                        }
+                        else if (line.StartsWith("data:", StringComparison.Ordinal))
+                        {
+                            dataBuilder.Append(line.Substring(5).Trim());
                         }
                     }
 
@@ -375,9 +371,11 @@ public class HttpClientTransport : IClientTransport
                 }
                 finally
                 {
+                    currentReader?.Dispose();
+                    currentReader = null;
+
                     currentResponse?.Dispose();
                     currentResponse = null;
-                    currentStream = null;
                 }
             }
         }
@@ -389,7 +387,10 @@ public class HttpClientTransport : IClientTransport
 
     private async ValueTask ProcessSseEventAsync(string sessionId, string? eventType, string data, CancellationToken token)
     {
-        if (eventType == "endpoint") return; // Ignore legacy
+        if (eventType == "endpoint")
+        {
+            return; // Ignore legacy
+        }
 
         // Default event is message
         if (string.IsNullOrEmpty(eventType) || eventType == "message")
