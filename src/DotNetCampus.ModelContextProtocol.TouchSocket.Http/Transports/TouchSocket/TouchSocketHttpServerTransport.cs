@@ -317,15 +317,18 @@ public class TouchSocketHttpServerTransport : PluginBase, IHttpPlugin, IServerTr
 
     /// <summary>
     /// 验证 Accept header 是否包含必需的 MIME 类型。<br/>
-    /// 根据 MCP 2025-11-25 规范：客户端必须在 Accept header 中同时列出 application/json 和 text/event-stream<br/>
+    /// 根据 MCP 2025-11-25 规范：客户端必须在 Accept header 中同时列出 application/json 和 text/event-stream。<br/>
+    /// 但为了兼容性，我们只验证至少包含其中一个（application/json 或 text/event-stream），
+    /// 服务端会根据自己的能力返回合适的 Content-Type。<br/>
     /// The client MUST include an Accept header, listing both application/json and text/event-stream as supported content types.
     /// </summary>
     private static bool ValidateAccept(TextValues accept)
     {
         // Accept header 可能包含多个值，用逗号分隔，且可能带有 q 参数
         // 例如: "application/json, text/event-stream" 或 "application/json;q=0.9, text/event-stream"
+        // 为了兼容性，只要包含 application/json 或 text/event-stream 中的任意一个即可
         return accept.Any(x => x.Contains("application/json", StringComparison.InvariantCultureIgnoreCase))
-               && accept.Any(x => x.Contains("text/event-stream", StringComparison.InvariantCultureIgnoreCase));
+               || accept.Any(x => x.Contains("text/event-stream", StringComparison.InvariantCultureIgnoreCase));
     }
 
     #endregion
