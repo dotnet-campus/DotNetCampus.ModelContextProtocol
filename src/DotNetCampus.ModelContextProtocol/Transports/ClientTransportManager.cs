@@ -50,15 +50,12 @@ internal class ClientTransportManager(IClientTransportContext context) : IClient
     }
 
     /// <inheritdoc />
-    public string WriteRequestAsync(JsonRpcMessage message)
+    public string WriteRequestAsync(JsonRpcMessage message) => message switch
     {
-        return message switch
-        {
-            JsonRpcRequest request => JsonSerializer.Serialize(request, McpServerRequestJsonContext.Default.JsonRpcRequest),
-            JsonRpcNotification notification => JsonSerializer.Serialize(notification, McpServerRequestJsonContext.Default.JsonRpcNotification),
-            _ => throw new ArgumentException($"不支持的消息类型：{message.GetType().FullName}."),
-        };
-    }
+        JsonRpcRequest request => JsonSerializer.Serialize(request, McpServerRequestJsonContext.Default.JsonRpcRequest),
+        JsonRpcNotification notification => JsonSerializer.Serialize(notification, McpServerRequestJsonContext.Default.JsonRpcNotification),
+        _ => throw new ArgumentException($"不支持的消息类型：{message.GetType().FullName}."),
+    };
 
     /// <inheritdoc />
     public async ValueTask WriteRequestAsync(Stream requestStream, JsonRpcMessage message, CancellationToken cancellationToken)

@@ -19,7 +19,7 @@ public record ServerCapabilities
     /// </summary>
     [JsonPropertyName("resources")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public required ResourcesCapability? Resources { get; init; }
+    public ResourcesCapability? Resources { get; init; }
 
     /// <summary>
     /// 如果存在，表示服务器提供任何提示词模板。<br/>
@@ -27,7 +27,7 @@ public record ServerCapabilities
     /// </summary>
     [JsonPropertyName("prompts")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public required PromptsCapability? Prompts { get; init; }
+    public PromptsCapability? Prompts { get; init; }
 
     /// <summary>
     /// 如果存在，表示服务器提供可调用的工具。<br/>
@@ -35,7 +35,7 @@ public record ServerCapabilities
     /// </summary>
     [JsonPropertyName("tools")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public required ToolsCapability? Tools { get; init; }
+    public ToolsCapability? Tools { get; init; }
 
     /// <summary>
     /// 如果存在，表示服务器支持向客户端发送日志消息。<br/>

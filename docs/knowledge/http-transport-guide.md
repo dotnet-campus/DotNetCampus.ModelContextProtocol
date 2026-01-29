@@ -6,25 +6,27 @@
 
 | 版本       | 发布日期   | 名称            | 端点                        | 会话管理                 | 状态     |
 | ---------- | ---------- | --------------- | --------------------------- | ------------------------ | -------- |
-| **最新**   | 2025-06-18 | Streamable HTTP | `/mcp`                      | `Mcp-Session-Id` header  | ✅ 已支持 |
-| **新协议** | 2025-03-26 | Streamable HTTP | `/mcp`                      | `Mcp-Session-Id` header  | ✅ 已支持 |
+| **最新**   | 2025-11-25 | Streamable HTTP | `/mcp`                      | `Mcp-Session-Id` header  | ✅ 已支持 |
+|            | 2025-06-18 | Streamable HTTP | `/mcp`                      | `Mcp-Session-Id` header  | ✅ 已支持 |
+| **变更**   | 2025-03-26 | Streamable HTTP | `/mcp`                      | `Mcp-Session-Id` header  | ✅ 已支持 |
 | **旧协议** | 2024-11-05 | HTTP+SSE        | `/mcp/sse`, `/mcp/messages` | query string `sessionId` | ✅ 兼容   |
 
-> **说明**: 2025-06-18 和 2025-03-26 在传输层上完全兼容，我们的实现同时支持两者。
+> **说明**: 2025-11-25、2025-06-18 和 2025-03-26 在传输层上完全兼容，我们的实现同时支持这些版本。
 
 ## 🔑 关键区别
 
 ### 新协议 (Streamable HTTP - 2025-03-26+)
 - ✅ POST `/mcp` - 处理所有 JSON-RPC 消息（包括 initialize）
-- ✅ GET `/mcp` - 建立 SSE 连接（**不**发送 `endpoint` 事件）
+- ✅ GET `/mcp` - 建立 Streamable HTTP 连接
 - ✅ DELETE `/mcp` - 终止会话（必须带 `Mcp-Session-Id` header）
+- 📋 [官方文档 2025-11-25](https://modelcontextprotocol.io/specification/2025-11-25/basic/transports)
 - 📋 [官方文档 2025-06-18](https://modelcontextprotocol.io/specification/2025-06-18/basic/transports)
 - 📋 [官方文档 2025-03-26](https://modelcontextprotocol.io/specification/2025-03-26/basic/transports)
 
 ### 旧协议 (HTTP+SSE - 2024-11-05)
 - ✅ GET `/mcp/sse` - 建立 SSE 连接（**必须**发送 `event:endpoint` 事件）
 - ✅ POST `/mcp/messages?sessionId=xxx` - 处理消息
-- 📋 [官方文档](https://modelcontextprotocol.io/specification/2024-11-05/basic/transports#http-with-sse)
+- 📋 [官方文档 2024-11-05](https://modelcontextprotocol.io/specification/2024-11-05/basic/transports#http-with-sse)
 
 ## ⚠️ 常见陷阱
 
@@ -84,7 +86,7 @@ endpoint.Equals(EndPoint, StringComparison.OrdinalIgnoreCase)
 ## ✅ 测试清单
 
 - [ ] 新协议：POST `/mcp` 返回 `Mcp-Session-Id`
-- [ ] 新协议：GET `/mcp` 不发送 endpoint 事件
+- [ ] 新协议：GET `/mcp` 建立 Streamable HTTP 连接
 - [ ] 新协议：DELETE `/mcp` 成功终止会话
 - [ ] 旧协议：GET `/mcp/sse` 发送 endpoint 事件
 - [ ] 旧协议：POST `/mcp/messages?sessionId=xxx` 正常工作
@@ -93,5 +95,8 @@ endpoint.Equals(EndPoint, StringComparison.OrdinalIgnoreCase)
 
 ## 📚 相关文档
 
-- [详细开发指南](.github/copilot-instructions.md)
-- [MCP 官方规范](https://modelcontextprotocol.io/specification/2025-03-26/basic/transports)
+- [详细开发指南](../.github/copilot-instructions.md)
+- [MCP 官方规范 2025-11-25](https://modelcontextprotocol.io/specification/2025-11-25/basic/transports) - **最新版本**
+- [MCP 官方规范 2025-06-18](https://modelcontextprotocol.io/specification/2025-06-18/basic/transports)
+- [MCP 官方规范 2025-03-26](https://modelcontextprotocol.io/specification/2025-03-26/basic/transports)
+- [MCP 官方规范 2024-11-05](https://modelcontextprotocol.io/specification/2024-11-05/basic/transports)

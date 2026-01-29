@@ -84,12 +84,13 @@ public class McpClientBuilder
     /// <summary>
     /// 使用 Streamable HTTP 传输层连接到 MCP 服务器。
     /// </summary>
-    /// <param name="url">要连接的 MCP 服务器的 URL。</param>
+    /// <param name="serverUrl">要连接的 MCP 服务器的 URL。</param>
     /// <returns>用于链式调用的 MCP 客户端生成器。</returns>
-    public McpClientBuilder WithHttp(string url)
+    public McpClientBuilder WithHttp(string serverUrl)
     {
         return WithTransport(m => new HttpClientTransport(m, new HttpClientTransportOptions
         {
+            ServerUrl = serverUrl,
         }));
     }
 
