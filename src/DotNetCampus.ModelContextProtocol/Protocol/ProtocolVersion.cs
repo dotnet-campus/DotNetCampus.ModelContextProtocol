@@ -4,25 +4,60 @@
 /// 协议版本信息<br/>
 /// Protocol version information
 /// </summary>
-internal static class ProtocolVersion
+internal readonly record struct ProtocolVersion
 {
+    private readonly string? _value;
+
+    private ProtocolVersion(string value)
+    {
+        _value = value;
+    }
+
+    public override string ToString()
+    {
+        return _value ?? MinimumVersion;
+    }
+
+    public static implicit operator ProtocolVersion(string value)
+    {
+        return new ProtocolVersion(value);
+    }
+
+    public static implicit operator string(ProtocolVersion version)
+    {
+        return version.ToString();
+    }
+
+    public static bool operator >(ProtocolVersion left, ProtocolVersion right)
+    {
+        return string.Compare(left.ToString(), right.ToString(), StringComparison.Ordinal) > 0;
+    }
+
+    public static bool operator <(ProtocolVersion left, ProtocolVersion right)
+    {
+        return string.Compare(left.ToString(), right.ToString(), StringComparison.Ordinal) < 0;
+    }
+
+    private const string CurrentVersion = "2025-11-25";
+    private const string MinimumVersion = "2024-11-05";
+
     /// <summary>
     /// 当前使用的协议版本<br/>
     /// The currently used protocol version
     /// </summary>
-    internal const string Current = "2025-11-25";
+    public static readonly ProtocolVersion Current = new(CurrentVersion);
 
     /// <summary>
-    /// 最早能兼容的协议版本<br/>
-    /// The earliest compatible protocol version
+    /// 大多数功能正常运行所需的最低版本<br/>
+    /// The minimum version required for most features to work properly
     /// </summary>
-    internal const string EarliestCompatible = "2024-11-05";
+    public static readonly ProtocolVersion Minimum = new(MinimumVersion);
 
     /// <summary>
-    /// 支持的协议版本列表<br/>
-    /// List of supported protocol versions
+    /// 历史版本列表，按时间倒序排列<br/>
+    /// List of historical versions, sorted in reverse chronological order
     /// </summary>
-    internal static IReadOnlyList<string> SupportedVersions { get; } =
+    internal static IReadOnlyList<string> HistoryVersions { get; } =
     [
         "2025-11-25",
         "2025-06-18",

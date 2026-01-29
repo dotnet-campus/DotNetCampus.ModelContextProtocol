@@ -77,15 +77,20 @@ public interface IServerTransportManager
     ValueTask<JsonRpcRequest?> ReadRequestAsync(ReadOnlyMemory<byte> requestMemory);
 
     /// <summary>
-    /// 提供给传输层调用。当传输层调用 <see cref="HandleRequestAsync"/> 处理完请求并返回了响应后，调用此方法可以将响应 JSON-RPC 对象写入到流中。
+    /// 提供给传输层调用，用于发送消息给 MCP 客户端。
+    /// <list type="bullet">
+    /// <item>当传输层调用 <see cref="HandleRequestAsync"/> 处理完请求并返回了响应后，调用此方法可以将响应 JSON-RPC 对象写入到流中。</item>
+    /// <item>当服务端希望发送请求给客户端时，调用此方法可以将请求 JSON-RPC 对象写入到流中。</item>
+    /// <item>当服务端希望给客户端发送通知时，调用此方法可以将通知 JSON-RPC 对象写入到流中。</item>
+    /// </list>
     /// </summary>
-    /// <param name="responseStream">响应流。</param>
-    /// <param name="response">即将写入的 JSON-RPC 响应对象。</param>
+    /// <param name="stream">写入流。</param>
+    /// <param name="message">即将写入的 JSON-RPC 响应对象、请求对象、通知对象。</param>
     /// <param name="cancellationToken">如果需要取消写入，则传入此令牌。</param>
     /// <remarks>
     /// 如果写入失败，此方法会暴露底层的任何写入异常，传输层需处理好此异常（说明连接关闭等）。
     /// </remarks>
-    ValueTask WriteResponseAsync(Stream responseStream, JsonRpcResponse response, CancellationToken cancellationToken);
+    Task WriteMessageAsync(Stream stream, JsonRpcMessage message, CancellationToken cancellationToken);
 
     /// <summary>
     /// 提供给传输层调用。当传输层收到请求后，调用此方法可以将请求交给 MCP 服务器进行处理。

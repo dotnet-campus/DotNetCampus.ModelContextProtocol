@@ -155,10 +155,16 @@ internal class ServerTransportManager(McpServer server, McpServerContext context
         return message;
     }
 
-    public async ValueTask WriteResponseAsync(Stream responseStream, JsonRpcResponse response, CancellationToken cancellationToken)
+    public Task WriteMessageAsync(Stream stream, JsonRpcMessage message, CancellationToken cancellationToken) => message switch
     {
-        await JsonSerializer.SerializeAsync(responseStream, response, McpServerResponseJsonContext.Default.JsonRpcResponse, cancellationToken);
-    }
+        JsonRpcResponse response => JsonSerializer.SerializeAsync(stream, response,
+            McpServerResponseJsonContext.Default.JsonRpcResponse, cancellationToken),
+        JsonRpcRequest request => JsonSerializer.SerializeAsync(stream, request,
+            McpServerRequestJsonContext.Default.JsonRpcRequest, cancellationToken),
+        JsonRpcNotification notification => JsonSerializer.SerializeAsync(stream, notification,
+            McpServerRequestJsonContext.Default.JsonRpcNotification, cancellationToken),
+        _ => throw new InvalidOperationException($"Unsupported message type: {message.GetType().FullName}"),
+    };
 
     public ValueTask<JsonRpcResponse?> HandleRequestAsync(JsonRpcRequest? request,
         Action<IMcpServiceCollection>? additionalServices = null, CancellationToken cancellationToken = default)

@@ -145,7 +145,7 @@ file static class Extensions
         {
             try
             {
-                await manager.WriteResponseAsync(writer.BaseStream, response, cancellationToken);
+                await manager.WriteMessageAsync(writer.BaseStream, response, cancellationToken);
                 await writer.WriteLineAsync();
             }
             catch

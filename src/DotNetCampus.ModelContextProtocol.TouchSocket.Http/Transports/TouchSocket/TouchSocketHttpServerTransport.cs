@@ -352,7 +352,7 @@ file static class Extensions
             context.Response.IsChunk = true;
             await using (var stream = context.Response.CreateWriteStream())
             {
-                await manager.WriteResponseAsync(stream, response, CancellationToken.None);
+                await manager.WriteMessageAsync(stream, response, CancellationToken.None);
             }
             await context.Response.CompleteChunkAsync();
         }

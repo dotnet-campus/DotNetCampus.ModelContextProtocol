@@ -165,7 +165,7 @@ file static class Extensions
             try
             {
                 using var ms = new MemoryStream();
-                await manager.WriteResponseAsync(ms, response, cancellationToken);
+                await manager.WriteMessageAsync(ms, response, cancellationToken);
                 await peer.NotifyAsync(new IpcMessage("", new IpcMessageBody(ms.GetBuffer(), 0, (int)ms.Length)));
             }
             catch
