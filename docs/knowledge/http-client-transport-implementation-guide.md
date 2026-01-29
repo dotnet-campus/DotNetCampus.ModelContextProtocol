@@ -47,6 +47,12 @@
     *   Header 包含 `Mcp-Session-Id` 和 `Accept: text/event-stream`。
     *   一旦连接建立，开始循环读取流数据。
 
+4.  **发送 Initialized 通知 (Handshake Completion)**：
+    *   客户端在收到 `InitializeResult` 后，**必须**发送一个 `notifications/initialized` 通知。
+    *   该调用使用 `SendMessageAsync` 发送一个 `JsonRpcNotification`。
+    *   Header 必须包含 `Mcp-Session-Id`。
+    *   此步骤标志着握手完成，客户端准备好处理请求。
+
 ### B. 发送消息 (SendMessageAsync)
 
 当上层 Client 想要调用工具或发送通知时：
@@ -150,6 +156,7 @@ public class HttpClientTransport : IClientTransport
 
 *   [ ] 移除所有关于 `/mcp/sse` 的旧逻辑。
 *   [ ] 实现 `POST /mcp` 的初始化握手，提取 `Mcp-Session-Id`。
+*   [ ] 确保在 `InitializeResult` 后能正常发送 `notifications/initialized` 通知。
 *   [ ] 实现后台 Task 进行 `GET /mcp` 的 SSE 监听。
 *   [ ] 实现 SSE 协议解析器（解析 `data:` 行）。
 *   [ ] 确保 POST 响应可以直接将消息回注到处理管道。

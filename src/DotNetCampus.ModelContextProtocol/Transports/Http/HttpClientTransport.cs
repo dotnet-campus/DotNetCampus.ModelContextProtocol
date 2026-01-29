@@ -51,8 +51,14 @@ public class HttpClientTransport : IClientTransport
     /// <inheritdoc />
     public ValueTask ConnectAsync(CancellationToken cancellationToken = default)
     {
-        // 按照 MCP HTTP 传输层规范，连接的建立实际上是在发送 Initialize 请求时完成的 (Handshake)。
-        // ConnectAsync 在此仅作为占位符，或者用于基本的配置检查。
+        // 按照 MCP HTTP 传输层规范，连接的建立实际上包含以下步骤：
+        // 1. 发送 Initialize 请求 (POST) -> 获得 SessionId 和 ServerInfo
+        // 2. 建立 SSE 连接 (如果未升级)
+        // 3. 发送 Initialized 通知 (notifications/initialized)
+        //
+        // 本类作为纯传输层，ConnectAsync 仅作为准备阶段。
+        // 上述握手逻辑 (步骤 1 & 3) 由 McpClient 或 ClientTransportManager 编排，
+        // 它们会依次调用 SendMessageAsync (Request -> Initialize) 和 (Notification -> Initialized)。
         Log.Info($"[McpClient][Http] Transfer client prepared for {_options.ServerUrl}");
         return ValueTask.CompletedTask;
     }
@@ -244,6 +250,43 @@ public class HttpClientTransport : IClientTransport
         catch (Exception ex)
         {
             Log.Error($"[McpClient][Http][Mcp:{_sessionId}][{message.Method}] Failed to send request", ex);
+            throw;
+        }
+    }
+
+    private async ValueTask SendNotificationAsync(JsonRpcNotification message, CancellationToken cancellationToken)
+    {
+        var currentSessionId = _sessionId;
+        if (currentSessionId is null)
+        {
+            throw new InvalidOperationException("Not initialized.");
+        }
+
+        try
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Post, _options.ServerUrl);
+            request.Headers.Add("Mcp-Session-Id", currentSessionId);
+            // 声明协议版本
+            request.Headers.Add("MCP-Protocol-Version", ProtocolVersion.Current);
+            request.Headers.Add("Accept", "application/json");
+
+            // 注意：对于 notifications/initialized 通知，它也是一个普通的 Notification，
+            // 只要我們有了 SessionId (在 Initialize 响应中获得)，就可以正常发送。
+
+            var jsonContent = _manager.WriteMessageAsync(message);
+            request.Content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
+
+            using var response = await _httpClient.SendAsync(request, cancellationToken);
+
+            // 202 Accepted 是正常的通知响应，200 OK 也可以
+            if (!response.IsSuccessStatusCode)
+            {
+                Log.Warn($"[McpClient][Http][Mcp:{currentSessionId}] Notification[{message.Method}] sent but server returned {response.StatusCode}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Error($"[McpClient][Http] Failed to send notification [{message.Method}]", ex);
             throw;
         }
     }
