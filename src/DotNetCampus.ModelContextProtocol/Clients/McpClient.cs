@@ -111,7 +111,7 @@ public class McpClient : IAsyncDisposable
             Id = Transport.MakeNewRequestId().ToJsonElement(),
             Method = RequestMethods.ToolsList,
             Params = cursor is null
-                ? null
+                ? EmptyObject.JsonElement
                 : JsonSerializer.SerializeToElement(new ListToolsRequestParams
                 {
                     Cursor = cursor,
@@ -119,6 +119,7 @@ public class McpClient : IAsyncDisposable
         };
 
         var response = await Transport.SendRequestAsync(request, cancellationToken).ConfigureAwait(false);
+        response.ThrowClientExceptionIfError();
         return DeserializeResult<ListToolsResult>(response, McpServerResponseJsonContext.Default.ListToolsResult);
     }
 
@@ -145,6 +146,7 @@ public class McpClient : IAsyncDisposable
         };
 
         var response = await Transport.SendRequestAsync(request, cancellationToken).ConfigureAwait(false);
+        response.ThrowClientExceptionIfError();
         return DeserializeResult<CallToolResult>(response, McpServerResponseJsonContext.Default.CallToolResult);
     }
 
@@ -163,7 +165,7 @@ public class McpClient : IAsyncDisposable
             Id = Transport.MakeNewRequestId().ToJsonElement(),
             Method = RequestMethods.ResourcesList,
             Params = cursor is null
-                ? null
+                ? EmptyObject.JsonElement
                 : JsonSerializer.SerializeToElement(new ListResourcesRequestParams
                 {
                     Cursor = cursor,
@@ -171,6 +173,7 @@ public class McpClient : IAsyncDisposable
         };
 
         var response = await Transport.SendRequestAsync(request, cancellationToken).ConfigureAwait(false);
+        response.ThrowClientExceptionIfError();
         return DeserializeResult<ListResourcesResult>(response, McpServerResponseJsonContext.Default.ListResourcesResult);
     }
 
@@ -195,6 +198,7 @@ public class McpClient : IAsyncDisposable
         };
 
         var response = await Transport.SendRequestAsync(request, cancellationToken).ConfigureAwait(false);
+        response.ThrowClientExceptionIfError();
         return DeserializeResult<ReadResourceResult>(response, McpServerResponseJsonContext.Default.ReadResourceResult);
     }
 
@@ -213,7 +217,7 @@ public class McpClient : IAsyncDisposable
             Id = Transport.MakeNewRequestId().ToJsonElement(),
             Method = RequestMethods.PromptsList,
             Params = cursor is null
-                ? null
+                ? EmptyObject.JsonElement
                 : JsonSerializer.SerializeToElement(new ListPromptsRequestParams
                 {
                     Cursor = cursor,
@@ -221,6 +225,7 @@ public class McpClient : IAsyncDisposable
         };
 
         var response = await Transport.SendRequestAsync(request, cancellationToken).ConfigureAwait(false);
+        response.ThrowClientExceptionIfError();
         return DeserializeResult<ListPromptsResult>(response, McpServerResponseJsonContext.Default.ListPromptsResult);
     }
 
@@ -247,6 +252,7 @@ public class McpClient : IAsyncDisposable
         };
 
         var response = await Transport.SendRequestAsync(request, cancellationToken).ConfigureAwait(false);
+        response.ThrowClientExceptionIfError();
         return DeserializeResult<GetPromptResult>(response, McpServerResponseJsonContext.Default.GetPromptResult);
     }
 

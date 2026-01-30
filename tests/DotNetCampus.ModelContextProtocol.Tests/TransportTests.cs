@@ -7,7 +7,7 @@ public class TransportTests
     public async Task Http()
     {
         // Arrange
-        var package = await TestMcpFactory.Shared.CreateSimpleAsync();
+        var package = await TestMcpFactory.Shared.CreateSimpleHttpAsync();
 
         // Act
         var result = await package.Client.ListToolsAsync();

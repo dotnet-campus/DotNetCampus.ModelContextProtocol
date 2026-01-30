@@ -11,7 +11,7 @@ public class TestMcpFactory
 
     public static TestMcpFactory Shared => SharedLazy.Value;
 
-    public async ValueTask<McpTestingPackage> CreateSimpleAsync()
+    public async ValueTask<McpTestingPackage> CreateSimpleHttpAsync()
     {
         const int port = 16001;
         var mcpServer = new McpServerBuilder("TestMcpServer", "1.0.0")
