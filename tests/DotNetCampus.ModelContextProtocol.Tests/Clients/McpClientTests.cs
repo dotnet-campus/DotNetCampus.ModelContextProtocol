@@ -36,10 +36,13 @@ public sealed class McpClientTests
                 ["PORT"] = port,
             },
         });
-        await Task.Delay(2000);
 
         try
         {
+            Assert.IsNotNull(process, "Failed to start npx process.");
+            await Task.Delay(2000);
+            Assert.IsFalse(process.HasExited, "npx process exited unexpectedly.");
+
             // Act
             await using var client = new McpClientBuilder()
                 .WithHttp($"http://localhost:{port}/mcp")
@@ -51,7 +54,18 @@ public sealed class McpClientTests
         }
         finally
         {
+            // 结束进程本身。
             process?.Kill();
+
+            await Task.Delay(1000);
+
+            // 结束相关的 node.exe 进程（会有误杀，但无所谓了）：
+            await Process.Start(new ProcessStartInfo(
+                McpStdioUtils.ResolveCommandPath("taskkill")!,
+                ["/F", "/IM", "node.exe"])
+            {
+                UseShellExecute = false,
+            })!.WaitForExitAsync();
         }
     }
 }
