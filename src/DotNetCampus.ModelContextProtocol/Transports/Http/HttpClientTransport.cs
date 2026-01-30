@@ -181,7 +181,15 @@ public class HttpClientTransport : IClientTransport
             _logger.Debug($"[McpClient][Http] Received Transient SSE Stream response");
 
             await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
-            await ProcessSseStreamAsync(stream, cancellationToken);
+            await ProcessSseStreamAsync(stream, cancellationToken, isInitialize
+                ? (json) =>
+                {
+                    if (json.TryGetProperty("result", out var resultElement))
+                    {
+                        _protocolVersion = TryExtractProtocolVersion(resultElement, "SSE");
+                    }
+                }
+                : null);
         }
         else
         {
@@ -201,15 +209,34 @@ public class HttpClientTransport : IClientTransport
                 // Initialize Response: Try capture ProtocolVersion
                 if (isInitialize && rpcResponse.Result is { ValueKind: JsonValueKind.Object } resultElement)
                 {
-                    if (resultElement.TryGetProperty("protocolVersion", out var pv) && pv.ValueKind == JsonValueKind.String)
-                    {
-                        _protocolVersion = pv.GetString();
-                    }
+                    _protocolVersion = TryExtractProtocolVersion(resultElement, "POST");
                 }
 
                 await _manager.HandleRespondAsync(rpcResponse, cancellationToken);
             }
         }
+    }
+
+    private string? TryExtractProtocolVersion(JsonElement resultElement, string source)
+    {
+        if (_protocolVersion != null)
+        {
+            return null;
+        }
+
+        if (resultElement.ValueKind == JsonValueKind.Object
+            && resultElement.TryGetProperty("protocolVersion", out var pv)
+            && pv.ValueKind == JsonValueKind.String)
+        {
+            var version = pv.GetString();
+            if (!string.IsNullOrEmpty(version))
+            {
+                _logger.Info($"[McpClient][Http] Server protocol version ({source}): {_protocolVersion}");
+                return version;
+            }
+        }
+
+        return null;
     }
 
     // --- 后台接收循环逻辑 (GET Loop) ---
@@ -304,7 +331,7 @@ public class HttpClientTransport : IClientTransport
 
     // --- SSE 解析核心逻辑 ---
 
-    private async Task ProcessSseStreamAsync(Stream stream, CancellationToken token)
+    private async Task ProcessSseStreamAsync(Stream stream, CancellationToken token, Action<JsonElement>? messageInspector = null)
     {
         using var reader = new StreamReader(stream, Encoding.UTF8, leaveOpen: true);
 
@@ -324,7 +351,7 @@ public class HttpClientTransport : IClientTransport
             {
                 if (dataBuffer.Length > 0)
                 {
-                    await DispatchSseEventAsync(currentEvent, dataBuffer.ToString(), token);
+                    await DispatchSseEventAsync(currentEvent, dataBuffer.ToString(), token, messageInspector);
                     dataBuffer.Clear();
                     currentEvent = null;
                 }
@@ -345,7 +372,7 @@ public class HttpClientTransport : IClientTransport
         }
     }
 
-    private async Task DispatchSseEventAsync(string? eventName, string data, CancellationToken token)
+    private async Task DispatchSseEventAsync(string? eventName, string data, CancellationToken token, Action<JsonElement>? messageInspector)
     {
         if (string.IsNullOrEmpty(data) || data == "[DONE]") return;
 
@@ -353,6 +380,21 @@ public class HttpClientTransport : IClientTransport
         {
             try
             {
+                // 先尝试用 JsonDocument 解析来执行检查器，因为 _manager.ReadResponseAsync 会直接反序列化为对象，
+                // 而我们需要 inspect 具体字段（如 protocolVersion）
+                if (messageInspector != null)
+                {
+                    try
+                    {
+                        using var doc = JsonDocument.Parse(data);
+                        messageInspector(doc.RootElement);
+                    }
+                    catch
+                    {
+                        // 忽略解析错误，后续 _manager 会处理
+                    }
+                }
+
                 var response = await _manager.ReadResponseAsync(data);
                 if (response != null)
                 {
