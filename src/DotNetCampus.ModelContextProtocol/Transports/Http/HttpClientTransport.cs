@@ -109,107 +109,106 @@ public class HttpClientTransport : IClientTransport
     }
 
     /// <inheritdoc />
-    public ValueTask SendMessageAsync(JsonRpcMessage message, CancellationToken cancellationToken)
-    {
-        // 将所有消息类型统一包装为 POST 请求
-        return SendRequestCoreAsync(message, cancellationToken);
-    }
-
-    private async ValueTask SendRequestCoreAsync(JsonRpcMessage message, CancellationToken cancellationToken)
+    public async ValueTask SendMessageAsync(JsonRpcMessage message, CancellationToken cancellationToken)
     {
         try
         {
-            var isInitialize = message is JsonRpcRequest { Method: "initialize" };
-            var requestUrl = _options.ServerUrl;
-
-            // 1. 构建请求
-            using var request = new HttpRequestMessage(HttpMethod.Post, requestUrl);
-
-            // 2. 设置标准头
-            request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-            request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("text/event-stream"));
-
-            if (!string.IsNullOrEmpty(_sessionId))
-            {
-                request.Headers.Add("Mcp-Session-Id", _sessionId);
-            }
-
-            if (!string.IsNullOrEmpty(_protocolVersion))
-            {
-                request.Headers.Add("Mcp-Protocol-Version", _protocolVersion);
-            }
-
-            // 3. 序列化内容
-            var jsonContent = _manager.WriteMessageAsync(message);
-            // 这里为了避免 "application/json; charset=utf-8" 可能导致的兼容性问题，手动构造 ContentType
-            var content = new StringContent(jsonContent, Encoding.UTF8);
-            content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
-            request.Content = content;
-
-            _logger.Debug($"[McpClient][Http][POST] Sending {(isInitialize ? "Initialize" : message.GetType().Name)} to {requestUrl}");
-
-            // 4. 发送请求 (ResponseHeadersRead 以支持流式响应)
-            var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
-
-            // 5. 检查握手响应 (Initialize) 提取 SessionId
-            if (isInitialize && response.Headers.TryGetValues("Mcp-Session-Id", out var headers))
-            {
-                var newId = headers.FirstOrDefault();
-                if (!string.IsNullOrEmpty(newId) && _sessionId != newId)
-                {
-                    _sessionId = newId;
-                    _logger.Info($"[McpClient][Http] Session negotiated: {_sessionId}");
-
-                    // 握手成功，启动后台接收循环
-                    StartReceiveLoop();
-                }
-            }
-
-            // 6. 处理响应
-            response.EnsureSuccessStatusCode();
-
-            var mediaType = response.Content.Headers.ContentType?.MediaType;
-
-            if (string.Equals(mediaType, "text/event-stream", StringComparison.OrdinalIgnoreCase))
-            {
-                // Case A: 瞬态 SSE 流 (Transient SSE)
-                _logger.Debug($"[McpClient][Http] Received Transient SSE Stream response");
-
-                await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
-                await ProcessSseStreamAsync(stream, cancellationToken);
-            }
-            else
-            {
-                // Case B: 标准 JSON 响应
-                if (response.StatusCode == System.Net.HttpStatusCode.Accepted)
-                {
-                    _logger.Debug($"[McpClient][Http] Received 202 Accepted (Response pending via GET loop)");
-                    return;
-                }
-
-                await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
-
-                // 将响应流反序列化并分发
-                var rpcResponse = await _manager.ReadResponseAsync(stream);
-                if (rpcResponse != null)
-                {
-                    // Initialize Response: Try capture ProtocolVersion
-                    if (isInitialize && rpcResponse.Result is { ValueKind: JsonValueKind.Object } resultElement)
-                    {
-                        if (resultElement.TryGetProperty("protocolVersion", out var pv) && pv.ValueKind == JsonValueKind.String)
-                        {
-                            _protocolVersion = pv.GetString();
-                        }
-                    }
-
-                    await _manager.HandleRespondAsync(rpcResponse, cancellationToken);
-                }
-            }
+            await SendRequestCoreAsync(message, cancellationToken);
         }
         catch (Exception ex)
         {
             _logger.Error($"[McpClient][Http] Error sending message: {ex.Message}", ex);
             throw;
+        }
+    }
+
+    private async ValueTask SendRequestCoreAsync(JsonRpcMessage message, CancellationToken cancellationToken)
+    {
+        var isInitialize = message is JsonRpcRequest { Method: "initialize" };
+        var requestUrl = _options.ServerUrl;
+
+        // 1. 构建请求
+        using var request = new HttpRequestMessage(HttpMethod.Post, requestUrl);
+
+        // 2. 设置标准头
+        request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+        request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("text/event-stream"));
+
+        if (!string.IsNullOrEmpty(_sessionId))
+        {
+            request.Headers.Add("Mcp-Session-Id", _sessionId);
+        }
+
+        if (!string.IsNullOrEmpty(_protocolVersion))
+        {
+            request.Headers.Add("Mcp-Protocol-Version", _protocolVersion);
+        }
+
+        // 3. 序列化内容
+        var jsonContent = _manager.WriteMessageAsync(message);
+        // 这里为了避免 "application/json; charset=utf-8" 可能导致的兼容性问题，手动构造 ContentType
+        var content = new StringContent(jsonContent, Encoding.UTF8);
+        content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
+        request.Content = content;
+
+        _logger.Debug($"[McpClient][Http][POST] Sending {(isInitialize ? "Initialize" : message.GetType().Name)} to {requestUrl}");
+
+        // 4. 发送请求 (ResponseHeadersRead 以支持流式响应)
+        var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+
+        // 5. 检查握手响应 (Initialize) 提取 SessionId
+        if (isInitialize && response.Headers.TryGetValues("Mcp-Session-Id", out var headers))
+        {
+            var newId = headers.FirstOrDefault();
+            if (!string.IsNullOrEmpty(newId) && _sessionId != newId)
+            {
+                _sessionId = newId;
+                _logger.Info($"[McpClient][Http] Session negotiated: {_sessionId}");
+
+                // 握手成功，启动后台接收循环
+                StartReceiveLoop();
+            }
+        }
+
+        // 6. 处理响应
+        response.EnsureSuccessStatusCode();
+
+        var mediaType = response.Content.Headers.ContentType?.MediaType;
+
+        if (string.Equals(mediaType, "text/event-stream", StringComparison.OrdinalIgnoreCase))
+        {
+            // Case A: 瞬态 SSE 流 (Transient SSE)
+            _logger.Debug($"[McpClient][Http] Received Transient SSE Stream response");
+
+            await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
+            await ProcessSseStreamAsync(stream, cancellationToken);
+        }
+        else
+        {
+            // Case B: 标准 JSON 响应
+            if (response.StatusCode == System.Net.HttpStatusCode.Accepted)
+            {
+                _logger.Debug($"[McpClient][Http] Received 202 Accepted (Response pending via GET loop)");
+                return;
+            }
+
+            await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
+
+            // 将响应流反序列化并分发
+            var rpcResponse = await _manager.ReadResponseAsync(stream);
+            if (rpcResponse != null)
+            {
+                // Initialize Response: Try capture ProtocolVersion
+                if (isInitialize && rpcResponse.Result is { ValueKind: JsonValueKind.Object } resultElement)
+                {
+                    if (resultElement.TryGetProperty("protocolVersion", out var pv) && pv.ValueKind == JsonValueKind.String)
+                    {
+                        _protocolVersion = pv.GetString();
+                    }
+                }
+
+                await _manager.HandleRespondAsync(rpcResponse, cancellationToken);
+            }
         }
     }
 
