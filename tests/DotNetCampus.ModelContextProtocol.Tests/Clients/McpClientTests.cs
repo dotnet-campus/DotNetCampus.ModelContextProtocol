@@ -25,6 +25,14 @@ public sealed class McpClientTests
     [TestMethod("使用 @modelcontextprotocol/server-everything HTTP：失败则证明客户端错误")]
     public async Task ServerEverything_Http()
     {
+        // 结束相关的 node.exe 进程（会有误杀，但无所谓了）：
+        await Process.Start(new ProcessStartInfo(
+            McpStdioUtils.ResolveCommandPath("taskkill")!,
+            ["/F", "/IM", "node.exe"])
+        {
+            UseShellExecute = false,
+        })!.WaitForExitAsync();
+
         // Arrange
         const string port = "15001";
         var process = Process.Start(new ProcessStartInfo(
@@ -45,6 +53,7 @@ public sealed class McpClientTests
 
             // Act
             await using var client = new McpClientBuilder()
+                .WithLogger(TestMcpFactory.DefaultLogger)
                 .WithHttp($"http://localhost:{port}/mcp")
                 .Build();
             var tools = await client.ListToolsAsync();
