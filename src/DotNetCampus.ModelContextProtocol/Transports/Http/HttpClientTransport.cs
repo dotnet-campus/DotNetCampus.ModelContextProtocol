@@ -1,12 +1,21 @@
-﻿using System.Text;
+using System.Net.Http.Headers;
+using System.Text;
+using System.Text.Json;
 using DotNetCampus.ModelContextProtocol.Hosting.Logging;
 using DotNetCampus.ModelContextProtocol.Protocol;
 using DotNetCampus.ModelContextProtocol.Protocol.Messages.JsonRpc;
+using DotNetCampus.ModelContextProtocol.Transports;
 
 namespace DotNetCampus.ModelContextProtocol.Transports.Http;
 
 /// <summary>
-/// HTTP 客户端传输层，用于通过 HTTP 进行 MCP 通信。
+/// 基于 MCP 2025-11-25 规范实现的 Streamable HTTP 客户端传输层。
+/// <para>
+/// 核心设计：
+/// 1. 双循环架构：主动 POST 循环发送请求，后台 GET 循环接收通知。
+/// 2. 自动会话管理：从 Initialize 响应中提取 SessionId 并自动维护。
+/// 3. 瞬态 SSE 支持：支持 POST 请求返回 SSE 流（Transient SSE）的处理。
+/// </para>
 /// </summary>
 public class HttpClientTransport : IClientTransport
 {
@@ -14,25 +23,22 @@ public class HttpClientTransport : IClientTransport
     private readonly HttpClientTransportOptions _options;
     private readonly HttpClient _httpClient;
     private readonly bool _isExternalHttpClient;
+    private readonly IMcpLogger _logger;
 
-    /// <summary>
-    /// 当前会话 ID。在初始化请求后由服务器分配。
-    /// </summary>
+    // 会话状态
     private string? _sessionId;
+    private string? _protocolVersion;
 
-    // SSE 后台任务相关
-    private CancellationTokenSource? _sseCts;
-    private Task? _sseLoopTask;
+    // 后台接收循环 (GET Loop)
+    private Task? _receiveLoopTask;
+    private CancellationTokenSource? _receiveLoopCts;
+    private readonly object _loopLock = new();
 
-    /// <summary>
-    /// 初始化 <see cref="HttpClientTransport"/> 类的新实例。
-    /// </summary>
-    /// <param name="manager">辅助管理 MCP 传输层的管理器。</param>
-    /// <param name="options">HTTP 传输层配置选项。</param>
     public HttpClientTransport(IClientTransportManager manager, HttpClientTransportOptions options)
     {
         _manager = manager;
         _options = options;
+        _logger = manager.Context.Logger;
 
         if (options.HttpClient is { } httpClient)
         {
@@ -46,87 +52,46 @@ public class HttpClientTransport : IClientTransport
         }
     }
 
-    private IMcpLogger Log => _manager.Context.Logger;
-
     /// <inheritdoc />
     public ValueTask ConnectAsync(CancellationToken cancellationToken = default)
     {
-        // 按照 MCP HTTP 传输层规范，连接的建立实际上包含以下步骤：
-        // 1. 发送 Initialize 请求 (POST) -> 获得 SessionId 和 ServerInfo
-        // 2. 建立 SSE 连接 (如果未升级)
-        // 3. 发送 Initialized 通知 (notifications/initialized)
-        //
-        // 本类作为纯传输层，ConnectAsync 仅作为准备阶段。
-        // 上述握手逻辑 (步骤 1 & 3) 由 McpClient 或 ClientTransportManager 编排，
-        // 它们会依次调用 SendMessageAsync (Request -> Initialize) 和 (Notification -> Initialized)。
-        Log.Info($"[McpClient][Http] Transfer client prepared for {_options.ServerUrl}");
+        // Streamable HTTP 是惰性连接，真正连接发生在第一次发送消息时
+        // 但我们在概念上认为此时已就绪
+        _logger.Info($"[McpClient][Http] Transport connected (stateless/lazy)");
         return ValueTask.CompletedTask;
     }
 
     /// <inheritdoc />
     public async ValueTask DisconnectAsync(CancellationToken cancellationToken = default)
     {
-        // 1. 停止 SSE 监听
-        if (_sseCts != null)
+        _logger.Info($"[McpClient][Http] Disconnecting transport...");
+
+        // 1. 停止后台接收循环
+        StopReceiveLoop();
+
+        // 2. 发送 DELETE 请求终止会话 (Best Effort)
+        if (!string.IsNullOrEmpty(_sessionId))
         {
-            _sseCts.Cancel();
             try
             {
-                if (_sseLoopTask != null)
-                {
-                    await _sseLoopTask;
-                }
-            }
-            catch (OperationCanceledException)
-            {
+                using var request = new HttpRequestMessage(HttpMethod.Delete, _options.ServerUrl);
+                request.Headers.Add("Mcp-Session-Id", _sessionId);
+
+                // 设置较短的超时，避免长时间卡住断开流程
+                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+                var response = await _httpClient.SendAsync(request, cts.Token);
+
+                _logger.Debug($"[McpClient][Http] Session {_sessionId} terminated with status {response.StatusCode}");
             }
             catch (Exception ex)
             {
-                Log.Warn($"[McpClient][Http] SSE loop error during disconnect: {ex.Message}");
+                _logger.Warn($"[McpClient][Http] Failed to strictly terminate session {_sessionId}: {ex.Message}");
             }
-            _sseCts.Dispose();
-            _sseCts = null;
-            _sseLoopTask = null;
         }
 
-        if (_sessionId is null)
-        {
-            return;
-        }
-
-        var sessionId = _sessionId;
         _sessionId = null;
-
-        // 2. 发送 DELETE 请求终止会话
-        try
-        {
-            Log.Debug($"[McpClient][Http][Mcp:{sessionId}] Sending DELETE request to close session");
-
-            using var request = new HttpRequestMessage(HttpMethod.Delete, _options.ServerUrl);
-            request.Headers.Add("Mcp-Session-Id", sessionId);
-
-            var response = await _httpClient.SendAsync(request, cancellationToken);
-            // 即便失败也视为断开，因为我们已经丢弃了 sessionId
-            if (!response.IsSuccessStatusCode)
-            {
-                Log.Debug($"[McpClient][Http][Mcp:{sessionId}] Server returned {response.StatusCode} on DELETE");
-            }
-
-            Log.Info($"[McpClient][Http][Mcp:{sessionId}] Session closed locally");
-        }
-        catch (Exception ex)
-        {
-            Log.Warn($"[McpClient][Http][Mcp:{sessionId}] Failed to close session gracefully", ex);
-        }
+        _protocolVersion = null;
     }
-
-    /// <inheritdoc />
-    public ValueTask SendMessageAsync(JsonRpcMessage message, CancellationToken cancellationToken) => message switch
-    {
-        JsonRpcRequest request => SendRequestAsync(request, cancellationToken),
-        JsonRpcNotification notification => SendNotificationAsync(notification, cancellationToken),
-        _ => throw new ArgumentException($"不支持的消息类型：{message.GetType().FullName}."),
-    };
 
     /// <inheritdoc />
     public async ValueTask DisposeAsync()
@@ -137,352 +102,260 @@ public class HttpClientTransport : IClientTransport
         {
             _httpClient.Dispose();
         }
+
+        _receiveLoopCts?.Dispose();
     }
 
-    private async ValueTask SendRequestAsync(JsonRpcRequest message, CancellationToken cancellationToken)
+    /// <inheritdoc />
+    public ValueTask SendMessageAsync(JsonRpcMessage message, CancellationToken cancellationToken)
     {
-        var isInitialize = message.Method == "initialize";
-        var currentSessionId = _sessionId;
+        // 将所有消息类型统一包装为 POST 请求
+        return SendRequestCoreAsync(message, cancellationToken);
+    }
 
-        if (!isInitialize && currentSessionId is null)
-        {
-            Log.Warn($"[McpClient][Http] Cannot send message: not initialized");
-            throw new InvalidOperationException("Not initialized. Call initialize first.");
-        }
-
-        Log.Debug($"[McpClient][Http][Mcp:{currentSessionId ?? "new"}][{message.Method}][Request] Sending message[{message.Id}]");
-
+    private async ValueTask SendRequestCoreAsync(JsonRpcMessage message, CancellationToken cancellationToken)
+    {
         try
         {
-            using var request = new HttpRequestMessage(HttpMethod.Post, _options.ServerUrl);
+            var isInitialize = message is JsonRpcRequest req && req.Method == "initialize";
+            var requestUrl = _options.ServerUrl;
 
-            // 1. 设置 Header
-            if (!isInitialize && currentSessionId is not null)
+            // 1. 构建请求
+            using var request = new HttpRequestMessage(HttpMethod.Post, requestUrl);
+
+            // 2. 设置标准头
+            request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+            request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("text/event-stream"));
+
+            if (!string.IsNullOrEmpty(_sessionId))
             {
-                request.Headers.Add("Mcp-Session-Id", currentSessionId);
+                request.Headers.Add("Mcp-Session-Id", _sessionId);
             }
-            // 客户端必须声明支持 SSE，以便服务器可以升级连接
-            request.Headers.Add("Accept", "application/json, text/event-stream");
-            // 声明协议版本
-            request.Headers.Add("MCP-Protocol-Version", ProtocolVersion.Current);
 
-            // 2. 序列化并发送
-            // 注意：序列化由 Manager 处理，确保 AOT 兼容
-            var jsonContent = _manager.WriteMessageAsync(message);
-            request.Content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
-
-            // 发送请求
-            // 注意：我们不能立即 Dispose response，因为在 SSE 升级场景下需要移交控制权
-            var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
-            var handover = false;
-
-            try
+            if (!string.IsNullOrEmpty(_protocolVersion))
             {
-                // 3. 处理握手 (Initialize) 的会话 ID
-                if (isInitialize)
+                request.Headers.Add("Mcp-Protocol-Version", _protocolVersion);
+            }
+
+            // 3. 序列化内容
+            var jsonContent = _manager.WriteMessageAsync(message);
+            // 这里为了避免 "application/json; charset=utf-8" 可能导致的兼容性问题，手动构造 ContentType
+            var content = new StringContent(jsonContent, Encoding.UTF8);
+            content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
+            request.Content = content;
+
+            _logger.Debug($"[McpClient][Http][POST] Sending {(isInitialize ? "Initialize" : message.GetType().Name)} to {requestUrl}");
+
+            // 4. 发送请求 (ResponseHeadersRead 以支持流式响应)
+            var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+
+            // 5. 检查握手响应 (Initialize) 提取 SessionId
+            if (isInitialize && response.Headers.TryGetValues("Mcp-Session-Id", out var headers))
+            {
+                var newId = headers.FirstOrDefault();
+                if (!string.IsNullOrEmpty(newId) && _sessionId != newId)
                 {
-                    if (response.Headers.TryGetValues("Mcp-Session-Id", out var sessionIds))
+                    _sessionId = newId;
+                    _logger.Info($"[McpClient][Http] Session negotiated: {_sessionId}");
+
+                    // 握手成功，启动后台接收循环
+                    StartReceiveLoop();
+                }
+            }
+
+            // 6. 处理响应
+            response.EnsureSuccessStatusCode();
+
+            var mediaType = response.Content.Headers.ContentType?.MediaType;
+
+            if (string.Equals(mediaType, "text/event-stream", StringComparison.OrdinalIgnoreCase))
+            {
+                // Case A: 瞬态 SSE 流 (Transient SSE)
+                _logger.Debug($"[McpClient][Http] Received Transient SSE Stream response");
+
+                await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
+                await ProcessSseStreamAsync(stream, cancellationToken);
+            }
+            else
+            {
+                // Case B: 标准 JSON 响应
+                if (response.StatusCode == System.Net.HttpStatusCode.Accepted)
+                {
+                    _logger.Debug($"[McpClient][Http] Received 202 Accepted (Response pending via GET loop)");
+                    return;
+                }
+
+                await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
+
+                // 将响应流反序列化并分发
+                var rpcResponse = await _manager.ReadResponseAsync(stream);
+                if (rpcResponse != null)
+                {
+                    // Initialize Response: Try capture ProtocolVersion
+                    if (isInitialize && rpcResponse.Result is JsonElement resultElement && resultElement.ValueKind == JsonValueKind.Object)
                     {
-                        var newSessionId = sessionIds.FirstOrDefault();
-                        if (!string.IsNullOrEmpty(newSessionId))
+                        if (resultElement.TryGetProperty("protocolVersion", out var pv) && pv.ValueKind == JsonValueKind.String)
                         {
-                            _sessionId = newSessionId;
-                            Log.Debug($"[McpClient][Http][Mcp:{_sessionId}] Received session ID from server");
+                            _protocolVersion = pv.GetString();
                         }
                     }
 
-                    if (string.IsNullOrEmpty(_sessionId))
-                    {
-                        Log.Warn($"[McpClient][Http] Server did not return Mcp-Session-Id on initialize");
-                    }
-                }
-
-                response.EnsureSuccessStatusCode();
-
-                var contentType = response.Content.Headers.ContentType?.MediaType;
-                var isInitializeUpgradedToSse = contentType?.Equals("text/event-stream", StringComparison.OrdinalIgnoreCase) is true;
-
-                // 4. 处理响应内容
-                if (isInitializeUpgradedToSse)
-                {
-                    // 情况 A: 服务端升级了连接为 SSE (通常仅在 Initialize 时发生)
-                    Log.Debug($"[McpClient][Http][Mcp:{_sessionId}][{message.Method}] Connection upgraded to SSE stream");
-
-                    // 响应流 StreamReader 将被传递给后台循环，生命周期由 Loop 结束时管理
-                    var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
-                    var reader = new StreamReader(stream, Encoding.UTF8, leaveOpen: true);
-
-                    // 在升级模式下，同步读取第一条消息（期望是 Initialize 响应）
-                    // 这使我们能在握手阶段立即获得结果，而不是等待后台循环启动
-                    JsonRpcResponse? jsonRpcResponse = null;
-                    try
-                    {
-                        jsonRpcResponse = await ReadFirstSseMessageAsync(reader, cancellationToken);
-                    }
-                    catch (Exception ex)
-                    {
-                        // 仅记录警告，不中断，因为 Loop 可能会恢复
-                        Log.Warn($"[McpClient][Http] Error reading first SSE message: {ex.Message}");
-                    }
-
-                    // 将 Reader 和 Response 的所有权移交给后台循环 (Reader 游标已移动到第一条消息之后)
-                    StartSseLoop(_sessionId!, reader, response);
-                    handover = true;
-
-                    // 统一处理响应逻辑 (和情况 B 一致)
-                    if (jsonRpcResponse != null)
-                    {
-                        Log.Debug($"[McpClient][Http][Mcp:{_sessionId}][{message.Method}][Response] Received response[{jsonRpcResponse.Id}] via SSE Upgrade");
-                        await _manager.HandleRespondAsync(jsonRpcResponse, cancellationToken);
-                    }
-                }
-                else
-                {
-                    // 情况 B: 普通 JSON 响应
-                    var responseStream = await response.Content.ReadAsStreamAsync(cancellationToken);
-
-                    // 读取并处理响应（由 Manager 反序列化）
-                    var jsonRpcResponse = await _manager.ReadResponseAsync(responseStream);
-
-                    if (jsonRpcResponse != null)
-                    {
-                        Log.Debug($"[McpClient][Http][Mcp:{_sessionId}][{message.Method}][Response] Received response[{jsonRpcResponse.Id}] directly via POST");
-                        // 手动注入响应到处理管道
-                        await _manager.HandleRespondAsync(jsonRpcResponse, cancellationToken);
-                    }
-
-                    // 如果这是 Initialize 请求且我们还没有启动 SSE 监听，现在启动
-                    if (isInitialize && _sseLoopTask == null && _sessionId != null)
-                    {
-                        StartSseLoop(_sessionId!);
-                    }
-                }
-            }
-            finally
-            {
-                if (!handover)
-                {
-                    response.Dispose();
+                    await _manager.HandleRespondAsync(rpcResponse, cancellationToken);
                 }
             }
         }
         catch (Exception ex)
         {
-            Log.Error($"[McpClient][Http][Mcp:{_sessionId}][{message.Method}] Failed to send request", ex);
+            _logger.Error($"[McpClient][Http] Error sending message: {ex.Message}", ex);
             throw;
         }
     }
 
-    private async ValueTask SendNotificationAsync(JsonRpcNotification message, CancellationToken cancellationToken)
+    // --- 后台接收循环逻辑 (GET Loop) ---
+
+    private void StartReceiveLoop()
     {
-        var currentSessionId = _sessionId;
-        if (currentSessionId is null)
+        lock (_loopLock)
         {
-            throw new InvalidOperationException("Not initialized.");
-        }
-
-        try
-        {
-            using var request = new HttpRequestMessage(HttpMethod.Post, _options.ServerUrl);
-            request.Headers.Add("Mcp-Session-Id", currentSessionId);
-            // 声明协议版本
-            request.Headers.Add("MCP-Protocol-Version", ProtocolVersion.Current);
-            request.Headers.Add("Accept", "application/json");
-
-            // 注意：对于 notifications/initialized 通知，它也是一个普通的 Notification，
-            // 只要我們有了 SessionId (在 Initialize 响应中获得)，就可以正常发送。
-
-            var jsonContent = _manager.WriteMessageAsync(message);
-            request.Content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
-
-            using var response = await _httpClient.SendAsync(request, cancellationToken);
-
-            // 202 Accepted 是正常的通知响应，200 OK 也可以
-            if (!response.IsSuccessStatusCode)
+            if (_receiveLoopTask != null && !_receiveLoopTask.IsCompleted)
             {
-                Log.Warn($"[McpClient][Http][Mcp:{currentSessionId}] Notification[{message.Method}] sent but server returned {response.StatusCode}");
+                return;
             }
-        }
-        catch (Exception ex)
-        {
-            Log.Error($"[McpClient][Http] Failed to send notification [{message.Method}]", ex);
-            throw;
+
+            _receiveLoopCts = new CancellationTokenSource();
+            _receiveLoopTask = Task.Run(() => ReceiveLoopAsync(_receiveLoopCts.Token));
         }
     }
 
-    private async Task<JsonRpcResponse?> ReadFirstSseMessageAsync(StreamReader reader, CancellationToken cancellationToken)
+    private void StopReceiveLoop()
     {
-        // StreamReader 由调用者 (SendRequestAsync) 传入，不在此处 dispose
-
-        string? line;
-        string? eventType = null;
-        var dataBuilder = new StringBuilder();
-
-        // 仅读取第一条完整的 SSE 消息
-        while ((line = await reader.ReadLineAsync(cancellationToken)) != null)
+        lock (_loopLock)
         {
-            if (string.IsNullOrEmpty(line))
+            _receiveLoopCts?.Cancel();
+            _receiveLoopTask = null;
+        }
+    }
+
+    private async Task ReceiveLoopAsync(CancellationToken token)
+    {
+        _logger.Info($"[McpClient][Http] GET SSE Loop started");
+
+        while (!token.IsCancellationRequested)
+        {
+            try
             {
-                // End of event
-                if (dataBuilder.Length > 0)
+                if (string.IsNullOrEmpty(_sessionId))
                 {
-                    // 忽略 legacy endpoint 事件，继续寻找下一条
-                    if (eventType == "endpoint")
+                    await Task.Delay(100, token);
+                    continue;
+                }
+
+                using var request = new HttpRequestMessage(HttpMethod.Get, _options.ServerUrl);
+                request.Headers.Add("Mcp-Session-Id", _sessionId);
+                request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("text/event-stream"));
+
+                HttpResponseMessage response;
+                try
+                {
+                    response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, token);
+                }
+                catch (Exception sendEx)
+                {
+                    _logger.Warn($"[McpClient][Http] GET Loop connect error: {sendEx.Message}. Retrying...");
+                    await Task.Delay(2000, token);
+                    continue;
+                }
+
+                using (response)
+                {
+                    if (!response.IsSuccessStatusCode)
                     {
-                        eventType = null;
-                        dataBuilder.Clear();
+                        _logger.Warn($"[McpClient][Http] GET Loop received status {response.StatusCode}. Retrying...");
+                        await Task.Delay(2000, token);
                         continue;
                     }
 
-                    var data = dataBuilder.ToString();
-
-                    // 尝试解析为 Response 返回
-                    // 注意：按照建议，我们不在此处做完整 dispatch，而是直接返回对象由调用方统一处理
-                    return await _manager.ReadResponseAsync(data);
+                    await using var stream = await response.Content.ReadAsStreamAsync(token);
+                    await ProcessSseStreamAsync(stream, token);
                 }
+                _logger.Info($"[McpClient][Http] GET Loop stream ended. Reconnecting...");
+            }
+            catch (OperationCanceledException)
+            {
+                break;
+            }
+            catch (Exception ex)
+            {
+                _logger.Warn($"[McpClient][Http] GET Loop error: {ex.Message}. Reconnecting in 2s...");
+                try
+                {
+                    await Task.Delay(2000, token);
+                }
+                catch
+                {
+                }
+            }
+        }
 
-                // 忽略没有数据的事件（如心跳）
-                eventType = null;
-                dataBuilder.Clear();
+        _logger.Info($"[McpClient][Http] GET SSE Loop stopped");
+    }
+
+    // --- SSE 解析核心逻辑 ---
+
+    private async Task ProcessSseStreamAsync(Stream stream, CancellationToken token)
+    {
+        using var reader = new StreamReader(stream, Encoding.UTF8, leaveOpen: true);
+
+        string? currentEvent = null;
+        var dataBuffer = new StringBuilder();
+
+        while (!token.IsCancellationRequested)
+        {
+            var line = await reader.ReadLineAsync(token);
+            if (line == null) break; // End of Stream
+
+            if (string.IsNullOrWhiteSpace(line))
+            {
+                if (dataBuffer.Length > 0)
+                {
+                    await DispatchSseEventAsync(currentEvent, dataBuffer.ToString(), token);
+                    dataBuffer.Clear();
+                    currentEvent = null;
+                }
                 continue;
             }
 
-            if (line.StartsWith("event:", StringComparison.Ordinal))
+            if (line.StartsWith("event:", StringComparison.OrdinalIgnoreCase))
             {
-                eventType = line.Substring(6).Trim();
+                currentEvent = line.Substring(6).Trim();
             }
-            else if (line.StartsWith("data:", StringComparison.Ordinal))
+            else if (line.StartsWith("data:", StringComparison.OrdinalIgnoreCase))
             {
-                dataBuilder.Append(line.Substring(5).Trim());
+                if (dataBuffer.Length > 0 && !line.StartsWith("data: ", StringComparison.Ordinal))
+                {
+                }
+                dataBuffer.Append(line.Substring(5).Trim());
             }
-        }
-
-        return null;
-    }
-
-    private void StartSseLoop(string sessionId, StreamReader? existingReader = null, HttpResponseMessage? existingResponse = null)
-    {
-        if (_sseLoopTask != null)
-        {
-            return;
-        }
-
-        _sseCts = new CancellationTokenSource();
-        _sseLoopTask = Task.Run(() => SseLoopAsync(sessionId, existingReader, existingResponse, _sseCts.Token));
-    }
-
-    private async Task SseLoopAsync(string sessionId, StreamReader? initialReader, HttpResponseMessage? initialResponse, CancellationToken cancellationToken)
-    {
-        Log.Info($"[McpClient][Http][Mcp:{sessionId}] Starting SSE message loop");
-
-        var currentReader = initialReader;
-        var currentResponse = initialResponse;
-
-        try
-        {
-            while (!cancellationToken.IsCancellationRequested)
-            {
-                try
-                {
-                    if (currentReader == null)
-                    {
-                        // 发起 GET /mcp 连接
-                        var request = new HttpRequestMessage(HttpMethod.Get, _options.ServerUrl);
-                        request.Headers.Add("Mcp-Session-Id", sessionId);
-                        request.Headers.Add("Accept", "text/event-stream");
-
-                        // 长时间运行的请求
-                        currentResponse = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
-                        currentResponse.EnsureSuccessStatusCode();
-                        var stream = await currentResponse.Content.ReadAsStreamAsync(cancellationToken);
-                        currentReader = new StreamReader(stream, Encoding.UTF8);
-                        Log.Debug($"[McpClient][Http][Mcp:{sessionId}] SSE Connected");
-                    }
-
-                    string? eventType = null;
-                    var dataBuilder = new StringBuilder();
-
-                    while (await currentReader.ReadLineAsync(cancellationToken) is { } line)
-                    {
-                        if (string.IsNullOrEmpty(line))
-                        {
-                            // End of event
-                            if (dataBuilder.Length > 0)
-                            {
-                                var data = dataBuilder.ToString();
-                                dataBuilder.Clear();
-                                await ProcessSseEventAsync(sessionId, eventType, data, cancellationToken);
-                            }
-                            eventType = null;
-                            continue;
-                        }
-
-                        if (line.StartsWith("event:", StringComparison.Ordinal))
-                        {
-                            eventType = line.Substring(6).Trim();
-                        }
-                        else if (line.StartsWith("data:", StringComparison.Ordinal))
-                        {
-                            dataBuilder.Append(line.Substring(5).Trim());
-                        }
-                    }
-
-                    // Stream ended
-                    Log.Info($"[McpClient][Http][Mcp:{sessionId}] SSE Stream ended by server");
-                }
-                catch (OperationCanceledException)
-                {
-                    break;
-                }
-                catch (Exception ex)
-                {
-                    Log.Warn($"[McpClient][Http][Mcp:{sessionId}] SSE Loop error: {ex.Message}. Reconnecting in 1s...");
-                    await Task.Delay(1000, cancellationToken);
-                }
-                finally
-                {
-                    currentReader?.Dispose();
-                    currentReader = null;
-
-                    currentResponse?.Dispose();
-                    currentResponse = null;
-                }
-            }
-        }
-        finally
-        {
-            Log.Info($"[McpClient][Http][Mcp:{sessionId}] SSE Loop stopped");
         }
     }
 
-    private async ValueTask ProcessSseEventAsync(string sessionId, string? eventType, string data, CancellationToken token)
+    private async Task DispatchSseEventAsync(string? eventName, string data, CancellationToken token)
     {
-        if (eventType == "endpoint")
-        {
-            return; // Ignore legacy
-        }
+        if (string.IsNullOrEmpty(data) || data == "[DONE]") return;
 
-        // Default event is message
-        if (string.IsNullOrEmpty(eventType) || eventType == "message")
+        if (string.IsNullOrEmpty(eventName) || string.Equals(eventName, "message", StringComparison.OrdinalIgnoreCase))
         {
             try
             {
-                // 反序列化由 Manager 处理
                 var response = await _manager.ReadResponseAsync(data);
                 if (response != null)
                 {
-                    // 只有 Response 目前被支持 (Client 侧)
                     await _manager.HandleRespondAsync(response, token);
-                }
-                else
-                {
-                    // 可能是 Request/Notification (Server->Client)，暂不支持
-                    Log.Debug($"[McpClient][Http][Mcp:{sessionId}] Received non-response message via SSE");
                 }
             }
             catch (Exception ex)
             {
-                Log.Error($"[McpClient][Http][Mcp:{sessionId}] Error processing SSE message", ex);
+                _logger.Warn($"[McpClient][Http][SSE] Failed to process message: {ex.Message}");
             }
         }
     }
