@@ -1,21 +1,13 @@
-using System.Net.Http.Headers;
+﻿using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 using DotNetCampus.ModelContextProtocol.Hosting.Logging;
-using DotNetCampus.ModelContextProtocol.Protocol;
 using DotNetCampus.ModelContextProtocol.Protocol.Messages.JsonRpc;
-using DotNetCampus.ModelContextProtocol.Transports;
 
 namespace DotNetCampus.ModelContextProtocol.Transports.Http;
 
 /// <summary>
-/// 基于 MCP 2025-11-25 规范实现的 Streamable HTTP 客户端传输层。
-/// <para>
-/// 核心设计：
-/// 1. 双循环架构：主动 POST 循环发送请求，后台 GET 循环接收通知。
-/// 2. 自动会话管理：从 Initialize 响应中提取 SessionId 并自动维护。
-/// 3. 瞬态 SSE 支持：支持 POST 请求返回 SSE 流（Transient SSE）的处理。
-/// </para>
+/// HTTP 客户端传输层，用于通过 HTTP 进行 MCP 通信。
 /// </summary>
 public class HttpClientTransport : IClientTransport
 {
@@ -32,8 +24,18 @@ public class HttpClientTransport : IClientTransport
     // 后台接收循环 (GET Loop)
     private Task? _receiveLoopTask;
     private CancellationTokenSource? _receiveLoopCts;
-    private readonly object _loopLock = new();
 
+#if NET9_0_OR_GREATER
+    private readonly Lock _loopLock = new();
+#else
+    private readonly object _loopLock = new();
+#endif
+
+    /// <summary>
+    /// 初始化 <see cref="HttpClientTransport"/> 类的新实例。
+    /// </summary>
+    /// <param name="manager">辅助管理 MCP 传输层的管理器。</param>
+    /// <param name="options">HTTP 传输层配置选项。</param>
     public HttpClientTransport(IClientTransportManager manager, HttpClientTransportOptions options)
     {
         _manager = manager;
@@ -117,7 +119,7 @@ public class HttpClientTransport : IClientTransport
     {
         try
         {
-            var isInitialize = message is JsonRpcRequest req && req.Method == "initialize";
+            var isInitialize = message is JsonRpcRequest { Method: "initialize" };
             var requestUrl = _options.ServerUrl;
 
             // 1. 构建请求
@@ -192,7 +194,7 @@ public class HttpClientTransport : IClientTransport
                 if (rpcResponse != null)
                 {
                     // Initialize Response: Try capture ProtocolVersion
-                    if (isInitialize && rpcResponse.Result is JsonElement resultElement && resultElement.ValueKind == JsonValueKind.Object)
+                    if (isInitialize && rpcResponse.Result is { ValueKind: JsonValueKind.Object } resultElement)
                     {
                         if (resultElement.TryGetProperty("protocolVersion", out var pv) && pv.ValueKind == JsonValueKind.String)
                         {
@@ -217,7 +219,7 @@ public class HttpClientTransport : IClientTransport
     {
         lock (_loopLock)
         {
-            if (_receiveLoopTask != null && !_receiveLoopTask.IsCompleted)
+            if (_receiveLoopTask is { IsCompleted: false })
             {
                 return;
             }
@@ -293,6 +295,7 @@ public class HttpClientTransport : IClientTransport
                 }
                 catch
                 {
+                    // 忽略此时的取消异常，确保循环能正常退出
                 }
             }
         }
@@ -312,7 +315,11 @@ public class HttpClientTransport : IClientTransport
         while (!token.IsCancellationRequested)
         {
             var line = await reader.ReadLineAsync(token);
-            if (line == null) break; // End of Stream
+            if (line == null)
+            {
+                // End of Stream
+                break;
+            }
 
             if (string.IsNullOrWhiteSpace(line))
             {
