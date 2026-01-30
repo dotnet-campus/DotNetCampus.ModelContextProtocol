@@ -128,6 +128,11 @@ internal partial class McpServerToolJsonContext : JsonSerializerContext;
 [JsonSerializable(typeof(PingRequestParams))]
 [JsonSerializable(typeof(ReadResourceRequestParams))]
 [JsonSerializable(typeof(SetLevelRequestParams))]
+[JsonSourceGenerationOptions(
+    PropertyNameCaseInsensitive = true,
+    PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,
+    UseStringEnumConverter = true,
+    WriteIndented = false)]
 internal partial class McpServerRequestJsonContext : JsonSerializerContext;
 
 /// <summary>
@@ -157,6 +162,7 @@ internal partial class McpServerRequestJsonContext : JsonSerializerContext;
 [JsonSerializable(typeof(TextContentBlock))]
 [JsonSerializable(typeof(TextResourceContents))]
 [JsonSourceGenerationOptions(
+    PropertyNameCaseInsensitive = true,
     PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,
     UseStringEnumConverter = true,
     WriteIndented = false)]
