@@ -278,6 +278,7 @@ public class McpClient : IAsyncDisposable
     public async ValueTask DisposeAsync()
     {
         await Transport.DisconnectAsync().ConfigureAwait(false);
+        IsConnected = false;
         _connectionLock.Dispose();
         GC.SuppressFinalize(this);
     }

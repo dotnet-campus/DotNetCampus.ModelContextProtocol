@@ -4,6 +4,7 @@ using DotNetCampus.ModelContextProtocol.Clients;
 using DotNetCampus.ModelContextProtocol.Hosting.Logging;
 using DotNetCampus.ModelContextProtocol.Protocol.Messages;
 using DotNetCampus.ModelContextProtocol.Servers;
+using DotNetCampus.ModelContextProtocol.Tests.McpResources;
 using DotNetCampus.ModelContextProtocol.Tests.McpTools;
 using DotNetCampus.ModelContextProtocol.Transports.Http;
 using DotNetCampus.ModelContextProtocol.Transports.TouchSocket;
@@ -65,6 +66,32 @@ public class TestMcpFactory
     }
 
     /// <summary>
+    /// 创建一个包含工具和资源的完整 HTTP 传输 MCP 测试包。
+    /// </summary>
+    public async ValueTask<McpTestingPackage> CreateFullHttpWithResourcesAsync(HttpTransportType httpTransportType)
+    {
+        return await CreateHttpCoreAsync(
+            httpTransportType,
+            builder =>
+            {
+                builder
+                    .WithJsonSerializer(TestToolJsonContext.Default)
+                    .WithTools(t =>
+                    {
+                        t.WithTool(() => new SimpleTool());
+                        t.WithTool(() => new CalculatorTool());
+                        t.WithTool(() => new EchoTool());
+                        t.WithTool(() => new ExceptionTool());
+                        t.WithTool(() => new LongTextTool());
+                    })
+                    .WithResources(r =>
+                    {
+                        r.WithResource(() => new SimpleResource());
+                    });
+            });
+    }
+
+    /// <summary>
     /// 创建一个自定义配置的 HTTP 传输 MCP 测试包。
     /// </summary>
     public async ValueTask<McpTestingPackage> CreateHttpAsync(
@@ -82,14 +109,29 @@ public class TestMcpFactory
         Action<IMcpServerToolsBuilder> configureTools,
         System.Text.Json.Serialization.JsonSerializerContext? jsonSerializerContext)
     {
+        return await CreateHttpCoreAsync(httpTransportType, builder =>
+        {
+            builder.WithTools(configureTools);
+            if (jsonSerializerContext is not null)
+            {
+                builder.WithJsonSerializer(jsonSerializerContext);
+            }
+        });
+    }
+
+    /// <summary>
+    /// 核心方法：创建一个完全自定义的 HTTP 传输 MCP 测试包。
+    /// </summary>
+    public async ValueTask<McpTestingPackage> CreateHttpCoreAsync(
+        HttpTransportType httpTransportType,
+        Action<McpServerBuilder> configureBuilder)
+    {
         var port = Interlocked.Increment(ref _port);
         var mcpServerBuilder = new McpServerBuilder("TestMcpServer", "1.0.0")
-            .WithLogger(DefaultLogger)
-            .WithTools(configureTools);
-        if (jsonSerializerContext is not null)
-        {
-            mcpServerBuilder = mcpServerBuilder.WithJsonSerializer(jsonSerializerContext);
-        }
+            .WithLogger(DefaultLogger);
+
+        configureBuilder(mcpServerBuilder);
+
         mcpServerBuilder = httpTransportType switch
         {
             HttpTransportType.LocalHost => mcpServerBuilder.WithLocalHostHttp(new LocalHostHttpServerTransportOptions

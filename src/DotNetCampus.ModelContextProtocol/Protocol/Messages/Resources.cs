@@ -183,7 +183,7 @@ public sealed record ListResourcesResult : PaginatedResult
     /// List of resources
     /// </summary>
     [JsonPropertyName("resources")]
-    public required Resource[] Resources { get; init; }
+    public required IReadOnlyList<Resource> Resources { get; init; }
 }
 
 /// <summary>
@@ -205,7 +205,7 @@ public sealed record ListResourceTemplatesResult : PaginatedResult
     /// List of resource templates
     /// </summary>
     [JsonPropertyName("resourceTemplates")]
-    public required ResourceTemplate[] ResourceTemplates { get; init; }
+    public required IReadOnlyList<ResourceTemplate> ResourceTemplates { get; init; }
 }
 
 /// <summary>

@@ -151,7 +151,7 @@ public sealed record ListPromptsResult : PaginatedResult
     /// List of prompts
     /// </summary>
     [JsonPropertyName("prompts")]
-    public required Prompt[] Prompts { get; init; }
+    public required IReadOnlyList<Prompt> Prompts { get; init; }
 }
 
 /// <summary>
@@ -195,5 +195,5 @@ public sealed record GetPromptResult : Result
     /// The messages that make up the prompt.
     /// </summary>
     [JsonPropertyName("messages")]
-    public required PromptMessage[] Messages { get; init; }
+    public required IReadOnlyList<PromptMessage> Messages { get; init; }
 }

@@ -212,4 +212,100 @@ public class CoreTests
     }
 
     #endregion
+
+    #region 1.3 资源访问
+
+    [TestMethod("ListResources: 返回所有已注册的资源")]
+    [DataRow(HttpTransportType.LocalHost, DisplayName = "LocalHost")]
+    [DataRow(HttpTransportType.TouchSocket, DisplayName = "TouchSocket")]
+    public async Task ListResources(HttpTransportType transportType)
+    {
+        // Arrange
+        await using var package = await TestMcpFactory.Shared.CreateFullHttpWithResourcesAsync(transportType);
+
+        // Act
+        var result = await package.Client.ListResourcesAsync();
+
+        // Assert
+        Assert.IsTrue(result.Resources.Count > 0, "资源列表不应为空");
+        Assert.IsTrue(result.Resources.Any(r => r.Uri == "test://file1"), "应包含 test://file1 资源");
+        Assert.IsTrue(result.Resources.Any(r => r.Uri == "test://image.png"), "应包含 test://image.png 资源");
+    }
+
+    [TestMethod("ReadResource_TextFile: 读取文本资源")]
+    [DataRow(HttpTransportType.LocalHost, DisplayName = "LocalHost")]
+    [DataRow(HttpTransportType.TouchSocket, DisplayName = "TouchSocket")]
+    public async Task ReadResource_TextFile(HttpTransportType transportType)
+    {
+        // Arrange
+        await using var package = await TestMcpFactory.Shared.CreateFullHttpWithResourcesAsync(transportType);
+
+        // Act
+        var result = await package.Client.ReadResourceAsync("test://file1");
+
+        // Assert
+        Assert.IsTrue(result.Contents.Count > 0);
+        Assert.IsInstanceOfType<TextResourceContents>(result.Contents[0]);
+        var textContent = (TextResourceContents)result.Contents[0];
+        StringAssert.Contains(textContent.Text, "test file 1 content");
+    }
+
+    [TestMethod("ReadResource_BinaryFile: 读取二进制资源")]
+    [DataRow(HttpTransportType.LocalHost, DisplayName = "LocalHost")]
+    [DataRow(HttpTransportType.TouchSocket, DisplayName = "TouchSocket")]
+    public async Task ReadResource_BinaryFile(HttpTransportType transportType)
+    {
+        // Arrange
+        await using var package = await TestMcpFactory.Shared.CreateFullHttpWithResourcesAsync(transportType);
+
+        // Act
+        var result = await package.Client.ReadResourceAsync("test://image.png");
+
+        // Assert
+        Assert.IsTrue(result.Contents.Count > 0);
+        Assert.IsInstanceOfType<BlobResourceContents>(result.Contents[0]);
+        var blobContent = (BlobResourceContents)result.Contents[0];
+        Assert.IsNotNull(blobContent.Blob);
+        Assert.IsTrue(blobContent.Blob.Length > 0, "Blob 内容不应为空");
+        Assert.AreEqual("image/png", blobContent.MimeType);
+    }
+
+    [TestMethod("ReadResource_WithTemplate: 读取带模板参数的资源")]
+    [DataRow(HttpTransportType.LocalHost, DisplayName = "LocalHost")]
+    [DataRow(HttpTransportType.TouchSocket, DisplayName = "TouchSocket")]
+    public async Task ReadResource_WithTemplate(HttpTransportType transportType)
+    {
+        // Arrange
+        await using var package = await TestMcpFactory.Shared.CreateFullHttpWithResourcesAsync(transportType);
+
+        // Act
+        var result = await package.Client.ReadResourceAsync("test://users/123/profile");
+
+        // Assert
+        Assert.IsTrue(result.Contents.Count > 0);
+        Assert.IsInstanceOfType<TextResourceContents>(result.Contents[0]);
+        var textContent = (TextResourceContents)result.Contents[0];
+        StringAssert.Contains(textContent.Text, "123");
+        StringAssert.Contains(textContent.Text, "userId");
+    }
+
+    #endregion
+
+    #region 1.4 提示词
+
+    // 注意：Prompts 功能在 Server 端尚未完全实现，以下为占位测试
+
+    [TestMethod("ListPrompts: Server 端 Prompts 功能待实现")]
+    public void ListPrompts()
+    {
+        Assert.Inconclusive("Server 端 Prompts 功能尚未实现，待完成后启用此测试。");
+    }
+
+    [TestMethod("GetPrompt: Server 端 Prompts 功能待实现")]
+    public void GetPrompt()
+    {
+        Assert.Inconclusive("Server 端 Prompts 功能尚未实现，待完成后启用此测试。");
+    }
+
+    #endregion
 }

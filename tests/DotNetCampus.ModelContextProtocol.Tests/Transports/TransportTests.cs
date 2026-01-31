@@ -1,4 +1,4 @@
-﻿namespace DotNetCampus.ModelContextProtocol.Tests;
+namespace DotNetCampus.ModelContextProtocol.Tests.Transports;
 
 /// <summary>
 /// 传输层测试：验证不同传输实现的连接建立和断开。
@@ -6,10 +6,12 @@
 [TestClass]
 public class TransportTests
 {
-    [TestMethod("Http: 连接成功并能调用工具")]
+    #region 2.1 协议无关性测试 (Connect / Disconnect)
+
+    [TestMethod("Connect: 连接成功并能调用工具")]
     [DataRow(HttpTransportType.LocalHost, DisplayName = "LocalHost")]
     [DataRow(HttpTransportType.TouchSocket, DisplayName = "TouchSocket")]
-    public async Task Http(HttpTransportType type)
+    public async Task Connect(HttpTransportType type)
     {
         // Arrange
         await using var package = await TestMcpFactory.Shared.CreateSimpleHttpAsync(type);
@@ -18,13 +20,14 @@ public class TransportTests
         var result = await package.Client.ListToolsAsync();
 
         // Assert
+        Assert.IsTrue(package.Client.IsConnected);
         Assert.AreEqual(1, result.Tools.Count);
     }
 
-    [TestMethod("Http_Disconnect: 断开连接后资源正确释放")]
+    [TestMethod("Disconnect: 断开连接后资源正确释放")]
     [DataRow(HttpTransportType.LocalHost, DisplayName = "LocalHost")]
     [DataRow(HttpTransportType.TouchSocket, DisplayName = "TouchSocket")]
-    public async Task Http_Disconnect(HttpTransportType type)
+    public async Task Disconnect(HttpTransportType type)
     {
         // Arrange
         var package = await TestMcpFactory.Shared.CreateSimpleHttpAsync(type);
@@ -38,4 +41,6 @@ public class TransportTests
 
         // Assert - 不抛异常即为成功
     }
+
+    #endregion
 }
