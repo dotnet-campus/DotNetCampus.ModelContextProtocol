@@ -1,4 +1,5 @@
 ﻿using DotNetCampus.ModelContextProtocol.CompilerServices;
+using DotNetCampus.ModelContextProtocol.Hosting.Logging;
 using DotNetCampus.ModelContextProtocol.Protocol.Messages;
 using DotNetCampus.ModelContextProtocol.Protocol.Messages.JsonRpc;
 
@@ -9,6 +10,11 @@ namespace DotNetCampus.ModelContextProtocol.Servers;
 /// </summary>
 public interface IMcpServerContext
 {
+    /// <summary>
+    /// 专门提供给 MCP 库内部代码和外部扩展使用的日志记录器。
+    /// </summary>
+    IMcpLogger Logger { get; }
+
     /// <summary>
     /// 用于序列化和反序列化 MCP 工具参数和结果的 JSON 序列化器。
     /// </summary>

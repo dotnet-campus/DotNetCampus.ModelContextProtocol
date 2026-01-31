@@ -1,6 +1,7 @@
 using System.Text.Json;
 using DotNetCampus.ModelContextProtocol.CompilerServices;
 using DotNetCampus.ModelContextProtocol.Exceptions;
+using DotNetCampus.ModelContextProtocol.Hosting.Logging;
 using DotNetCampus.ModelContextProtocol.Protocol;
 using DotNetCampus.ModelContextProtocol.Protocol.Messages;
 
@@ -8,51 +9,54 @@ namespace DotNetCampus.ModelContextProtocol.Servers;
 
 /// <summary>
 /// MCP 服务器请求处理逻辑的基类。<br/>
-/// 提供对标准 MCP 请求的处理逻辑，支持通过重写来实现自定义行为或埋点。<br/>
-/// Base class for MCP server request handling logic.<br/>
-/// Provides handling logic for standard MCP requests, supporting customization via overrides.
+/// 通过继承此类并重写方法，可以实现工具调用的埋点、日志记录、权限控制等功能。
 /// </summary>
-/// <remarks>
-/// <para>
-/// 本类使用 "Full/Core" 双层设计模式：<br/>
-/// - <b>Full 方法 (Handle...Async)</b>：协议合规层，负责参数验证、异常捕获与 Result 转换。重写以实现埋点。<br/>
-/// - <b>Core 方法 (Execute...Async)</b>：业务执行层，负责核心逻辑。重写以实现行为拦截。
-/// </para>
-/// <para>
-/// This class uses a "Full/Core" two-layer design pattern:<br/>
-/// - <b>Full methods (Handle...Async)</b>: Protocol compliance layer, handles parameter validation, exception catching, and Result conversion. Override for instrumentation.<br/>
-/// - <b>Core methods (Execute...Async)</b>: Business execution layer, handles core logic. Override for behavior interception.
-/// </para>
-/// </remarks>
 public class McpServerRequestHandlers
 {
     private readonly McpServer _server;
 
     /// <summary>
-    /// 初始化 <see cref="McpServerRequestHandlers"/> 类的新实例。<br/>
-    /// Initializes a new instance of the <see cref="McpServerRequestHandlers"/> class.
+    /// 初始化 <see cref="McpServerRequestHandlers"/> 的新实例。
     /// </summary>
-    /// <param name="server">MCP 服务器实例。<br/>The MCP server instance.</param>
     public McpServerRequestHandlers(McpServer server)
     {
         _server = server;
     }
 
     /// <summary>
-    /// 获取 MCP 服务器实例。<br/>
-    /// Gets the MCP server instance.
+    /// 获取 MCP 服务器实例。
     /// </summary>
     protected McpServer Server => _server;
 
-    // ========================================================================
-    // Initialize
-    // ========================================================================
+    /// <summary>
+    /// 获取日志记录器。
+    /// </summary>
+    protected IMcpLogger Logger => _server.Context.Logger;
+
+    #region Initialize
 
     /// <summary>
-    /// 处理初始化请求。<br/>
-    /// Handles the initialize request.
+    /// 处理初始化请求的协议入口。
     /// </summary>
-    public virtual ValueTask<InitializeResult> HandleInitializeAsync(
+    internal async ValueTask<InitializeResult> HandleInitializeAsync(
+        RequestContext<InitializeRequestParams> request,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await InitializeAsync(request, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            Logger.Error($"[McpServer] HandleInitializeAsync failed: {ex.Message}");
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// 处理初始化请求。重写此方法以实现自定义初始化逻辑或埋点。
+    /// </summary>
+    public virtual ValueTask<InitializeResult> InitializeAsync(
         RequestContext<InitializeRequestParams> request,
         CancellationToken cancellationToken)
     {
@@ -82,30 +86,64 @@ public class McpServerRequestHandlers
         });
     }
 
-    // ========================================================================
-    // Ping
-    // ========================================================================
+    #endregion
+
+    #region Ping
 
     /// <summary>
-    /// 处理 ping 请求。<br/>
-    /// Handles the ping request.
+    /// 处理 ping 请求的协议入口。
     /// </summary>
-    public virtual ValueTask<EmptyObject> HandlePingAsync(
+    internal async ValueTask<EmptyObject> HandlePingAsync(
+        RequestContext<PingRequestParams> request,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await PingAsync(request, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            Logger.Error($"[McpServer] HandlePingAsync failed: {ex.Message}");
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// 处理 ping 请求。重写此方法以实现自定义 ping 响应或埋点。
+    /// </summary>
+    public virtual ValueTask<EmptyObject> PingAsync(
         RequestContext<PingRequestParams> request,
         CancellationToken cancellationToken)
     {
         return ValueTask.FromResult<EmptyObject>(default);
     }
 
-    // ========================================================================
-    // SetLoggingLevel
-    // ========================================================================
+    #endregion
+
+    #region SetLoggingLevel
 
     /// <summary>
-    /// 处理设置日志级别请求。<br/>
-    /// Handles the set logging level request.
+    /// 处理设置日志级别请求的协议入口。
     /// </summary>
-    public virtual ValueTask<EmptyObject> HandleSetLoggingLevelAsync(
+    internal async ValueTask<EmptyObject> HandleSetLoggingLevelAsync(
+        RequestContext<SetLevelRequestParams> request,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await SetLoggingLevelAsync(request, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            Logger.Error($"[McpServer] HandleSetLoggingLevelAsync failed: {ex.Message}");
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// 处理设置日志级别请求。重写此方法以实现自定义日志级别处理或埋点。
+    /// </summary>
+    public virtual ValueTask<EmptyObject> SetLoggingLevelAsync(
         RequestContext<SetLevelRequestParams> request,
         CancellationToken cancellationToken)
     {
@@ -118,15 +156,32 @@ public class McpServerRequestHandlers
         return ValueTask.FromResult<EmptyObject>(default);
     }
 
-    // ========================================================================
-    // ListTools
-    // ========================================================================
+    #endregion
+
+    #region ListTools
 
     /// <summary>
-    /// 处理列出工具请求。<br/>
-    /// Handles the list tools request.
+    /// 处理列出工具请求的协议入口。
     /// </summary>
-    public virtual ValueTask<ListToolsResult> HandleListToolsAsync(
+    internal async ValueTask<ListToolsResult> HandleListToolsAsync(
+        RequestContext<ListToolsRequestParams> request,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await ListToolsAsync(request, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            Logger.Error($"[McpServer] HandleListToolsAsync failed: {ex.Message}");
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// 处理列出工具请求。重写此方法以实现自定义工具列表或埋点。
+    /// </summary>
+    public virtual ValueTask<ListToolsResult> ListToolsAsync(
         RequestContext<ListToolsRequestParams> request,
         CancellationToken cancellationToken)
     {
@@ -136,102 +191,158 @@ public class McpServerRequestHandlers
         });
     }
 
-    // ========================================================================
-    // CallTool - Full/Core 模式
-    // ========================================================================
+    #endregion
+
+    #region CallTool
 
     /// <summary>
-    /// [Full Method] 处理工具调用请求。<br/>
-    /// 此方法是协议层的入口，保证不抛出异常。所有错误都会被转换为 IsError=true 的 Result。<br/>
-    /// <para>
-    /// 重写此方法以实现：全局埋点、日志记录、审计。<br/>
-    /// 注意：调用 base 方法后获得的 Result 对象是最终结果，无论是成功还是由异常转换而来。
-    /// </para>
-    /// [Full Method] Handles the tool call request.<br/>
-    /// This method is the protocol-level entry point and guarantees no exceptions are thrown.<br/>
-    /// All errors are converted to Result with IsError=true.
+    /// 处理工具调用请求的协议入口。解析参数并调用 <see cref="CallToolAsync"/>。
     /// </summary>
-    public virtual async ValueTask<CallToolResult> HandleCallToolAsync(
+    internal async ValueTask<CallToolResult> HandleCallToolAsync(
         RequestContext<CallToolRequestParams> request,
         CancellationToken cancellationToken)
     {
         var toolName = request.Params?.Name;
+        var tool = toolName is null
+            ? null
+            : _server.Tools.TryGet(toolName, out var t)
+                ? t
+                : null;
+        var context = toolName is null
+            ? null
+            : new McpServerCallToolContext
+            {
+                McpServer = _server,
+                Services = request.Services,
+                JsonSerializerContext = _server.Context.JsonSerializer switch
+                {
+                    McpServerToolJsonSerializer mcpSerializer => mcpSerializer.JsonSerializerContext ?? CompiledSchemaJsonContext.Default,
+                    _ => CompiledSchemaJsonContext.Default,
+                },
+                Meta = request.Params?.Meta ?? EmptyObject.JsonElement,
+                Name = toolName,
+                InputJsonArguments = request.Params?.Arguments ?? EmptyObject.JsonElement,
+                CancellationToken = cancellationToken,
+            };
 
+        try
+        {
+            return await CallToolAsync(request, toolName, tool, context);
+        }
+        catch (Exception ex)
+        {
+            Logger.Error($"[McpServer] HandleCallToolAsync failed: {ex.Message}");
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// 处理工具调用请求。此方法保证不抛出异常，所有错误都转换为 IsError=true 的 Result。<br/>
+    /// 重写此方法以实现全局埋点、日志记录或审计。
+    /// </summary>
+    /// <param name="rawRequest">原始请求上下文。重写此方法时，如果需要可以使用。</param>
+    /// <param name="toolName">请求的工具名称，如果为 <see langword="null"/>，则表示请求中未提供工具名称。</param>
+    /// <param name="tool">要调用的工具，如果为 <see langword="null"/> 表示未找到请求名称的工具。</param>
+    /// <param name="context">工具调用上下文。当 <paramref name="tool"/> 非空时，此参数也非空。</param>
+    public virtual async ValueTask<CallToolResult> CallToolAsync(
+        RequestContext<CallToolRequestParams> rawRequest,
+        string? toolName,
+        IMcpServerTool? tool,
+        IMcpServerCallToolContext? context)
+    {
+        // 验证工具名称。
         if (string.IsNullOrEmpty(toolName))
         {
             return CallToolResult.FromError("Tool name is required.");
         }
 
-        if (!_server.Tools.TryGet(toolName, out var tool))
+        // 验证工具是否存在。
+        if (tool is null)
         {
             return CallToolResult.FromError($"Unknown tool: {toolName}");
         }
 
         try
         {
-            var arguments = request.Params?.Arguments ?? EmptyObject.JsonElement;
-            var meta = request.Params?.Meta ?? EmptyObject.JsonElement;
-            var jsonSerializer = _server.Context.JsonSerializer;
-            var jsonContext = jsonSerializer switch
-            {
-                McpServerToolJsonSerializer mcpSerializer => mcpSerializer.JsonSerializerContext ?? CompiledSchemaJsonContext.Default,
-                _ => CompiledSchemaJsonContext.Default,
-            };
-
-            var context = new McpServerCallToolContext
-            {
-                McpServer = _server,
-                Services = request.Services,
-                JsonSerializerContext = jsonContext,
-                Meta = meta,
-                Name = toolName,
-                InputJsonArguments = arguments,
-                CancellationToken = cancellationToken,
-            };
-
-            return await ExecuteCallToolAsync(tool, context);
+            return await CallToolCoreAsync(tool, context!);
+        }
+        catch (McpToolMissingRequiredArgumentException ex)
+        {
+            // 调用工具时缺少必要的参数。
+            return CallToolResult.FromError(ex.Message);
+        }
+        catch (McpToolMissingRequiredTypeDiscriminatorException ex)
+        {
+            // 调用工具时缺少必要的类型鉴别器。
+            return CallToolResult.FromError(ex.Message);
+        }
+        catch (JsonException ex)
+        {
+            // 调用工具时传入的参数无法被正确反序列化。
+            return CallToolResult.FromError($"Failed to deserialize tool arguments: {ex.Message}");
+        }
+        catch (McpToolServiceNotFoundException ex)
+        {
+            // 调用工具时缺少必要的服务。
+            return CallToolResult.FromError(ex.Message);
+        }
+        catch (McpToolJsonTypeInfoNotFoundException ex)
+        {
+            // 给开发者查看的错误，提示开发者生成缺失的 JsonTypeInfo。
+            return CallToolResult.FromError(ex.Message);
+        }
+        catch (McpToolUsageException ex)
+        {
+            // 业务端认为工具使用不正确，而且已经在 Message 中提供了 AI 可读的错误信息。
+            return CallToolResult.FromError(ex.Message);
         }
         catch (Exception ex)
         {
-            // 异常兜底：转换为协议安全的错误结果
-            return CreateCallToolErrorResult(ex);
+            // 其他未知错误。
+            return _server.Context.IsDebugMode
+                ? CallToolResult.FromError(McpExceptionData.From(ex).ToJsonString())
+                : CallToolResult.FromError(ex.Message);
         }
     }
 
     /// <summary>
-    /// [Core Method] 执行工具业务逻辑。<br/>
-    /// 重写此方法以实现：权限控制、行为拦截、Mock 数据。<br/>
-    /// [Core Method] Executes the tool business logic.<br/>
-    /// Override this method to implement: authorization, behavior interception, mock data.
+    /// 执行工具调用的核心逻辑。重写此方法以实现权限控制、行为拦截或 Mock 数据。
     /// </summary>
-    protected virtual ValueTask<CallToolResult> ExecuteCallToolAsync(
+    /// <param name="tool">要调用的工具（已验证非空）。</param>
+    /// <param name="context">工具调用上下文。</param>
+    protected virtual ValueTask<CallToolResult> CallToolCoreAsync(
         IMcpServerTool tool,
         IMcpServerCallToolContext context)
     {
         return tool.CallTool(context);
     }
 
+    #endregion
+
+    #region ListResources
+
     /// <summary>
-    /// 将异常转换为工具调用的错误结果。<br/>
-    /// Converts an exception to a tool call error result.
+    /// 处理列出资源请求的协议入口。
     /// </summary>
-    protected virtual CallToolResult CreateCallToolErrorResult(Exception ex)
+    internal async ValueTask<ListResourcesResult> HandleListResourcesAsync(
+        RequestContext<ListResourcesRequestParams> request,
+        CancellationToken cancellationToken)
     {
-        var errorMessage = _server.Context.IsDebugMode
-            ? McpExceptionData.From(ex).ToJsonString()
-            : ex.Message;
-        return CallToolResult.FromError(errorMessage);
+        try
+        {
+            return await ListResourcesAsync(request, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            Logger.Error($"[McpServer] HandleListResourcesAsync failed: {ex.Message}");
+            throw;
+        }
     }
 
-    // ========================================================================
-    // ListResources
-    // ========================================================================
-
     /// <summary>
-    /// 处理列出资源请求。<br/>
-    /// Handles the list resources request.
+    /// 处理列出资源请求。重写此方法以实现自定义资源列表或埋点。
     /// </summary>
-    public virtual ValueTask<ListResourcesResult> HandleListResourcesAsync(
+    public virtual ValueTask<ListResourcesResult> ListResourcesAsync(
         RequestContext<ListResourcesRequestParams> request,
         CancellationToken cancellationToken)
     {
@@ -246,15 +357,32 @@ public class McpServerRequestHandlers
         });
     }
 
-    // ========================================================================
-    // ListResourceTemplates
-    // ========================================================================
+    #endregion
+
+    #region ListResourceTemplates
 
     /// <summary>
-    /// 处理列出资源模板请求。<br/>
-    /// Handles the list resource templates request.
+    /// 处理列出资源模板请求的协议入口。
     /// </summary>
-    public virtual ValueTask<ListResourceTemplatesResult> HandleListResourceTemplatesAsync(
+    internal async ValueTask<ListResourceTemplatesResult> HandleListResourceTemplatesAsync(
+        RequestContext<ListResourceTemplatesRequestParams> request,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await ListResourceTemplatesAsync(request, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            Logger.Error($"[McpServer] HandleListResourceTemplatesAsync failed: {ex.Message}");
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// 处理列出资源模板请求。重写此方法以实现自定义资源模板列表或埋点。
+    /// </summary>
+    public virtual ValueTask<ListResourceTemplatesResult> ListResourceTemplatesAsync(
         RequestContext<ListResourceTemplatesRequestParams> request,
         CancellationToken cancellationToken)
     {
@@ -269,64 +397,100 @@ public class McpServerRequestHandlers
         });
     }
 
-    // ========================================================================
-    // ReadResource - Full/Core 模式
-    // ========================================================================
+    #endregion
+
+    #region ReadResource
 
     /// <summary>
-    /// [Full Method] 处理读取资源请求。<br/>
-    /// 此方法包含异常处理逻辑。<br/>
-    /// [Full Method] Handles the read resource request.<br/>
-    /// This method contains exception handling logic.
+    /// 处理读取资源请求的协议入口。解析参数并调用 <see cref="ReadResourceAsync"/>。
     /// </summary>
-    /// <exception cref="McpResourceNotFoundException">当资源未找到时抛出。</exception>
-    public virtual async ValueTask<ReadResourceResult> HandleReadResourceAsync(
+    internal async ValueTask<ReadResourceResult> HandleReadResourceAsync(
         RequestContext<ReadResourceRequestParams> request,
         CancellationToken cancellationToken)
     {
         var uri = request.Params?.Uri;
+        var resource = uri is null
+            ? null
+            : _server.Resources.TryRoute(uri, out var r, out var parameters)
+                ? r
+                : null;
+        var context = uri is null
+            ? null
+            : new McpServerReadResourceContext
+            {
+                McpServer = _server,
+                Services = request.Services,
+                JsonSerializerContext = _server.Context.JsonSerializer switch
+                {
+                    McpServerToolJsonSerializer mcpSerializer => mcpSerializer.JsonSerializerContext ?? CompiledSchemaJsonContext.Default,
+                    _ => CompiledSchemaJsonContext.Default,
+                },
+                Meta = request.Params?.Meta ?? EmptyObject.JsonElement,
+                Uri = uri,
+                MimeType = resource?.MimeType,
+            };
 
-        if (string.IsNullOrEmpty(uri))
+        try
         {
-            throw new ArgumentException("Resource URI is required.", nameof(uri));
+            return await ReadResourceAsync(request, uri, resource, context);
         }
-
-        if (!_server.Resources.TryRoute(uri, out var resource, out var parameters))
+        catch (Exception ex)
         {
-            throw new McpResourceNotFoundException(uri);
+            Logger.Error($"[McpServer] HandleReadResourceAsync failed: {ex.Message}");
+            throw;
         }
-
-        var meta = request.Params?.Meta ?? EmptyObject.JsonElement;
-        var jsonSerializer = _server.Context.JsonSerializer;
-        var jsonContext = jsonSerializer switch
-        {
-            McpServerToolJsonSerializer mcpSerializer => mcpSerializer.JsonSerializerContext ?? CompiledSchemaJsonContext.Default,
-            _ => CompiledSchemaJsonContext.Default,
-        };
-
-        var context = new McpServerReadResourceContext
-        {
-            McpServer = _server,
-            Services = request.Services,
-            JsonSerializerContext = jsonContext,
-            Meta = meta,
-            Uri = uri,
-            MimeType = resource.MimeType,
-        };
-
-        return await ExecuteReadResourceAsync(resource, context);
     }
 
     /// <summary>
-    /// [Core Method] 执行读取资源核心逻辑。<br/>
-    /// 重写此方法以实现：权限控制、资源重定向。<br/>
-    /// [Core Method] Executes the read resource core logic.<br/>
-    /// Override this method to implement: authorization, resource redirection.
+    /// 处理读取资源请求。重写此方法以实现全局埋点、日志记录或审计。
     /// </summary>
-    protected virtual ValueTask<ReadResourceResult> ExecuteReadResourceAsync(
+    /// <param name="rawRequest">原始请求上下文。重写此方法时，如果需要可以使用。</param>
+    /// <param name="uri">请求的资源 URI，如果为 <see langword="null"/>，则表示请求中未提供资源 URI。</param>
+    /// <param name="resource">要读取的资源，如果为 <see langword="null"/> 表示未找到请求 URI 的资源。</param>
+    /// <param name="context">资源读取上下文。当 <paramref name="resource"/> 非空时，此参数也非空。</param>
+    public virtual async ValueTask<ReadResourceResult> ReadResourceAsync(
+        RequestContext<ReadResourceRequestParams> rawRequest,
+        string? uri,
+        IMcpServerResource? resource,
+        IMcpServerReadResourceContext? context)
+    {
+        // 验证资源 URI。
+        if (string.IsNullOrEmpty(uri))
+        {
+            throw new McpServerException("Resource URI is required.");
+        }
+
+        // 验证资源是否存在。
+        if (resource is null)
+        {
+            throw new McpServerException($"Resource not found: {uri}");
+        }
+
+        try
+        {
+            return await ReadResourceCoreAsync(resource, context!);
+        }
+        catch (McpResourceNotFoundException ex)
+        {
+            throw new McpServerException("Resource not found.", ex);
+        }
+        catch (Exception ex)
+        {
+            throw new McpServerException("ReadResource failed.", ex);
+        }
+    }
+
+    /// <summary>
+    /// 执行读取资源的核心逻辑。重写此方法以实现权限控制或资源重定向。
+    /// </summary>
+    /// <param name="resource">要读取的资源（已验证非空）。</param>
+    /// <param name="context">资源读取上下文。</param>
+    protected virtual ValueTask<ReadResourceResult> ReadResourceCoreAsync(
         IMcpServerResource resource,
         IMcpServerReadResourceContext context)
     {
         return resource.ReadResource(context);
     }
+
+    #endregion
 }
