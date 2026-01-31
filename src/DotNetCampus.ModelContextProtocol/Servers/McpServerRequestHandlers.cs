@@ -61,10 +61,13 @@ public class McpServerRequestHandlers
         RequestContext<InitializeRequestParams> request,
         CancellationToken cancellationToken)
     {
+        var clientInfo = request.Params?.ClientInfo;
+        Logger.Info($"[McpServer][Mcp] Client initializing. ClientName={clientInfo?.Name}, ClientVersion={clientInfo?.Version}, ProtocolVersion={request.Params?.ProtocolVersion}");
+
         var hasTools = _server.Tools.Count > 0;
         var hasResources = _server.Resources.Count > 0;
 
-        return ValueTask.FromResult(new InitializeResult
+        var result = new InitializeResult
         {
             ProtocolVersion = ProtocolVersion.Current,
             ServerInfo = new Implementation
@@ -84,7 +87,11 @@ public class McpServerRequestHandlers
                 Prompts = null,
                 Logging = EmptyObject.JsonElement,
             },
-        });
+        };
+
+        Logger.Info($"[McpServer][Mcp] Server initialized. ServerName={_server.ServerName}, ServerVersion={_server.ServerVersion}, ToolCount={_server.Tools.Count}, ResourceCount={_server.Resources.Count}");
+
+        return ValueTask.FromResult(result);
     }
 
     #endregion
@@ -186,9 +193,11 @@ public class McpServerRequestHandlers
         RequestContext<ListToolsRequestParams> request,
         CancellationToken cancellationToken)
     {
+        var tools = _server.Tools.Select(x => x.GetToolDefinition(CompiledSchemaJsonContext.Default)).ToList();
+        Logger.Debug($"[McpServer][Mcp] Listing tools. Count={tools.Count}");
         return ValueTask.FromResult(new ListToolsResult
         {
-            Tools = _server.Tools.Select(x => x.GetToolDefinition(CompiledSchemaJsonContext.Default)).ToList(),
+            Tools = tools,
         });
     }
 
@@ -257,52 +266,72 @@ public class McpServerRequestHandlers
         // 验证工具名称。
         if (string.IsNullOrEmpty(toolName))
         {
+            Logger.Warn($"[McpServer][Mcp] Tool call rejected: Tool name is required.");
             return CallToolResult.FromError("Tool name is required.");
         }
 
         // 验证工具是否存在。
         if (tool is null)
         {
+            Logger.Warn($"[McpServer][Mcp] Tool call rejected: Unknown tool. ToolName={toolName}");
             return CallToolResult.FromError($"Unknown tool: {toolName}");
         }
 
+        Logger.Info($"[McpServer][Mcp] Calling tool. ToolName={toolName}");
+
         try
         {
-            return await CallToolCoreAsync(tool, context!);
+            var result = await CallToolCoreAsync(tool, context!);
+            if (result.IsError == true)
+            {
+                Logger.Warn($"[McpServer][Mcp] Tool call completed with error. ToolName={toolName}");
+            }
+            else
+            {
+                Logger.Debug($"[McpServer][Mcp] Tool call completed successfully. ToolName={toolName}");
+            }
+            return result;
         }
         catch (McpToolMissingRequiredArgumentException ex)
         {
             // 调用工具时缺少必要的参数。
+            Logger.Warn($"[McpServer][Mcp] Tool call failed: Missing required argument. ToolName={toolName}, Error={ex.Message}");
             return CallToolResult.FromException(ex);
         }
         catch (McpToolMissingRequiredTypeDiscriminatorException ex)
         {
             // 调用工具时缺少必要的类型鉴别器。
+            Logger.Warn($"[McpServer][Mcp] Tool call failed: Missing type discriminator. ToolName={toolName}, Error={ex.Message}");
             return CallToolResult.FromException(ex);
         }
         catch (JsonException ex)
         {
             // 调用工具时传入的参数无法被正确反序列化。
+            Logger.Warn($"[McpServer][Mcp] Tool call failed: JSON deserialization error. ToolName={toolName}, Error={ex.Message}");
             return CallToolResult.FromException(ex, $"Failed to deserialize tool arguments: {ex.Message}");
         }
         catch (McpToolServiceNotFoundException ex)
         {
             // 调用工具时缺少必要的服务。
+            Logger.Error($"[McpServer][Mcp] Tool call failed: Service not found. ToolName={toolName}, Error={ex.Message}");
             return CallToolResult.FromException(ex);
         }
         catch (McpToolJsonTypeInfoNotFoundException ex)
         {
             // 给开发者查看的错误，提示开发者生成缺失的 JsonTypeInfo。
+            Logger.Error($"[McpServer][Mcp] Tool call failed: JsonTypeInfo not found. ToolName={toolName}, Error={ex.Message}");
             return CallToolResult.FromException(ex);
         }
         catch (McpToolUsageException ex)
         {
             // 业务端认为工具使用不正确，而且已经在 Message 中提供了 AI 可读的错误信息。
+            Logger.Warn($"[McpServer][Mcp] Tool call failed: Usage error. ToolName={toolName}, Error={ex.Message}");
             return CallToolResult.FromException(ex);
         }
         catch (Exception ex)
         {
             // 其他未知错误。
+            Logger.Error($"[McpServer][Mcp] Tool call failed: Unexpected error. ToolName={toolName}, Error={ex.Message}");
             return _server.Context.IsDebugMode
                 ? CallToolResult.FromException(ex, McpExceptionData.From(ex).ToJsonString())
                 : CallToolResult.FromException(ex);
@@ -354,6 +383,8 @@ public class McpServerRequestHandlers
         var resources = _server.Resources.GetStaticResources()
             .Select(r => (Resource)r.GetResourceDefinition(jsonContext))
             .ToArray();
+
+        Logger.Debug($"[McpServer][Mcp] Listing resources. Count={resources.Length}");
 
         return ValueTask.FromResult(new ListResourcesResult
         {
@@ -461,21 +492,28 @@ public class McpServerRequestHandlers
         // 验证资源 URI。
         if (string.IsNullOrEmpty(uri))
         {
+            Logger.Warn($"[McpServer][Mcp] Resource read rejected: URI is required.");
             throw new McpServerException("Resource URI is required.");
         }
 
         // 验证资源是否存在。
         if (resource is null)
         {
+            Logger.Warn($"[McpServer][Mcp] Resource read rejected: Resource not found. Uri={uri}");
             throw new McpServerException($"Resource not found: {uri}");
         }
 
+        Logger.Debug($"[McpServer][Mcp] Reading resource. Uri={uri}");
+
         try
         {
-            return await ReadResourceCoreAsync(resource, context!);
+            var result = await ReadResourceCoreAsync(resource, context!);
+            Logger.Debug($"[McpServer][Mcp] Resource read completed. Uri={uri}");
+            return result;
         }
         catch (McpResourceNotFoundException ex)
         {
+            Logger.Warn($"[McpServer][Mcp] Resource read failed: Resource not found. Uri={uri}");
             throw new McpServerException("Resource not found.", ex);
         }
         catch (Exception ex)

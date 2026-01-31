@@ -24,6 +24,16 @@ internal sealed class McpProtocolBridge(McpServerContext context)
             return null;
         }
 
+        // Log incoming request
+        if (request.Id is null)
+        {
+            context.Logger.Debug($"[McpServer][Mcp] Received notification. Method={request.Method}");
+        }
+        else
+        {
+            context.Logger.Debug($"[McpServer][Mcp] Received request. Method={request.Method}, Id={request.Id}");
+        }
+
         try
         {
             await context.Handlers.OnRequestReceivingAsync(request);
@@ -62,6 +72,16 @@ internal sealed class McpProtocolBridge(McpServerContext context)
             {
                 context.Logger.Error($"[McpServer][Mcp] An exception occurred in OnResponseSentAsync. Error={ex.Message}");
             }
+
+            // Log response
+            if (response.Error is not null)
+            {
+                context.Logger.Debug($"[McpServer][Mcp] Sending error response. Method={request.Method}, Id={request.Id}, ErrorCode={response.Error.Code}");
+            }
+            else
+            {
+                context.Logger.Debug($"[McpServer][Mcp] Sending success response. Method={request.Method}, Id={request.Id}");
+            }
         }
 
         return response;
@@ -75,7 +95,7 @@ internal sealed class McpProtocolBridge(McpServerContext context)
         switch (request.Method)
         {
             case NotificationsInitialized:
-                // notifications/initialized - 客户端在初始化后发送的通知
+                context.Logger.Info($"[McpServer][Mcp] Client initialized notification received. Session is now fully established.");
                 break;
 
             default:

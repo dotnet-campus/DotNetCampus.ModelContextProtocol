@@ -50,7 +50,7 @@ public class LocalHostHttpServerTransport : IServerTransport
         }
         catch (Exception ex)
         {
-            Log.Error($"[McpServer][StreamableHttp] Failed to start listener.", ex);
+            Log.Critical($"[McpServer][StreamableHttp] Failed to start listener.", ex);
             throw;
         }
     }
