@@ -288,7 +288,7 @@ public sealed record SingleSelectEnumSchema : PrimitiveSchemaDefinition
     /// </summary>
     [JsonPropertyName("enum")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public string[]? Enum { get; init; }
+    public IReadOnlyList<string>? Enum { get; init; }
 
     /// <summary>
     /// 有标题枚举：使用 oneOf + const + title 的枚举选项数组。<br/>
@@ -296,7 +296,7 @@ public sealed record SingleSelectEnumSchema : PrimitiveSchemaDefinition
     /// </summary>
     [JsonPropertyName("oneOf")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public EnumOption[]? OneOf { get; init; }
+    public IReadOnlyList<EnumOption>? OneOf { get; init; }
 
     /// <summary>
     /// 遗留字段：枚举值的显示名称（非 JSON Schema 2020-12 标准）。<br/>
@@ -306,7 +306,7 @@ public sealed record SingleSelectEnumSchema : PrimitiveSchemaDefinition
     /// </summary>
     [JsonPropertyName("enumNames")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public string[]? EnumNames { get; init; }
+    public IReadOnlyList<string>? EnumNames { get; init; }
 
     /// <summary>
     /// 默认值，必须是 enum 中的某个值。<br/>
@@ -336,7 +336,7 @@ public sealed record MultiSelectEnumItemsSchema
     /// </summary>
     [JsonPropertyName("enum")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public string[]? Enum { get; init; }
+    public IReadOnlyList<string>? Enum { get; init; }
 
     /// <summary>
     /// 有标题枚举：使用 anyOf + const + title 的枚举选项数组。<br/>
@@ -344,7 +344,7 @@ public sealed record MultiSelectEnumItemsSchema
     /// </summary>
     [JsonPropertyName("anyOf")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public EnumOption[]? AnyOf { get; init; }
+    public IReadOnlyList<EnumOption>? AnyOf { get; init; }
 }
 
 /// <summary>
@@ -391,7 +391,7 @@ public sealed record MultiSelectEnumSchema : PrimitiveSchemaDefinition
     /// </summary>
     [JsonPropertyName("default")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public string[]? Default { get; init; }
+    public IReadOnlyList<string>? Default { get; init; }
 }
 
 /// <summary>

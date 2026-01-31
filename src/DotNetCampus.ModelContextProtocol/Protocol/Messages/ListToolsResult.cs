@@ -13,5 +13,5 @@ public sealed record ListToolsResult : PaginatedResult
     /// List of tools
     /// </summary>
     [JsonPropertyName("tools")]
-    public IList<Tool> Tools { get; init; } = [];
+    public IReadOnlyList<Tool> Tools { get; init; } = [];
 }

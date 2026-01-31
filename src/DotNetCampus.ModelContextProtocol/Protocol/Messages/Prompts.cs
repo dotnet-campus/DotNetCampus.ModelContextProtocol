@@ -54,7 +54,7 @@ public sealed record Prompt : IBaseMetadata
     /// </summary>
     [JsonPropertyName("icons")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public IList<Icon>? Icons { get; init; }
+    public IReadOnlyList<Icon>? Icons { get; init; }
 
     /// <summary>
     /// 元数据字段<br/>

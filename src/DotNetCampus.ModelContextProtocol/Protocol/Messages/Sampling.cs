@@ -90,7 +90,7 @@ public sealed record CreateMessageRequestParams : RequestParams
     /// </summary>
     [JsonPropertyName("stopSequences")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public string[]? StopSequences { get; init; }
+    public IReadOnlyList<string>? StopSequences { get; init; }
 
     /// <summary>
     /// 要传递给 LLM 提供商的可选元数据。此元数据的格式是提供商特定的。<br/>
@@ -216,7 +216,7 @@ public sealed record ModelPreferences
     /// </summary>
     [JsonPropertyName("hints")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public ModelHint[]? Hints { get; init; }
+    public IReadOnlyList<ModelHint>? Hints { get; init; }
 
     /// <summary>
     /// 服务器希望客户端选择的模型与以下维度的一致性如何。<br/>

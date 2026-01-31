@@ -29,7 +29,7 @@ public sealed record Icon
     /// </summary>
     [JsonPropertyName("sizes")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public IList<string>? Sizes { get; init; }
+    public IReadOnlyList<string>? Sizes { get; init; }
 
     /// <summary>
     /// 图标主题<br/>

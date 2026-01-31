@@ -49,7 +49,7 @@ public sealed record Implementation : IBaseMetadata
     /// </summary>
     [JsonPropertyName("icons")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public IList<Icon>? Icons { get; init; }
+    public IReadOnlyList<Icon>? Icons { get; init; }
 
     /// <summary>
     /// 网站 URL<br/>

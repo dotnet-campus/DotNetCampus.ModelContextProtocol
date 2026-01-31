@@ -53,7 +53,7 @@ public sealed record Resource : IBaseMetadata
     /// </summary>
     [JsonPropertyName("icons")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public IList<Icon>? Icons { get; init; }
+    public IReadOnlyList<Icon>? Icons { get; init; }
 
     /// <summary>
     /// 此资源的 MIME 类型（如果已知）。<br/>
