@@ -12,6 +12,8 @@ namespace DotNetCampus.ModelContextProtocol.Tests;
 
 public class TestMcpFactory
 {
+    private static volatile int _port = 20000;
+
     private static readonly Lazy<TestMcpFactory> SharedLazy = new(() => new TestMcpFactory(), LazyThreadSafetyMode.ExecutionAndPublication);
 
     private static readonly Lazy<IMcpLogger> LoggerLazy = new Lazy<IMcpLogger>(() =>
@@ -38,7 +40,7 @@ public class TestMcpFactory
 
     public async ValueTask<McpTestingPackage> CreateSimpleHttpAsync(HttpTransportType httpTransportType)
     {
-        const int port = 16001;
+        var port = Interlocked.Increment(ref _port);
         var mcpServerBuilder = new McpServerBuilder("TestMcpServer", "1.0.0")
             .WithLogger(DefaultLogger)
             .WithTools(t => t.WithTool(() => new SimpleTool()));
