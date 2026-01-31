@@ -1,3 +1,4 @@
+using System.Text.Json;
 using System.Text.Json.Serialization;
 using DotNetCampus.ModelContextProtocol.Protocol.Messages.JsonRpc;
 
@@ -41,6 +42,15 @@ public sealed record CancelledNotificationParams
     [JsonPropertyName("reason")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? Reason { get; init; }
+
+    /// <summary>
+    /// 元数据字段<br/>
+    /// See <a href="https://modelcontextprotocol.io/specification/2025-11-25/basic/index#meta">
+    /// General fields: _meta</a> for notes on _meta usage.
+    /// </summary>
+    [JsonPropertyName("_meta")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public JsonElement? Meta { get; init; }
 }
 
 /// <summary>
@@ -102,6 +112,15 @@ public sealed record ProgressNotificationParams
     [JsonPropertyName("message")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? Message { get; init; }
+
+    /// <summary>
+    /// 元数据字段<br/>
+    /// See <a href="https://modelcontextprotocol.io/specification/2025-11-25/basic/index#meta">
+    /// General fields: _meta</a> for notes on _meta usage.
+    /// </summary>
+    [JsonPropertyName("_meta")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public JsonElement? Meta { get; init; }
 }
 
 /// <summary>
@@ -145,6 +164,15 @@ public sealed record ResourceUpdatedNotificationParams
     /// </summary>
     [JsonPropertyName("uri")]
     public required string Uri { get; init; }
+
+    /// <summary>
+    /// 元数据字段<br/>
+    /// See <a href="https://modelcontextprotocol.io/specification/2025-11-25/basic/index#meta">
+    /// General fields: _meta</a> for notes on _meta usage.
+    /// </summary>
+    [JsonPropertyName("_meta")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public JsonElement? Meta { get; init; }
 }
 
 /// <summary>

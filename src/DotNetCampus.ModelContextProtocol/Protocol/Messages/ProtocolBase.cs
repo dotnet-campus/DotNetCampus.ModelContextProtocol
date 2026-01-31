@@ -1,4 +1,4 @@
-using System.Text.Json.Nodes;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace DotNetCampus.ModelContextProtocol.Protocol.Messages;
@@ -20,7 +20,7 @@ public abstract record RequestParams
     /// </summary>
     [JsonPropertyName("_meta")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public JsonObject? Meta { get; set; }
+    public JsonElement? Meta { get; set; }
 }
 
 /// <summary>
@@ -40,7 +40,7 @@ public abstract record Result
     /// </summary>
     [JsonPropertyName("_meta")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public JsonObject? Meta { get; init; }
+    public JsonElement? Meta { get; init; }
 }
 
 /// <summary>

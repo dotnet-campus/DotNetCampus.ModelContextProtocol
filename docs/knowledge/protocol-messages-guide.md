@@ -150,7 +150,7 @@ src/DotNetCampus.ModelContextProtocol/Protocol/
 
 ### MCP 核心类型
 
-以下类型参考 [MCP Schema 2025-06-18](https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/schema/2025-06-18/schema.ts)。
+以下类型参考 [MCP Schema 2025-11-25](https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/schema/2025-11-25/schema.ts)。所有消息类型使用 `record` 定义，属性使用 `init` 访问器以确保不可变性。
 
 #### 基础消息类型
 
@@ -261,19 +261,19 @@ src/DotNetCampus.ModelContextProtocol/Protocol/
 
 ## ⚠️ 特殊注意事项
 
-### 1. `_meta` 字段的注释
+### 1. `_meta` 字段的注释与类型
 
-所有包含 `_meta` 字段的类型，其注释应统一引用官方文档链接：
+所有包含 `_meta` 字段的类型，其注释应统一引用官方文档链接，并使用 `JsonElement?` 类型以保持不可变性：
 
 ```csharp
 /// <summary>
 /// 元数据字段<br/>
-/// See <a href="https://modelcontextprotocol.io/specification/2025-06-18/basic/index#meta">
+/// See <a href="https://modelcontextprotocol.io/specification/2025-11-25/basic/index#meta">
 /// General fields: _meta</a> for notes on _meta usage.
 /// </summary>
 [JsonPropertyName("_meta")]
 [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-public JsonObject? Meta { get; init; }
+public JsonElement? Meta { get; init; }
 ```
 
 ### 2. BaseMetadata 相关字段
@@ -333,10 +333,13 @@ public abstract record ContentBlock
 - **请求**：继承 `PaginatedRequestParams`，包含 `cursor` 属性
 - **响应**：继承 `PaginatedResult`，包含 `nextCursor` 属性
 
-### 6. 可空性和 JsonIgnore
+### 6. 不可变性与类型选择
 
-遵循以下原则：
+所有协议消息类型应保持不可变性，这是确保线程安全和协议可靠性的基础设计原则。
 
+- 使用 `record` 类型定义所有消息
+- 属性使用 `init` 访问器（`RequestParams` 基类的 `Meta` 属性除外，使用 `set` 以支持序列化）
+- `_meta` 字段使用 `JsonElement?` 类型而非 `JsonObject?` 或 `JsonNode?`，因为 `JsonElement` 是值类型，天然不可变
 - 可选字段使用 nullable 类型（`string?`, `int?`）
 - 可选字段添加 `[JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]`
 - 必需字段使用 `required` 修饰符
@@ -346,7 +349,7 @@ public abstract record ContentBlock
 ### 官方文档
 
 - **MCP 官方网站**: [https://modelcontextprotocol.io](https://modelcontextprotocol.io)
-- **MCP 协议规范**: [https://modelcontextprotocol.io/specification/2025-06-18](https://modelcontextprotocol.io/specification/2025-06-18)
+- **MCP 协议规范**: [https://modelcontextprotocol.io/specification/2025-11-25](https://modelcontextprotocol.io/specification/2025-11-25)
 - **MCP GitHub 仓库**: [https://github.com/modelcontextprotocol/modelcontextprotocol](https://github.com/modelcontextprotocol/modelcontextprotocol)
 - **JSON-RPC 2.0 规范**: [https://www.jsonrpc.org/specification](https://www.jsonrpc.org/specification)
 
@@ -366,6 +369,7 @@ public abstract record ContentBlock
 - [ ] 英文注释与官方 schema 原文一致
 - [ ] 文件命名遵循项目约定
 - [ ] 继承关系正确（RequestParams/Result）
-- [ ] `_meta` 字段注释包含官方文档链接
+- [ ] `_meta` 字段使用 `JsonElement?` 类型并包含官方文档链接
+- [ ] 所有属性使用 `init` 访问器（保持不可变性）
 - [ ] 代码无编译错误和警告
 - [ ] 已更新本文档中的消息类型清单（如有新增）

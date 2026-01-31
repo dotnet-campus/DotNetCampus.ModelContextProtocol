@@ -1,3 +1,4 @@
+using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace DotNetCampus.ModelContextProtocol.Protocol.Messages;
@@ -161,6 +162,15 @@ public sealed record SamplingMessage
     /// </summary>
     [JsonPropertyName("content")]
     public required SamplingMessageContent Content { get; init; }
+
+    /// <summary>
+    /// 元数据字段<br/>
+    /// See <a href="https://modelcontextprotocol.io/specification/2025-11-25/basic/index#meta">
+    /// General fields: _meta</a> for notes on _meta usage.
+    /// </summary>
+    [JsonPropertyName("_meta")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public JsonElement? Meta { get; init; }
 }
 
 /// <summary>
