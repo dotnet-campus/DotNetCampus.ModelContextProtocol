@@ -112,7 +112,7 @@ internal class McpProtocolBridge(McpServerContext context)
         }
 
         var requestParams = paramsElement.Deserialize(paramsTypeInfo);
-        var requestContext = new RequestContext<TParams>(services, requestParams);
+        var requestContext = new RequestContext<TParams>(services, paramsElement, requestParams);
 
         try
         {

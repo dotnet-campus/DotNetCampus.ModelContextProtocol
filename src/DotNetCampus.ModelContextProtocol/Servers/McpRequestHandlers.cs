@@ -211,47 +211,55 @@ public class McpRequestHandlers(McpServer server)
     /// </summary>
     public async ValueTask<CallToolResult> CallTool(RequestContext<CallToolRequestParams> request, CancellationToken cancellationToken)
     {
+        CallToolResult result;
         try
         {
-            return await CallToolHandler(request, cancellationToken);
+            result = await CallToolHandler(request, cancellationToken);
         }
         catch (McpToolMissingRequiredArgumentException ex)
         {
             // 调用工具时缺少必要的参数。
-            return CallToolResult.FromError(ex.Message);
+            result = CallToolResult.FromError(ex.Message);
         }
         catch (McpToolMissingRequiredTypeDiscriminatorException ex)
         {
             // 调用工具时缺少必要的类型鉴别器。
-            return CallToolResult.FromError(ex.Message);
+            result = CallToolResult.FromError(ex.Message);
         }
         catch (JsonException ex)
         {
             // 调用工具时传入的参数无法被正确反序列化。
-            return CallToolResult.FromError($"Failed to deserialize tool arguments: {ex.Message}");
+            result = CallToolResult.FromError($"Failed to deserialize tool arguments: {ex.Message}");
         }
         catch (McpToolServiceNotFoundException ex)
         {
             // 调用工具时缺少必要的服务。
-            return CallToolResult.FromError(ex.Message);
+            result = CallToolResult.FromError(ex.Message);
         }
         catch (McpToolJsonTypeInfoNotFoundException ex)
         {
             // 给开发者查看的错误，提示开发者生成缺失的 JsonTypeInfo。
-            return CallToolResult.FromError(ex.Message);
+            result = CallToolResult.FromError(ex.Message);
         }
         catch (McpToolUsageException ex)
         {
             // 业务端认为工具使用不正确，而且已经在 Message 中提供了 AI 可读的错误信息。
-            return CallToolResult.FromError(ex.Message);
+            result = CallToolResult.FromError(ex.Message);
         }
         catch (Exception ex)
         {
             // 其他未知错误。
-            return server.Context.IsDebugMode
+            result = server.Context.IsDebugMode
                 ? CallToolResult.FromError(McpExceptionData.From(ex).ToJsonString())
                 : CallToolResult.FromError(ex.Message);
         }
+        if(server.Context.Tracer is
+        server.Context.Tracer.CallTool(new calltocon
+        {
+            ToolName = request.Params?.Name,
+
+        });
+        return result;
     }
 
     // public McpRequestHandler<ListPromptsRequestParams, ListPromptsResult>? ListPromptsHandler { get; set; }

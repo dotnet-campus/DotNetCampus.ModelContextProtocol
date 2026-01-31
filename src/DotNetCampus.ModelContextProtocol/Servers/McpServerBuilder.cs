@@ -25,6 +25,7 @@ public class McpServerBuilder(string serverName, string serverVersion)
     private string? _jsonSerializerTypeName;
     private IServiceProvider? _serviceProvider;
     private McpRequestHandlersBuilder? _requestHandlers;
+    private IMcpRequestTracer? _tracer;
 
     /// <summary>
     /// 允许此 MCP 服务器通过标准输入/输出流提供服务。
@@ -131,6 +132,17 @@ public class McpServerBuilder(string serverName, string serverVersion)
     }
 
     /// <summary>
+    /// 配置当 MCP 服务器收到来自客户端的请求时，应如何处理此时可被记录的数据。
+    /// </summary>
+    /// <param name="tracer">外部提供的追踪器（若不提供，则本库不会进行任何追踪）。</param>
+    /// <returns>用于链式调用的 MCP 服务器生成器。</returns>
+    public McpServerBuilder WithRequestTracer(IMcpRequestTracer tracer)
+    {
+        _tracer = tracer;
+        return this;
+    }
+
+    /// <summary>
     /// 配置 MCP 服务器的资源和相关选项。
     /// </summary>
     /// <param name="resourceBuilder">用于配置资源的生成器。</param>
@@ -184,6 +196,7 @@ public class McpServerBuilder(string serverName, string serverVersion)
             : new McpRequestHandlers(server);
         var transportManager = new ServerTransportManager(server, context);
         context.Transport = transportManager;
+        context.Tracer = _tracer;
         foreach (var factory in _transportFactories)
         {
             var transport = factory(transportManager);
