@@ -49,6 +49,12 @@ public enum JsonRpcErrorCode
     McpError = -32001,
 
     /// <summary>
+    /// 资源未找到错误<br/>
+    /// Resource not found error
+    /// </summary>
+    ResourceNotFound = -32002,
+
+    /// <summary>
     /// URL 引出所需错误<br/>
     /// URL elicitation required error
     /// </summary>

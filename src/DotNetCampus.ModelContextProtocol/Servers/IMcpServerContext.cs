@@ -1,5 +1,6 @@
 ﻿using DotNetCampus.ModelContextProtocol.CompilerServices;
 using DotNetCampus.ModelContextProtocol.Protocol.Messages;
+using DotNetCampus.ModelContextProtocol.Protocol.Messages.JsonRpc;
 
 namespace DotNetCampus.ModelContextProtocol.Servers;
 
@@ -11,7 +12,7 @@ public interface IMcpServerContext
     /// <summary>
     /// 用于序列化和反序列化 MCP 工具参数和结果的 JSON 序列化器。
     /// </summary>
-    IMcpServerToolJsonSerializer? JsonSerializer { get; init; }
+    IMcpServerToolJsonSerializer? JsonSerializer { get; }
 
     /// <summary>
     /// 当前用于序列化和反序列化 MCP 工具参数和结果的 JSON 序列化器的类型名称。<br/>
@@ -30,4 +31,28 @@ public interface IMcpServerContext
     /// 只有达到或高于此级别的日志消息才应该被发送给客户端。
     /// </summary>
     LoggingLevel? McpLoggingLevel { get; set; }
+
+    /// <summary>
+    /// 获取请求处理器。<br/>
+    /// 通过继承 <see cref="McpServerRequestHandlers"/> 并重写方法，可以实现工具调用的埋点、日志记录、权限控制等功能。<br/>
+    /// Gets the request handlers.<br/>
+    /// By inheriting <see cref="McpServerRequestHandlers"/> and overriding methods, you can implement instrumentation, logging, authorization, etc.
+    /// </summary>
+    McpServerRequestHandlers? Handlers { get; }
+
+    /// <summary>
+    /// 当收到 MCP 请求时触发的回调。<br/>
+    /// 可用于全局请求日志记录和审计。<br/>
+    /// Callback triggered when an MCP request is received.<br/>
+    /// Can be used for global request logging and auditing.
+    /// </summary>
+    Func<JsonRpcRequest, Task>? OnRequestReceived { get; set; }
+
+    /// <summary>
+    /// 当发送 MCP 响应时触发的回调。<br/>
+    /// 可用于全局响应日志记录和审计。<br/>
+    /// Callback triggered when an MCP response is sent.<br/>
+    /// Can be used for global response logging and auditing.
+    /// </summary>
+    Func<JsonRpcResponse, Task>? OnResponseSent { get; set; }
 }

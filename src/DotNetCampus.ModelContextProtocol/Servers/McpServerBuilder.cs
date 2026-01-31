@@ -24,7 +24,7 @@ public class McpServerBuilder(string serverName, string serverVersion)
     private IMcpServerToolJsonSerializer? _jsonSerializer;
     private string? _jsonSerializerTypeName;
     private IServiceProvider? _serviceProvider;
-    private McpRequestHandlersBuilder? _requestHandlers;
+    private Func<McpServer, McpServerRequestHandlers>? _requestHandlers;
 
     /// <summary>
     /// 允许此 MCP 服务器通过标准输入/输出流提供服务。
@@ -120,13 +120,16 @@ public class McpServerBuilder(string serverName, string serverVersion)
     }
 
     /// <summary>
-    /// 配置自定义的 MCP 请求处理程序。
+    /// 配置自定义的 MCP 请求处理器。<br/>
+    /// 通过继承 <see cref="McpServerRequestHandlers"/> 并重写方法，可以全局处理请求，或修改核心实现。<br/>
     /// </summary>
-    /// <param name="handlers">创建自定义的 MCP 请求处理程序的工厂。</param>
+    /// <typeparam name="THandlers">自定义 MCP 请求处理器的类型。</typeparam>
+    /// <param name="factory">请求处理器工厂方法。</param>
     /// <returns>用于链式调用的 MCP 服务器生成器。</returns>
-    public McpServerBuilder WithRequestHandlers(McpRequestHandlersBuilder handlers)
+    public McpServerBuilder WithRequestHandlers<THandlers>(Func<McpServer, THandlers> factory)
+        where THandlers : McpServerRequestHandlers
     {
-        _requestHandlers = handlers;
+        _requestHandlers = factory;
         return this;
     }
 
@@ -180,8 +183,8 @@ public class McpServerBuilder(string serverName, string serverVersion)
 
         // Context (Handlers + Transport)
         context.Handlers = _requestHandlers is { } requestHandlers
-            ? requestHandlers(server, new McpRequestHandlers(server))
-            : new McpRequestHandlers(server);
+            ? requestHandlers(server)
+            : new McpServerRequestHandlers(server);
         var transportManager = new ServerTransportManager(server, context);
         context.Transport = transportManager;
         foreach (var factory in _transportFactories)
@@ -304,11 +307,3 @@ public interface IMcpServerToolsBuilder
     IMcpServerToolsBuilder WithTool<TMcpServerToolType>(IMcpServerTool tool)
         where TMcpServerToolType : class;
 }
-
-/// <summary>
-/// 用于构建 MCP 请求处理程序的委托。
-/// </summary>
-/// <param name="mcpServer">MCP 服务器实例。</param>
-/// <param name="defaultHandlers">默认的 MCP 请求处理程序。</param>
-/// <returns>构建的 MCP 请求处理程序。</returns>
-public delegate McpRequestHandlers McpRequestHandlersBuilder(McpServer mcpServer, McpRequestHandlers defaultHandlers);

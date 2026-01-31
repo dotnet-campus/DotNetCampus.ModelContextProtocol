@@ -5,38 +5,59 @@ using DotNetCampus.ModelContextProtocol.CompilerServices;
 using DotNetCampus.ModelContextProtocol.Exceptions;
 using DotNetCampus.ModelContextProtocol.Hosting.Logging;
 using DotNetCampus.ModelContextProtocol.Protocol;
+using DotNetCampus.ModelContextProtocol.Protocol.Messages;
 using DotNetCampus.ModelContextProtocol.Protocol.Messages.JsonRpc;
 using static DotNetCampus.ModelContextProtocol.Protocol.RequestMethods;
 
 namespace DotNetCampus.ModelContextProtocol.Servers;
 
+/// <summary>
+/// MCP 协议桥接器，处理来自客户端的所有 JSON-RPC 请求并路由到相应的处理器。
+/// </summary>
 internal sealed class McpProtocolBridge(McpServerContext context)
 {
     public async ValueTask<JsonRpcResponse?> HandleRequestAsync(
         IServiceProvider services,
         JsonRpcRequest? request, CancellationToken cancellationToken = default)
     {
-        if (request?.Id is null)
+        if (request is null)
         {
-            // Notification，不需要响应。
-            await HandleNotificationInternalAsync(request);
             return null;
         }
 
-        // Request，需要响应。
-        return await HandleRequestInternalAsync(services, request, cancellationToken);
+        // 触发全局请求钩子
+        if (context.OnRequestReceived is { } onRequestReceived)
+        {
+            await onRequestReceived(request);
+        }
+
+        JsonRpcResponse? response;
+        if (request.Id is null)
+        {
+            // Notification，不需要响应。
+            await HandleNotificationInternalAsync(request);
+            response = null;
+        }
+        else
+        {
+            // Request，需要响应。
+            response = await HandleRequestInternalAsync(services, request, cancellationToken);
+
+            // 触发全局响应钩子
+            if (context.OnResponseSent is { } onResponseSent && response is not null)
+            {
+                await onResponseSent(response);
+            }
+        }
+
+        return response;
     }
 
     /// <summary>
     /// 处理通知消息（id 为 null，不需要响应）
     /// </summary>
-    private async ValueTask HandleNotificationInternalAsync(JsonRpcRequest? request)
+    private async ValueTask HandleNotificationInternalAsync(JsonRpcRequest request)
     {
-        if (request is null)
-        {
-            return;
-        }
-
         switch (request.Method)
         {
             case NotificationsInitialized:
@@ -53,41 +74,37 @@ internal sealed class McpProtocolBridge(McpServerContext context)
 
     private async ValueTask<JsonRpcResponse> HandleRequestInternalAsync(
         IServiceProvider services,
-        JsonRpcRequest? request, CancellationToken cancellationToken = default) => request?.Method switch
+        JsonRpcRequest request, CancellationToken cancellationToken = default) => request.Method switch
     {
         null => new JsonRpcResponse
         {
-            Id = request?.Id,
+            Id = request.Id,
             Error = new JsonRpcError
             {
                 Code = (int)JsonRpcErrorCode.InvalidRequest,
                 Message = "Json-RPC format error or missing method.",
             },
         },
-        Initialize => await HandleRequestAsync(request, services, context.Handlers.Initialize,
+        Initialize => await HandleRequestAsync(request, services, context.Handlers.HandleInitializeAsync,
             McpServerRequestJsonContext.Default.InitializeRequestParams, McpServerResponseJsonContext.Default.InitializeResult,
             cancellationToken),
-        Ping => await HandleRequestAsync(request, services, context.Handlers.Ping,
+        Ping => await HandleRequestAsync(request, services, context.Handlers.HandlePingAsync,
             McpServerRequestJsonContext.Default.PingRequestParams, McpServerResponseJsonContext.Default.EmptyObject,
             cancellationToken),
-        LoggingSetLevel => await HandleRequestAsync(request, services, context.Handlers.SetLoggingLevel,
+        LoggingSetLevel => await HandleRequestAsync(request, services, context.Handlers.HandleSetLoggingLevelAsync,
             McpServerRequestJsonContext.Default.SetLevelRequestParams, McpServerResponseJsonContext.Default.EmptyObject,
             cancellationToken),
-        ToolsList => await HandleRequestAsync(request, services, context.Handlers.ListTools,
+        ToolsList => await HandleRequestAsync(request, services, context.Handlers.HandleListToolsAsync,
             McpServerRequestJsonContext.Default.ListToolsRequestParams, McpServerResponseJsonContext.Default.ListToolsResult,
             cancellationToken),
-        ToolsCall => await HandleRequestAsync(request, services, context.Handlers.CallTool,
-            McpServerRequestJsonContext.Default.CallToolRequestParams, McpServerResponseJsonContext.Default.CallToolResult,
-            cancellationToken),
-        ResourcesList => await HandleRequestAsync(request, services, context.Handlers.ListResources,
+        ToolsCall => await HandleCallToolRequestAsync(request, services, cancellationToken),
+        ResourcesList => await HandleRequestAsync(request, services, context.Handlers.HandleListResourcesAsync,
             McpServerRequestJsonContext.Default.ListResourcesRequestParams, McpServerResponseJsonContext.Default.ListResourcesResult,
             cancellationToken),
-        ResourcesTemplatesList => await HandleRequestAsync(request, services, context.Handlers.ListResourceTemplates,
+        ResourcesTemplatesList => await HandleRequestAsync(request, services, context.Handlers.HandleListResourceTemplatesAsync,
             McpServerRequestJsonContext.Default.ListResourceTemplatesRequestParams, McpServerResponseJsonContext.Default.ListResourceTemplatesResult,
             cancellationToken),
-        ResourcesRead => await HandleRequestAsync(request, services, context.Handlers.ReadResource,
-            McpServerRequestJsonContext.Default.ReadResourceRequestParams, McpServerResponseJsonContext.Default.ReadResourceResult,
-            cancellationToken),
+        ResourcesRead => await HandleReadResourceRequestAsync(request, services, cancellationToken),
         _ => new JsonRpcResponse
         {
             Id = request.Id,
@@ -99,10 +116,88 @@ internal sealed class McpProtocolBridge(McpServerContext context)
         },
     };
 
+    /// <summary>
+    /// 处理工具调用请求。
+    /// 使用新的 Full/Core 模式，HandleCallToolAsync 已经包含了完整的异常处理。
+    /// </summary>
+    private async ValueTask<JsonRpcResponse> HandleCallToolRequestAsync(
+        JsonRpcRequest request,
+        IServiceProvider services,
+        CancellationToken cancellationToken)
+    {
+        if (!EnsureParams(request, out var paramsElement, out var errorResponse))
+        {
+            return errorResponse;
+        }
+
+        var requestParams = paramsElement.Deserialize(McpServerRequestJsonContext.Default.CallToolRequestParams);
+        var requestContext = new RequestContext<CallToolRequestParams>(services, requestParams);
+
+        // HandleCallToolAsync 已经保证不抛出异常，所有错误都转换为 IsError=true 的 Result
+        var result = await context.Handlers.HandleCallToolAsync(requestContext, cancellationToken);
+        return new JsonRpcResponse
+        {
+            Id = request.Id,
+            Result = JsonSerializer.SerializeToElement(result, McpServerResponseJsonContext.Default.CallToolResult),
+        };
+    }
+
+    /// <summary>
+    /// 处理读取资源请求，包含特殊的异常处理逻辑。
+    /// </summary>
+    private async ValueTask<JsonRpcResponse> HandleReadResourceRequestAsync(
+        JsonRpcRequest request,
+        IServiceProvider services,
+        CancellationToken cancellationToken)
+    {
+        if (!EnsureParams(request, out var paramsElement, out var errorResponse))
+        {
+            return errorResponse;
+        }
+
+        var requestParams = paramsElement.Deserialize(McpServerRequestJsonContext.Default.ReadResourceRequestParams);
+        var requestContext = new RequestContext<ReadResourceRequestParams>(services, requestParams);
+
+        try
+        {
+            var result = await context.Handlers.HandleReadResourceAsync(requestContext, cancellationToken);
+            return new JsonRpcResponse
+            {
+                Id = request.Id,
+                Result = JsonSerializer.SerializeToElement(result, McpServerResponseJsonContext.Default.ReadResourceResult),
+            };
+        }
+        catch (McpResourceNotFoundException ex)
+        {
+            return new JsonRpcResponse
+            {
+                Id = request.Id,
+                Error = new JsonRpcError
+                {
+                    Code = (int)JsonRpcErrorCode.ResourceNotFound,
+                    Message = ex.Message,
+                },
+            };
+        }
+        catch (Exception ex)
+        {
+            return new JsonRpcResponse
+            {
+                Id = request.Id,
+                Error = new JsonRpcError
+                {
+                    Code = (int)JsonRpcErrorCode.InternalError,
+                    Message = ex.Message,
+                    Data = McpExceptionData.From(ex).ToJsonElement(),
+                },
+            };
+        }
+    }
+
     private async ValueTask<JsonRpcResponse> HandleRequestAsync<TParams, TResult>(
         JsonRpcRequest request,
         IServiceProvider services,
-        McpRequestHandler<TParams, TResult> handler,
+        Func<RequestContext<TParams>, CancellationToken, ValueTask<TResult>> handler,
         JsonTypeInfo<TParams> paramsTypeInfo, JsonTypeInfo<TResult> resultTypeInfo,
         CancellationToken cancellationToken)
     {

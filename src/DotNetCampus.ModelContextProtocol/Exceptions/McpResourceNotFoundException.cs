@@ -15,4 +15,13 @@ public class McpResourceNotFoundException : ModelContextProtocolException
         : base($"MCP resource not found at: {context.Uri}")
     {
     }
+
+    /// <summary>
+    /// 初始化 <see cref="McpResourceNotFoundException"/> 类的新实例。
+    /// </summary>
+    /// <param name="uri">未找到的资源 URI。</param>
+    public McpResourceNotFoundException(string uri)
+        : base($"MCP resource not found at: {uri}")
+    {
+    }
 }
