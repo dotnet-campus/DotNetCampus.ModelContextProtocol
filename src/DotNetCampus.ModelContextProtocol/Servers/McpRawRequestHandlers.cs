@@ -90,7 +90,7 @@ public class McpRawRequestHandlers(McpServer server)
             };
         }
 
-        var arguments = request.Params?.Arguments ?? default;
+        var arguments = request.Params?.Arguments ?? EmptyObject.JsonElement;
         var meta = request.Params?.Meta ?? EmptyObject.JsonElement;
         var jsonSerializer = server.Context.JsonSerializer;
         var jsonContext = jsonSerializer switch
