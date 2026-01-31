@@ -4,12 +4,13 @@ using DotNetCampus.ModelContextProtocol.Exceptions;
 using DotNetCampus.ModelContextProtocol.Hosting.Logging;
 using DotNetCampus.ModelContextProtocol.Protocol;
 using DotNetCampus.ModelContextProtocol.Protocol.Messages;
+using DotNetCampus.ModelContextProtocol.Protocol.Messages.JsonRpc;
 
 namespace DotNetCampus.ModelContextProtocol.Servers;
 
 /// <summary>
 /// MCP 服务器请求处理逻辑的基类。<br/>
-/// 通过继承此类并重写方法，可以实现工具调用的埋点、日志记录、权限控制等功能。
+/// 通过继承此类并重写方法，可以实现自定义的请求处理、记录或扩展功能。
 /// </summary>
 public class McpServerRequestHandlers
 {
@@ -54,7 +55,7 @@ public class McpServerRequestHandlers
     }
 
     /// <summary>
-    /// 处理初始化请求。重写此方法以实现自定义初始化逻辑或埋点。
+    /// 处理初始化请求。重写此方法以实现自定义初始化逻辑。
     /// </summary>
     public virtual ValueTask<InitializeResult> InitializeAsync(
         RequestContext<InitializeRequestParams> request,
@@ -109,7 +110,7 @@ public class McpServerRequestHandlers
     }
 
     /// <summary>
-    /// 处理 ping 请求。重写此方法以实现自定义 ping 响应或埋点。
+    /// 处理 ping 请求。重写此方法以实现自定义 ping 响应。
     /// </summary>
     public virtual ValueTask<EmptyObject> PingAsync(
         RequestContext<PingRequestParams> request,
@@ -141,7 +142,7 @@ public class McpServerRequestHandlers
     }
 
     /// <summary>
-    /// 处理设置日志级别请求。重写此方法以实现自定义日志级别处理或埋点。
+    /// 处理设置日志级别请求。重写此方法以实现自定义日志级别处理。
     /// </summary>
     public virtual ValueTask<EmptyObject> SetLoggingLevelAsync(
         RequestContext<SetLevelRequestParams> request,
@@ -179,7 +180,7 @@ public class McpServerRequestHandlers
     }
 
     /// <summary>
-    /// 处理列出工具请求。重写此方法以实现自定义工具列表或埋点。
+    /// 处理列出工具请求。重写此方法以实现自定义工具列表。
     /// </summary>
     public virtual ValueTask<ListToolsResult> ListToolsAsync(
         RequestContext<ListToolsRequestParams> request,
@@ -238,7 +239,7 @@ public class McpServerRequestHandlers
 
     /// <summary>
     /// 处理工具调用请求。此方法保证不抛出异常，所有错误都转换为 IsError=true 的 Result。<br/>
-    /// 重写此方法以实现全局埋点、日志记录或审计。
+    /// 重写此方法以实现全局的记录或扩展处理。
     /// </summary>
     /// <param name="rawRequest">原始请求上下文。重写此方法时，如果需要可以使用。</param>
     /// <param name="toolName">请求的工具名称，如果为 <see langword="null"/>，则表示请求中未提供工具名称。</param>
@@ -306,7 +307,7 @@ public class McpServerRequestHandlers
     }
 
     /// <summary>
-    /// 执行工具调用的核心逻辑。重写此方法以实现权限控制、行为拦截或 Mock 数据。
+    /// 执行工具调用的核心逻辑。重写此方法以实现访问控制、行为拦截或 Mock 数据。
     /// </summary>
     /// <param name="tool">要调用的工具（已验证非空）。</param>
     /// <param name="context">工具调用上下文。</param>
@@ -340,7 +341,7 @@ public class McpServerRequestHandlers
     }
 
     /// <summary>
-    /// 处理列出资源请求。重写此方法以实现自定义资源列表或埋点。
+    /// 处理列出资源请求。重写此方法以实现自定义资源列表。
     /// </summary>
     public virtual ValueTask<ListResourcesResult> ListResourcesAsync(
         RequestContext<ListResourcesRequestParams> request,
@@ -380,7 +381,7 @@ public class McpServerRequestHandlers
     }
 
     /// <summary>
-    /// 处理列出资源模板请求。重写此方法以实现自定义资源模板列表或埋点。
+    /// 处理列出资源模板请求。重写此方法以实现自定义资源模板列表。
     /// </summary>
     public virtual ValueTask<ListResourceTemplatesResult> ListResourceTemplatesAsync(
         RequestContext<ListResourceTemplatesRequestParams> request,
@@ -442,7 +443,7 @@ public class McpServerRequestHandlers
     }
 
     /// <summary>
-    /// 处理读取资源请求。重写此方法以实现全局埋点、日志记录或审计。
+    /// 处理读取资源请求。重写此方法以实现全局的记录或扩展处理。
     /// </summary>
     /// <param name="rawRequest">原始请求上下文。重写此方法时，如果需要可以使用。</param>
     /// <param name="uri">请求的资源 URI，如果为 <see langword="null"/>，则表示请求中未提供资源 URI。</param>
@@ -481,7 +482,7 @@ public class McpServerRequestHandlers
     }
 
     /// <summary>
-    /// 执行读取资源的核心逻辑。重写此方法以实现权限控制或资源重定向。
+    /// 执行读取资源的核心逻辑。重写此方法以实现访问控制或资源重定向。
     /// </summary>
     /// <param name="resource">要读取的资源（已验证非空）。</param>
     /// <param name="context">资源读取上下文。</param>
@@ -491,6 +492,29 @@ public class McpServerRequestHandlers
     {
         return resource.ReadResource(context);
     }
+
+    #endregion
+
+    #region 全局处理
+
+    /// <summary>
+    /// 在请求处理前调用。重写此方法以实现全局的请求预处理或记录。
+    /// </summary>
+    /// <param name="request">收到的 JSON-RPC 请求。</param>
+    protected internal virtual ValueTask OnRequestReceivingAsync(JsonRpcRequest request) => default;
+
+    /// <summary>
+    /// 在通知收到后调用。通知不需要响应。重写此方法以实现通知的记录或处理。
+    /// </summary>
+    /// <param name="notification">收到的 JSON-RPC 通知（id 为 <see langword="null"/> 的请求）。</param>
+    protected internal virtual ValueTask OnNotificationReceivedAsync(JsonRpcRequest notification) => default;
+
+    /// <summary>
+    /// 在响应发送后调用。重写此方法以实现全局的响应后处理或记录。
+    /// </summary>
+    /// <param name="request">原始请求。</param>
+    /// <param name="response">发送的响应。</param>
+    protected internal virtual ValueTask OnResponseSentAsync(JsonRpcRequest request, JsonRpcResponse response) => default;
 
     #endregion
 }

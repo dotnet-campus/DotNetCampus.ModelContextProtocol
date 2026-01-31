@@ -40,25 +40,7 @@ public interface IMcpServerContext
 
     /// <summary>
     /// 获取请求处理器。<br/>
-    /// 通过继承 <see cref="McpServerRequestHandlers"/> 并重写方法，可以实现工具调用的埋点、日志记录、权限控制等功能。<br/>
-    /// Gets the request handlers.<br/>
-    /// By inheriting <see cref="McpServerRequestHandlers"/> and overriding methods, you can implement instrumentation, logging, authorization, etc.
+    /// 通过继承 <see cref="McpServerRequestHandlers"/> 并重写方法，可以实现自定义的请求处理、记录或扩展功能。
     /// </summary>
     McpServerRequestHandlers? Handlers { get; }
-
-    /// <summary>
-    /// 当收到 MCP 请求时触发的回调。<br/>
-    /// 可用于全局请求日志记录和审计。<br/>
-    /// Callback triggered when an MCP request is received.<br/>
-    /// Can be used for global request logging and auditing.
-    /// </summary>
-    Func<JsonRpcRequest, Task>? OnRequestReceived { get; set; }
-
-    /// <summary>
-    /// 当发送 MCP 响应时触发的回调。<br/>
-    /// 可用于全局响应日志记录和审计。<br/>
-    /// Callback triggered when an MCP response is sent.<br/>
-    /// Can be used for global response logging and auditing.
-    /// </summary>
-    Func<JsonRpcResponse, Task>? OnResponseSent { get; set; }
 }

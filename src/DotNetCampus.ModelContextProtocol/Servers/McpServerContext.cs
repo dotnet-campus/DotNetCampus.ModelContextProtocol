@@ -1,7 +1,6 @@
 ﻿using DotNetCampus.ModelContextProtocol.CompilerServices;
 using DotNetCampus.ModelContextProtocol.Hosting.Logging;
 using DotNetCampus.ModelContextProtocol.Protocol.Messages;
-using DotNetCampus.ModelContextProtocol.Protocol.Messages.JsonRpc;
 using DotNetCampus.ModelContextProtocol.Transports;
 
 namespace DotNetCampus.ModelContextProtocol.Servers;
@@ -11,7 +10,9 @@ namespace DotNetCampus.ModelContextProtocol.Servers;
 /// </summary>
 internal record McpServerContext : IServerTransportContext, IMcpServerContext
 {
-    /// <inheritdoc />
+    /// <summary>
+    /// 专门提供给 MCP 库内部代码和外部扩展使用的日志记录器。
+    /// </summary>
     public required IMcpLogger Logger { get; init; }
 
     /// <summary>
@@ -48,12 +49,6 @@ internal record McpServerContext : IServerTransportContext, IMcpServerContext
             _ => throw new InvalidOperationException("Handlers 已经被设置，不能重复设置。"),
         };
     }
-
-    /// <inheritdoc />
-    public Func<JsonRpcRequest, Task>? OnRequestReceived { get; set; }
-
-    /// <inheritdoc />
-    public Func<JsonRpcResponse, Task>? OnResponseSent { get; set; }
 
     /// <inheritdoc />
     public IServerTransportManager Transport
