@@ -4,10 +4,12 @@
 public class TransportTests
 {
     [TestMethod]
-    public async Task Http()
+    [DataRow(HttpTransportType.LocalHost, DisplayName = "使用 LocalHostHttpServerTransport 作为传输层")]
+    [DataRow(HttpTransportType.TouchSocket, DisplayName = "使用 TouchSocketHttpServerTransport 作为传输层")]
+    public async Task Http(HttpTransportType type)
     {
         // Arrange
-        var package = await TestMcpFactory.Shared.CreateSimpleHttpAsync();
+        var package = await TestMcpFactory.Shared.CreateSimpleHttpAsync(type);
 
         // Act
         var result = await package.Client.ListToolsAsync();

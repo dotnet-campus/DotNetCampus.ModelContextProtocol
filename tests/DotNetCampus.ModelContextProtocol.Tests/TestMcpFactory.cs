@@ -6,6 +6,7 @@ using DotNetCampus.ModelContextProtocol.Protocol.Messages;
 using DotNetCampus.ModelContextProtocol.Servers;
 using DotNetCampus.ModelContextProtocol.Tests.McpTools;
 using DotNetCampus.ModelContextProtocol.Transports.Http;
+using DotNetCampus.ModelContextProtocol.Transports.TouchSocket;
 
 namespace DotNetCampus.ModelContextProtocol.Tests;
 
@@ -35,18 +36,27 @@ public class TestMcpFactory
 
     public static IMcpLogger DefaultLogger => LoggerLazy.Value;
 
-    public async ValueTask<McpTestingPackage> CreateSimpleHttpAsync()
+    public async ValueTask<McpTestingPackage> CreateSimpleHttpAsync(HttpTransportType httpTransportType)
     {
         const int port = 16001;
-        var mcpServer = new McpServerBuilder("TestMcpServer", "1.0.0")
+        var mcpServerBuilder = new McpServerBuilder("TestMcpServer", "1.0.0")
             .WithLogger(DefaultLogger)
-            .WithLocalHostHttp(new LocalHostHttpServerTransportOptions
+            .WithTools(t => t.WithTool(() => new SimpleTool()));
+        mcpServerBuilder = httpTransportType switch
+        {
+            HttpTransportType.LocalHost => mcpServerBuilder.WithLocalHostHttp(new LocalHostHttpServerTransportOptions
             {
                 Port = port,
                 EndPoint = "mcp",
-            })
-            .WithTools(t => t.WithTool(() => new SimpleTool()))
-            .Build();
+            }),
+            HttpTransportType.TouchSocket => mcpServerBuilder.WithTouchSocketHttp(new TouchSocketHttpServerTransportOptions
+            {
+                Listen = [$"127.0.0.1:{port}", $"[::1]:{port}"],
+                EndPoint = "mcp",
+            }),
+            _ => throw new NotSupportedException($"不支持的传输层类型：{httpTransportType}"),
+        };
+        var mcpServer = mcpServerBuilder.Build();
         mcpServer.EnableDebugMode();
         await mcpServer.StartAsync(CancellationToken.None);
 
@@ -79,6 +89,12 @@ public class McpTestingPackage : IAsyncDisposable
         // 停止服务端。
         await Server.StopAsync();
     }
+}
+
+public enum HttpTransportType
+{
+    LocalHost,
+    TouchSocket,
 }
 
 file class McpLoggerBridge(ILogger logger) : IMcpLogger

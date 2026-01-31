@@ -15,6 +15,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\DotNetCampus.ModelContextProtocol.Analyzer\DotNetCampus.ModelContextProtocol.Analyzer.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="..\..\src\DotNetCampus.ModelContextProtocol.TouchSocket.Http\DotNetCampus.ModelContextProtocol.TouchSocket.Http.csproj" />
     <ProjectReference Include="..\..\src\DotNetCampus.ModelContextProtocol\DotNetCampus.ModelContextProtocol.csproj" />
   </ItemGroup>
 

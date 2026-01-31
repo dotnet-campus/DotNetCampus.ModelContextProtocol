@@ -4,7 +4,7 @@
 /// 协议版本信息<br/>
 /// Protocol version information
 /// </summary>
-internal readonly record struct ProtocolVersion
+public readonly record struct ProtocolVersion
 {
     private readonly string? _value;
 
@@ -13,26 +13,43 @@ internal readonly record struct ProtocolVersion
         _value = value;
     }
 
+    /// <inheritdoc />
     public override string ToString()
     {
         return _value ?? MinimumVersion;
     }
 
+    /// <summary>
+    /// 从字符串隐式转换为 <see cref="ProtocolVersion"/>。<br/>
+    /// Implicitly converts a string to <see cref="ProtocolVersion"/>.
+    /// </summary>
     public static implicit operator ProtocolVersion(string value)
     {
         return new ProtocolVersion(value);
     }
 
+    /// <summary>
+    /// 从 <see cref="ProtocolVersion"/> 隐式转换为字符串。<br/>
+    /// Implicitly converts a <see cref="ProtocolVersion"/> to string.
+    /// </summary>
     public static implicit operator string(ProtocolVersion version)
     {
         return version.ToString();
     }
 
+    /// <summary>
+    /// 比较两个协议版本，判断左侧是否大于右侧。<br/>
+    /// Compares two protocol versions to determine if left is greater than right.
+    /// </summary>
     public static bool operator >(ProtocolVersion left, ProtocolVersion right)
     {
         return string.Compare(left.ToString(), right.ToString(), StringComparison.Ordinal) > 0;
     }
 
+    /// <summary>
+    /// 比较两个协议版本，判断左侧是否小于右侧。<br/>
+    /// Compares two protocol versions to determine if left is less than right.
+    /// </summary>
     public static bool operator <(ProtocolVersion left, ProtocolVersion right)
     {
         return string.Compare(left.ToString(), right.ToString(), StringComparison.Ordinal) < 0;
