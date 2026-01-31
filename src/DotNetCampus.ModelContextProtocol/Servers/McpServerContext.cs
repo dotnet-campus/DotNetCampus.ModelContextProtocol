@@ -1,5 +1,4 @@
-﻿using System.Diagnostics.CodeAnalysis;
-using DotNetCampus.ModelContextProtocol.CompilerServices;
+﻿using DotNetCampus.ModelContextProtocol.CompilerServices;
 using DotNetCampus.ModelContextProtocol.Hosting.Logging;
 using DotNetCampus.ModelContextProtocol.Protocol.Messages;
 using DotNetCampus.ModelContextProtocol.Transports;
@@ -57,17 +56,6 @@ internal record McpServerContext : IServerTransportContext, IMcpServerContext
         {
             null => value,
             _ => throw new InvalidOperationException("Transport 已经被设置，不能重复设置。"),
-        };
-    }
-
-    /// <inheritdoc />
-    public IMcpRequestTracer? Tracer
-    {
-        get;
-        internal set => field = field switch
-        {
-            null => value,
-            _ => throw new InvalidOperationException("Tracer 已经被设置，不能重复设置。"),
         };
     }
 

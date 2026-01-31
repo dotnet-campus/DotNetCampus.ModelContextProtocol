@@ -20,11 +20,6 @@ public interface IMcpServerContext
     string? JsonSerializerTypeName { get; }
 
     /// <summary>
-    /// 允许收到来自客户端的请求处理完成后，将请求和响应全部提供给业务方进行记录。
-    /// </summary>
-    IMcpRequestTracer? Tracer { get; }
-
-    /// <summary>
     /// 指示是否启用调试模式。<br/>
     /// 启用后会记录或报告更多调试信息，这些调试信息甚至会通过 MCP 协议传输到客户端。
     /// </summary>
