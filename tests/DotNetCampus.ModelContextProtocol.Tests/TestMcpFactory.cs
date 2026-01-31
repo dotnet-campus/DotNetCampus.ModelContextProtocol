@@ -38,12 +38,58 @@ public class TestMcpFactory
 
     public static IMcpLogger DefaultLogger => LoggerLazy.Value;
 
+    /// <summary>
+    /// 创建一个简单的 HTTP 传输 MCP 测试包（仅包含 SimpleTool）。
+    /// </summary>
     public async ValueTask<McpTestingPackage> CreateSimpleHttpAsync(HttpTransportType httpTransportType)
+    {
+        return await CreateHttpAsync(httpTransportType, t => t.WithTool(() => new SimpleTool()));
+    }
+
+    /// <summary>
+    /// 创建一个完整的 HTTP 传输 MCP 测试包（包含所有测试工具）。
+    /// </summary>
+    public async ValueTask<McpTestingPackage> CreateFullHttpAsync(HttpTransportType httpTransportType)
+    {
+        return await CreateHttpAsync(
+            httpTransportType,
+            t =>
+            {
+                t.WithTool(() => new SimpleTool());
+                t.WithTool(() => new CalculatorTool());
+                t.WithTool(() => new EchoTool());
+                t.WithTool(() => new ExceptionTool());
+                t.WithTool(() => new LongTextTool());
+            },
+            TestToolJsonContext.Default);
+    }
+
+    /// <summary>
+    /// 创建一个自定义配置的 HTTP 传输 MCP 测试包。
+    /// </summary>
+    public async ValueTask<McpTestingPackage> CreateHttpAsync(
+        HttpTransportType httpTransportType,
+        Action<IMcpServerToolsBuilder> configureTools)
+    {
+        return await CreateHttpAsync(httpTransportType, configureTools, null);
+    }
+
+    /// <summary>
+    /// 创建一个自定义配置的 HTTP 传输 MCP 测试包（支持自定义 JSON 序列化）。
+    /// </summary>
+    public async ValueTask<McpTestingPackage> CreateHttpAsync(
+        HttpTransportType httpTransportType,
+        Action<IMcpServerToolsBuilder> configureTools,
+        System.Text.Json.Serialization.JsonSerializerContext? jsonSerializerContext)
     {
         var port = Interlocked.Increment(ref _port);
         var mcpServerBuilder = new McpServerBuilder("TestMcpServer", "1.0.0")
             .WithLogger(DefaultLogger)
-            .WithTools(t => t.WithTool(() => new SimpleTool()));
+            .WithTools(configureTools);
+        if (jsonSerializerContext is not null)
+        {
+            mcpServerBuilder = mcpServerBuilder.WithJsonSerializer(jsonSerializerContext);
+        }
         mcpServerBuilder = httpTransportType switch
         {
             HttpTransportType.LocalHost => mcpServerBuilder.WithLocalHostHttp(new LocalHostHttpServerTransportOptions
