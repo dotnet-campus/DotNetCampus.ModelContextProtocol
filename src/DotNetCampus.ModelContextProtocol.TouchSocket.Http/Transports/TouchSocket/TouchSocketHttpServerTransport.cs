@@ -1,4 +1,6 @@
-﻿using System.Collections.Specialized;
+﻿using System.Collections.Concurrent;
+using System.Collections.Specialized;
+using System.Text.Json;
 using DotNetCampus.ModelContextProtocol.Hosting.Logging;
 using DotNetCampus.ModelContextProtocol.Hosting.Services;
 using DotNetCampus.ModelContextProtocol.Protocol;
@@ -20,8 +22,13 @@ namespace DotNetCampus.ModelContextProtocol.Transports.TouchSocket;
 /// </remarks>
 public class TouchSocketHttpServerTransport : PluginBase, IHttpPlugin, IServerTransport
 {
+    private const string ProtocolVersionHeader = "MCP-Protocol-Version";
+    private const string SessionIdHeader = "Mcp-Session-Id";
+    private static readonly ReadOnlyMemory<byte> PrimeEventBytes = ": \n\n"u8.ToArray();
+
     private readonly IServerTransportManager _manager;
     private readonly ITouchSocketHttpServerTransportOptions _options;
+    private readonly ConcurrentDictionary<string, TouchSocketHttpServerTransportSession> _sessions = new();
 
     private readonly TouchSocketConfig? _config;
     private readonly HttpService? _httpService;
@@ -146,14 +153,14 @@ public class TouchSocketHttpServerTransport : PluginBase, IHttpPlugin, IServerTr
         // Streamable HTTP: 客户端建立连接。
         if (method == "GET" && endpoint.Equals(_options.EndPoint, StringComparison.OrdinalIgnoreCase))
         {
-            await HandleStreamableHttpConnectionAsync(context);
+            await HandleStreamableHttpConnectionAsync(context, CancellationToken.None);
             return;
         }
 
         // Streamable HTTP: 客户端发送消息。
         if (method == "POST" && endpoint.Equals(_options.EndPoint, StringComparison.OrdinalIgnoreCase))
         {
-            await HandleStreamableHttpMessageAsync(context);
+            await HandleStreamableHttpMessageAsync(context, CancellationToken.None);
             return;
         }
 
@@ -173,92 +180,181 @@ public class TouchSocketHttpServerTransport : PluginBase, IHttpPlugin, IServerTr
     #region MCP Streamable HTTP 协议
 
     /// <summary>
-    /// Streamable HTTP: 客户端建立连接。
+    /// Streamable HTTP: 客户端建立 SSE 连接 (GET /mcp)。
     /// </summary>
-    private async ValueTask HandleStreamableHttpConnectionAsync(HttpContext context)
+    private async ValueTask HandleStreamableHttpConnectionAsync(HttpContext context, CancellationToken cancellationToken)
     {
-        var sessionId = context.Request.Headers.Get("Mcp-Session-Id").First;
-        if (string.IsNullOrWhiteSpace(sessionId))
+        var request = context.Request;
+
+        // 协商检查
+        var accept = request.Headers.Get("Accept");
+        if (!accept.Any(x => x.Contains("text/event-stream", StringComparison.OrdinalIgnoreCase)))
         {
-            Log.Warn($"[McpServer][TouchSocket][Mcp:no-mcp-session-id] Connection failed due to missing Mcp-Session-Id header");
-            await context.RespondHttpError(HttpStatusCode.BadRequest, "Missing Mcp-Session-Id header");
+            // 规范 §2.2.3: return HTTP 405 Method Not Allowed indicating the server does not offer an SSE stream [if not accepted]
+            Log.Warn($"[McpServer][TouchSocket][Mcp:no-session] GET request rejected: Client must accept text/event-stream");
+            await context.RespondHttpError(HttpStatusCode.MethodNotAllowed, "Client must accept text/event-stream");
             return;
         }
 
-        Log.Info($"[McpServer][TouchSocket][Mcp:{sessionId}] Establishing connection");
-        var session = new TouchSocketHttpServerTransportSession(sessionId, context);
-        _manager.Add(session);
-        await session.WaitForDisconnectedAsync();
+        var sessionId = request.Headers.Get(SessionIdHeader).First;
+        if (string.IsNullOrEmpty(sessionId))
+        {
+            Log.Warn($"[McpServer][TouchSocket][Mcp:no-session] GET request rejected: Missing Mcp-Session-Id header");
+            await context.RespondHttpError(HttpStatusCode.NotFound, "Missing Mcp-Session-Id header");
+            return;
+        }
+
+        if (!_sessions.TryGetValue(sessionId, out var session))
+        {
+            Log.Warn($"[McpServer][TouchSocket][Mcp:{sessionId}] GET request rejected: Session not found");
+            await context.RespondHttpError(HttpStatusCode.NotFound, "Session not found");
+            return;
+        }
+
+        Log.Info($"[McpServer][TouchSocket][Mcp:{sessionId}] Establishing SSE connection");
+
+        context.Response.SetStatus(HttpStatusCode.OK, "");
+        context.Response.ContentType = "text/event-stream";
+        context.Response.Headers.Add("Cache-Control", "no-cache");
+
+        try
+        {
+            context.Response.IsChunk = true;
+            await using var output = context.Response.CreateWriteStream();
+            await output.WriteAsync(PrimeEventBytes, cancellationToken);
+            await output.FlushAsync(cancellationToken);
+
+            await session.RunSseConnectionAsync(output, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            Log.Debug($"[McpServer][TouchSocket][Mcp:{sessionId}] SSE connection ended: {ex.Message}");
+        }
+        finally
+        {
+            await context.Response.CompleteChunkAsync(cancellationToken);
+        }
     }
 
-    private async ValueTask HandleStreamableHttpMessageAsync(HttpContext context)
+    /// <summary>
+    /// Streamable HTTP: 客户端发送消息 (POST /mcp)。
+    /// </summary>
+    private async ValueTask HandleStreamableHttpMessageAsync(HttpContext context, CancellationToken cancellationToken)
     {
-        var bodyBytes = await context.Request.GetContentAsync();
-        var message = await _manager.ReadRequestAsync(bodyBytes);
-        if (message?.Method is not { } method)
+        var request = context.Request;
+
+        // 协议版本检查
+        var protocolVersion = request.Headers.Get(ProtocolVersionHeader).First;
+        if (!string.IsNullOrEmpty(protocolVersion))
         {
-            Log.Warn($"[McpServer][TouchSocket][Mcp:no-mcp-session-id] Invalid JSON-RPC message received");
-            await context.RespondHttpError(HttpStatusCode.BadRequest, "Invalid JSON-RPC message");
+            // 如果比最小版本小则报错
+            if (string.CompareOrdinal(protocolVersion, ProtocolVersion.Minimum) < 0)
+            {
+                Log.Warn($"[McpServer][TouchSocket] POST request rejected: Unsupported protocol version {protocolVersion}");
+                await context.RespondHttpError(HttpStatusCode.BadRequest, $"Unsupported protocol version. Minimum required: {ProtocolVersion.Minimum}");
+                return;
+            }
+        }
+
+        JsonRpcRequest? jsonRpcRequest;
+        try
+        {
+            var bodyBytes = await request.GetContentAsync();
+            jsonRpcRequest = await _manager.ReadRequestAsync(bodyBytes);
+        }
+        catch (JsonException)
+        {
+            Log.Warn($"[McpServer][TouchSocket] POST request rejected: Invalid JSON");
+            await context.RespondHttpError(HttpStatusCode.BadRequest, "Invalid JSON");
             return;
         }
 
-        var sessionId = context.Request.Headers.Get("Mcp-Session-Id").First;
-        if (method != RequestMethods.Initialize)
+        if (jsonRpcRequest == null)
         {
-            if (string.IsNullOrWhiteSpace(sessionId))
+            Log.Warn($"[McpServer][TouchSocket] POST request rejected: Empty body");
+            await context.RespondHttpError(HttpStatusCode.BadRequest, "Empty body");
+            return;
+        }
+
+        var isInitialize = jsonRpcRequest.Method == RequestMethods.Initialize;
+        var sessionIdStr = request.Headers.Get(SessionIdHeader).First;
+        TouchSocketHttpServerTransportSession? session;
+
+        if (isInitialize)
+        {
+            // 初始化请求，创建新 Session
+            var newSessionId = _manager.MakeNewSessionId();
+            var newSession = new TouchSocketHttpServerTransportSession(_manager, newSessionId.Id);
+
+            if (_sessions.TryAdd(newSessionId.Id, newSession))
             {
-                Log.Warn($"[McpServer][TouchSocket][Mcp:no-mcp-session-id][{method}][Request] Message handling failed due to missing Mcp-Session-Id header");
-                await context.RespondHttpError(HttpStatusCode.BadRequest, "Missing Mcp-Session-Id header");
-                return;
+                session = newSession;
+                _manager.Add(session);
+                context.Response.Headers.Add(SessionIdHeader, newSessionId.Id);
+                Log.Info($"[McpServer][TouchSocket][Mcp:{newSessionId.Id}] New session created");
             }
-            if (method != RequestMethods.NotificationsInitialized
-                && !_manager.TryGetSession<TouchSocketHttpServerTransportSession>(sessionId, out _))
+            else
             {
-                Log.Warn($"[McpServer][TouchSocket][Mcp:{sessionId}][{method}][Request] Message handling failed due to unknown Mcp-Session-Id");
-                await context.RespondHttpError(HttpStatusCode.BadRequest, "Unknown Mcp-Session-Id");
+                Log.Error($"[McpServer][TouchSocket] Session ID collision: {newSessionId.Id}");
+                await context.RespondHttpError(HttpStatusCode.InternalServerError, "Session ID collision");
                 return;
             }
         }
         else
         {
-            sessionId = _manager.MakeNewSessionId().ToString();
-            context.Response.Headers.Add("Mcp-Session-Id", sessionId);
+            if (string.IsNullOrEmpty(sessionIdStr))
+            {
+                Log.Warn($"[McpServer][TouchSocket][Mcp:no-session][{jsonRpcRequest.Method}] POST request rejected: Missing Mcp-Session-Id header");
+                await context.RespondHttpError(HttpStatusCode.BadRequest, "Missing Mcp-Session-Id header");
+                return;
+            }
+
+            if (!_sessions.TryGetValue(sessionIdStr, out session))
+            {
+                Log.Warn($"[McpServer][TouchSocket][Mcp:{sessionIdStr}][{jsonRpcRequest.Method}] POST request rejected: Session not found");
+                await context.RespondHttpError(HttpStatusCode.NotFound, "Session not found");
+                return;
+            }
         }
 
-        Log.Debug($"[McpServer][TouchSocket][Mcp:{sessionId}][{method}][Request] Handling JSON-RPC message[{message.Id}]");
-        var response = await _manager.HandleRequestAsync(message,
-            s => s.AddHttpTransportServices(sessionId, context.Request));
+        Log.Debug($"[McpServer][TouchSocket][Mcp:{session.SessionId}][{jsonRpcRequest.Method}][Request] Handling JSON-RPC message[{jsonRpcRequest.Id}]");
 
-        if (response is null)
+        var jsonRpcResponse = await _manager.HandleRequestAsync(jsonRpcRequest,
+            s => s.AddHttpTransportServices(session.SessionId, request),
+            cancellationToken: cancellationToken);
+
+        if (jsonRpcResponse != null)
         {
-            Log.Debug($"[McpServer][TouchSocket][Mcp:{sessionId}][{method}][Response] No response for message[{message.Id}] (notification)");
-            await context.RespondHttpSuccess(HttpStatusCode.Accepted);
-            return;
+            // Request: Success or Failed.
+            Log.Debug($"[McpServer][TouchSocket][Mcp:{session.SessionId}][{jsonRpcRequest.Method}][Response] Sending response for message[{jsonRpcRequest.Id}]");
+            await context.RespondJsonRpcAsync(_manager, HttpStatusCode.OK, jsonRpcResponse);
         }
-
-        Log.Debug($"[McpServer][TouchSocket][Mcp:{sessionId}][{method}][Response] Sending response for message[{message.Id}]");
-        await context.RespondJsonRpcAsync(_manager, HttpStatusCode.OK, response);
+        else
+        {
+            // Notification: No need to respond.
+            Log.Debug($"[McpServer][TouchSocket][Mcp:{session.SessionId}][{jsonRpcRequest.Method}][Response] No response for message[{jsonRpcRequest.Id}] (notification)");
+            await context.RespondHttpSuccess(HttpStatusCode.Accepted);
+        }
     }
 
+    /// <summary>
+    /// Streamable HTTP: 客户端关闭连接 (DELETE /mcp)。
+    /// </summary>
     private async ValueTask HandleStreamableHttpDisconnectionAsync(HttpContext context)
     {
-        var sessionId = context.Request.Headers.Get("Mcp-Session-Id").First;
-        if (string.IsNullOrWhiteSpace(sessionId))
+        var sessionId = context.Request.Headers.Get(SessionIdHeader).First;
+        if (!string.IsNullOrEmpty(sessionId))
         {
-            Log.Warn($"[McpServer][TouchSocket][Mcp:no-mcp-session-id] Disconnecting failed due to missing Mcp-Session-Id header");
-            await context.RespondHttpError(HttpStatusCode.BadRequest, "Missing Mcp-Session-Id header");
-            return;
+            if (_sessions.TryRemove(sessionId, out var session))
+            {
+                await session.DisposeAsync();
+                Log.Info($"[McpServer][TouchSocket][Mcp:{sessionId}] Session terminated");
+            }
+            else
+            {
+                Log.Debug($"[McpServer][TouchSocket][Mcp:{sessionId}] DELETE request: Session not found (already terminated?)");
+            }
         }
-
-        if (!_manager.TryGetSession<TouchSocketHttpServerTransportSession>(sessionId, out var session))
-        {
-            Log.Debug($"[McpServer][TouchSocket][Mcp:{sessionId}] Disconnected but session not found (already terminated?)");
-            await context.RespondHttpSuccess(HttpStatusCode.OK);
-            return;
-        }
-
-        await session.DisposeAsync();
-        Log.Info($"[McpServer][TouchSocket][Mcp:{sessionId}] Disconnected");
         await context.RespondHttpSuccess(HttpStatusCode.OK);
     }
 
