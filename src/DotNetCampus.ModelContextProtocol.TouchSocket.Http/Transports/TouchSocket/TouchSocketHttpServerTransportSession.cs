@@ -48,7 +48,7 @@ public class TouchSocketHttpServerTransportSession : IServerTransportSession
 
         try
         {
-            Log.Debug($"[McpServer][TouchSocket][{SessionId}] SSE connection started.");
+            Log.Debug($"[McpServer][TouchSocket] SSE connection started. SessionId={SessionId}");
 
             // Wait for messages and write them
             await foreach (var message in _outgoingMessages.Reader.ReadAllAsync(ct))
@@ -62,11 +62,11 @@ public class TouchSocketHttpServerTransportSession : IServerTransportSession
         }
         catch (Exception ex)
         {
-            Log.Warn($"[McpServer][TouchSocket][{SessionId}] SSE connection error: {ex.Message}");
+            Log.Warn($"[McpServer][TouchSocket] SSE connection error. SessionId={SessionId}, Error={ex.Message}");
         }
         finally
         {
-            Log.Debug($"[McpServer][TouchSocket][{SessionId}] SSE connection ended.");
+            Log.Debug($"[McpServer][TouchSocket] SSE connection ended. SessionId={SessionId}");
         }
     }
 
@@ -91,7 +91,7 @@ public class TouchSocketHttpServerTransportSession : IServerTransportSession
         }
         catch (Exception ex)
         {
-            Log.Error($"[McpServer][TouchSocket][{SessionId}] Failed to write SSE message", ex);
+            Log.Error($"[McpServer][TouchSocket] Failed to write SSE message. SessionId={SessionId}", ex);
             throw; // Re-throw to close connection if write fails
         }
     }

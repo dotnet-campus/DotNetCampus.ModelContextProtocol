@@ -74,13 +74,13 @@ public class TouchSocketHttpServerTransport : PluginBase, IHttpPlugin, IServerTr
             await _httpService.SetupAsync(_config!);
             await _httpService.StartAsync(startingCancellationToken);
 
-            Log.Info($"[McpServer][TouchSocket] listening on {string.Join(", ", _httpService.Monitors
+            Log.Info($"[McpServer][TouchSocket] Listening on {string.Join(", ", _httpService.Monitors
                 .Select(x => x.Option.IpHost.ToString()))}, endpoint: {_options.EndPoint}");
         }
         else
         {
             Log.Info(
-                $"[McpServer][TouchSocket] TouchSocketHttpServerTransport started in an external TouchSocket.Http.HttpServer, endpoint: {_options.EndPoint}");
+                $"[McpServer][TouchSocket] Transport started with external HttpServer, endpoint: {_options.EndPoint}");
         }
 
         return Task.Delay(Timeout.Infinite, runningCancellationToken);
@@ -92,12 +92,12 @@ public class TouchSocketHttpServerTransport : PluginBase, IHttpPlugin, IServerTr
         if (_httpService is { } httpService)
         {
             await httpService.StopAsync();
-            Log.Info($"[McpServer][TouchSocket] TouchSocketHttpServerTransport stopped.");
+            Log.Info($"[McpServer][TouchSocket] Transport stopped.");
             httpService.Dispose();
         }
         else
         {
-            Log.Info($"[McpServer][TouchSocket] TouchSocketHttpServerTransport stopped. External TouchSocket.Http.HttpServer is still alive.");
+            Log.Info($"[McpServer][TouchSocket] Transport stopped. External HttpServer is still alive.");
         }
     }
 
@@ -111,7 +111,7 @@ public class TouchSocketHttpServerTransport : PluginBase, IHttpPlugin, IServerTr
         }
         catch (Exception ex)
         {
-            Log.Error($"[McpServer][TouchSocket][Http] Unhandled exception in HandleRequestAsync", ex);
+            Log.Error($"[McpServer][TouchSocket] Unhandled exception in request handler.", ex);
             try
             {
                 await e.Context.Response
@@ -131,14 +131,14 @@ public class TouchSocketHttpServerTransport : PluginBase, IHttpPlugin, IServerTr
         var context = e.Context;
         var endpoint = context.Request.RelativeURL;
 
-        Log.Debug($"[McpServer][TouchSocket][Http] Received request: {context.Request.Method} {endpoint}");
+        Log.Debug($"[McpServer][TouchSocket] Received request. Method={context.Request.Method}, Endpoint={endpoint}");
 
         // 请求安全性验证。
         var validationError = ValidateRequest(context);
         if (validationError.HasValue)
         {
             var (statusCode, message) = validationError.Value;
-            Log.Warn($"[McpServer][TouchSocket][Http] Request validation failed: {statusCode} - {message}");
+            Log.Warn($"[McpServer][TouchSocket] Request validation failed. StatusCode={statusCode}, Message={message}");
             await context.Response
                 .SetStatus(statusCode, message)
                 .SetContent("")
@@ -171,7 +171,7 @@ public class TouchSocketHttpServerTransport : PluginBase, IHttpPlugin, IServerTr
             return;
         }
 
-        Log.Warn($"[McpServer][TouchSocket] No handler found for {method} {endpoint}");
+        Log.Warn($"[McpServer][TouchSocket] No handler found. Method={method}, Endpoint={endpoint}");
         await e.InvokeNext();
     }
 
@@ -191,7 +191,7 @@ public class TouchSocketHttpServerTransport : PluginBase, IHttpPlugin, IServerTr
         if (!accept.Any(x => x.Contains("text/event-stream", StringComparison.OrdinalIgnoreCase)))
         {
             // 规范 §2.2.3: return HTTP 405 Method Not Allowed indicating the server does not offer an SSE stream [if not accepted]
-            Log.Warn($"[McpServer][TouchSocket][Mcp:no-session] GET request rejected: Client must accept text/event-stream");
+            Log.Warn($"[McpServer][TouchSocket] GET request rejected: Client must accept text/event-stream.");
             await context.RespondHttpError(HttpStatusCode.MethodNotAllowed, "Client must accept text/event-stream");
             return;
         }
@@ -199,19 +199,19 @@ public class TouchSocketHttpServerTransport : PluginBase, IHttpPlugin, IServerTr
         var sessionId = request.Headers.Get(SessionIdHeader).First;
         if (string.IsNullOrEmpty(sessionId))
         {
-            Log.Warn($"[McpServer][TouchSocket][Mcp:no-session] GET request rejected: Missing Mcp-Session-Id header");
+            Log.Warn($"[McpServer][TouchSocket] GET request rejected: Missing Mcp-Session-Id header.");
             await context.RespondHttpError(HttpStatusCode.NotFound, "Missing Mcp-Session-Id header");
             return;
         }
 
         if (!_sessions.TryGetValue(sessionId, out var session))
         {
-            Log.Warn($"[McpServer][TouchSocket][Mcp:{sessionId}] GET request rejected: Session not found");
+            Log.Warn($"[McpServer][TouchSocket] GET request rejected: Session not found. SessionId={sessionId}");
             await context.RespondHttpError(HttpStatusCode.NotFound, "Session not found");
             return;
         }
 
-        Log.Info($"[McpServer][TouchSocket][Mcp:{sessionId}] Establishing SSE connection");
+        Log.Info($"[McpServer][TouchSocket] Establishing SSE connection. SessionId={sessionId}");
 
         context.Response.SetStatus(HttpStatusCode.OK, "");
         context.Response.ContentType = "text/event-stream";
@@ -228,7 +228,7 @@ public class TouchSocketHttpServerTransport : PluginBase, IHttpPlugin, IServerTr
         }
         catch (Exception ex)
         {
-            Log.Debug($"[McpServer][TouchSocket][Mcp:{sessionId}] SSE connection ended: {ex.Message}");
+            Log.Debug($"[McpServer][TouchSocket] SSE connection ended. SessionId={sessionId}, Error={ex.Message}");
         }
         finally
         {
@@ -250,7 +250,7 @@ public class TouchSocketHttpServerTransport : PluginBase, IHttpPlugin, IServerTr
             // 如果比最小版本小则报错
             if (string.CompareOrdinal(protocolVersion, ProtocolVersion.Minimum) < 0)
             {
-                Log.Warn($"[McpServer][TouchSocket] POST request rejected: Unsupported protocol version {protocolVersion}");
+                Log.Warn($"[McpServer][TouchSocket] POST request rejected: Unsupported protocol version. Version={protocolVersion}");
                 await context.RespondHttpError(HttpStatusCode.BadRequest, $"Unsupported protocol version. Minimum required: {ProtocolVersion.Minimum}");
                 return;
             }
@@ -264,14 +264,14 @@ public class TouchSocketHttpServerTransport : PluginBase, IHttpPlugin, IServerTr
         }
         catch (JsonException)
         {
-            Log.Warn($"[McpServer][TouchSocket] POST request rejected: Invalid JSON");
+            Log.Warn($"[McpServer][TouchSocket] POST request rejected: Invalid JSON.");
             await context.RespondHttpError(HttpStatusCode.BadRequest, "Invalid JSON");
             return;
         }
 
         if (jsonRpcRequest == null)
         {
-            Log.Warn($"[McpServer][TouchSocket] POST request rejected: Empty body");
+            Log.Warn($"[McpServer][TouchSocket] POST request rejected: Empty body.");
             await context.RespondHttpError(HttpStatusCode.BadRequest, "Empty body");
             return;
         }
@@ -291,11 +291,11 @@ public class TouchSocketHttpServerTransport : PluginBase, IHttpPlugin, IServerTr
                 session = newSession;
                 _manager.Add(session);
                 context.Response.Headers.Add(SessionIdHeader, newSessionId.Id);
-                Log.Info($"[McpServer][TouchSocket][Mcp:{newSessionId.Id}] New session created");
+                Log.Info($"[McpServer][TouchSocket] Session created. SessionId={newSessionId.Id}");
             }
             else
             {
-                Log.Error($"[McpServer][TouchSocket] Session ID collision: {newSessionId.Id}");
+                Log.Error($"[McpServer][TouchSocket] Session ID collision. SessionId={newSessionId.Id}");
                 await context.RespondHttpError(HttpStatusCode.InternalServerError, "Session ID collision");
                 return;
             }
@@ -304,20 +304,20 @@ public class TouchSocketHttpServerTransport : PluginBase, IHttpPlugin, IServerTr
         {
             if (string.IsNullOrEmpty(sessionIdStr))
             {
-                Log.Warn($"[McpServer][TouchSocket][Mcp:no-session][{jsonRpcRequest.Method}] POST request rejected: Missing Mcp-Session-Id header");
+                Log.Warn($"[McpServer][TouchSocket] POST request rejected: Missing Mcp-Session-Id header. Method={jsonRpcRequest.Method}");
                 await context.RespondHttpError(HttpStatusCode.BadRequest, "Missing Mcp-Session-Id header");
                 return;
             }
 
             if (!_sessions.TryGetValue(sessionIdStr, out session))
             {
-                Log.Warn($"[McpServer][TouchSocket][Mcp:{sessionIdStr}][{jsonRpcRequest.Method}] POST request rejected: Session not found");
+                Log.Warn($"[McpServer][TouchSocket] POST request rejected: Session not found. SessionId={sessionIdStr}, Method={jsonRpcRequest.Method}");
                 await context.RespondHttpError(HttpStatusCode.NotFound, "Session not found");
                 return;
             }
         }
 
-        Log.Debug($"[McpServer][TouchSocket][Mcp:{session.SessionId}][{jsonRpcRequest.Method}][Request] Handling JSON-RPC message[{jsonRpcRequest.Id}]");
+        Log.Debug($"[McpServer][TouchSocket] Handling JSON-RPC request. SessionId={session.SessionId}, Method={jsonRpcRequest.Method}, MessageId={jsonRpcRequest.Id}");
 
         var jsonRpcResponse = await _manager.HandleRequestAsync(jsonRpcRequest,
             s => s.AddHttpTransportServices(session.SessionId, request),
@@ -326,13 +326,13 @@ public class TouchSocketHttpServerTransport : PluginBase, IHttpPlugin, IServerTr
         if (jsonRpcResponse != null)
         {
             // Request: Success or Failed.
-            Log.Debug($"[McpServer][TouchSocket][Mcp:{session.SessionId}][{jsonRpcRequest.Method}][Response] Sending response for message[{jsonRpcRequest.Id}]");
+            Log.Debug($"[McpServer][TouchSocket] Sending JSON-RPC response. SessionId={session.SessionId}, Method={jsonRpcRequest.Method}, MessageId={jsonRpcRequest.Id}");
             await context.RespondJsonRpcAsync(_manager, HttpStatusCode.OK, jsonRpcResponse);
         }
         else
         {
             // Notification: No need to respond.
-            Log.Debug($"[McpServer][TouchSocket][Mcp:{session.SessionId}][{jsonRpcRequest.Method}][Response] No response for message[{jsonRpcRequest.Id}] (notification)");
+            Log.Debug($"[McpServer][TouchSocket] No response for notification. SessionId={session.SessionId}, Method={jsonRpcRequest.Method}, MessageId={jsonRpcRequest.Id}");
             await context.RespondHttpSuccess(HttpStatusCode.Accepted);
         }
     }
@@ -348,11 +348,11 @@ public class TouchSocketHttpServerTransport : PluginBase, IHttpPlugin, IServerTr
             if (_sessions.TryRemove(sessionId, out var session))
             {
                 await session.DisposeAsync();
-                Log.Info($"[McpServer][TouchSocket][Mcp:{sessionId}] Session terminated");
+                Log.Info($"[McpServer][TouchSocket] Session terminated. SessionId={sessionId}");
             }
             else
             {
-                Log.Debug($"[McpServer][TouchSocket][Mcp:{sessionId}] DELETE request: Session not found (already terminated?)");
+                Log.Debug($"[McpServer][TouchSocket] DELETE request: Session not found (already terminated). SessionId={sessionId}");
             }
         }
         await context.RespondHttpSuccess(HttpStatusCode.OK);

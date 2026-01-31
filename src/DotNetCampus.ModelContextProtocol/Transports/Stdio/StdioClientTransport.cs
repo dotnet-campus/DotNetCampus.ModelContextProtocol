@@ -35,7 +35,7 @@ public class StdioClientTransport : IClientTransport
     /// <inheritdoc />
     public async ValueTask ConnectAsync(CancellationToken cancellationToken = default)
     {
-        Log.Info($"[McpClient][Stdio] Starting STDIO client transport.");
+        Log.Info($"[McpClient][Stdio] Transport started.");
 
         await DisconnectAsync(cancellationToken);
         var process = await StartProcessAsync();
@@ -101,7 +101,7 @@ public class StdioClientTransport : IClientTransport
             var response = await _manager.ParseAndCatchResponseAsync(line);
             if (response is null)
             {
-                Log.Warn($"Invalid server message: {line}");
+                Log.Warn($"[McpClient][Stdio] Invalid server message received.");
                 continue;
             }
 
@@ -120,7 +120,7 @@ public class StdioClientTransport : IClientTransport
             }
             catch (Exception ex)
             {
-                Log.Error($"STDIO 服务器启动失败。", ex);
+                Log.Error($"[McpClient][Stdio] Failed to start STDIO process.", ex);
                 return null;
             }
         });
@@ -180,7 +180,7 @@ public class StdioClientTransport : IClientTransport
             }
             catch (Exception ex)
             {
-                Log.Error($"STDIO 服务器关闭失败。", ex);
+                Log.Error($"[McpClient][Stdio] Failed to stop STDIO process.", ex);
             }
         });
     }

@@ -44,13 +44,13 @@ public class LocalHostHttpServerTransport : IServerTransport
         try
         {
             _listener.Start();
-            Log.Info($"[McpServer][StreamableHttp] listening on {string.Join(", ", _listener.Prefixes)}, endpoint: {_options.EndPoint}");
+            Log.Info($"[McpServer][StreamableHttp] Listening on {string.Join(", ", _listener.Prefixes)}, endpoint: {_options.EndPoint}");
 
             return Task.FromResult(RunLoopAsync(runningCancellationToken));
         }
         catch (Exception ex)
         {
-            Log.Error($"[McpServer][StreamableHttp] Failed to start listener", ex);
+            Log.Error($"[McpServer][StreamableHttp] Failed to start listener.", ex);
             throw;
         }
     }
@@ -68,7 +68,7 @@ public class LocalHostHttpServerTransport : IServerTransport
         }
         catch (Exception ex)
         {
-            Log.Debug($"[McpServer][StreamableHttp] Exception during dispose: {ex.Message}");
+            Log.Debug($"[McpServer][StreamableHttp] Exception during dispose. Error={ex.Message}");
         }
         return ValueTask.CompletedTask;
     }
@@ -88,7 +88,7 @@ public class LocalHostHttpServerTransport : IServerTransport
                     }
                     catch (Exception ex)
                     {
-                        Log.Error($"[McpServer][StreamableHttp] Unhandled exception in HandleRequestAsync", ex);
+                        Log.Error($"[McpServer][StreamableHttp] Unhandled exception in request handler.", ex);
                         try
                         {
                             await context.RespondHttpError(HttpStatusCode.InternalServerError);
@@ -102,7 +102,7 @@ public class LocalHostHttpServerTransport : IServerTransport
             }
             catch (HttpListenerException ex) when (ex.ErrorCode == 995) // ERROR_OPERATION_ABORTED
             {
-                Log.Info($"[McpServer][StreamableHttp] Listener stopped");
+                Log.Info($"[McpServer][StreamableHttp] Transport stopped.");
                 break;
             }
             catch (Exception ex)
@@ -111,7 +111,7 @@ public class LocalHostHttpServerTransport : IServerTransport
                 {
                     break;
                 }
-                Log.Error($"[McpServer][StreamableHttp] Accept loop error", ex);
+                Log.Error($"[McpServer][StreamableHttp] Accept loop error.", ex);
                 await Task.Delay(100, cancellationToken);
             }
         }
@@ -302,7 +302,7 @@ public class LocalHostHttpServerTransport : IServerTransport
         }
         catch (Exception ex)
         {
-            Log.Debug($"[McpServer][StreamableHttp] SSE connection ended: {ex.Message}");
+            Log.Debug($"[McpServer][StreamableHttp] SSE connection ended. SessionId={sessionId}, Error={ex.Message}");
         }
         finally
         {

@@ -50,7 +50,7 @@ public class IpcServerTransport : IServerTransport
     /// <inheritdoc />
     public Task<Task> StartAsync(CancellationToken startingCancellationToken, CancellationToken runningCancellationToken)
     {
-        Log.Info($"[McpServer][Ipc] Starting DotNetCampus.Ipc server transport.");
+        Log.Info($"[McpServer][Ipc] Transport started.");
 
         _server.StartServer();
         _server.PeerConnected += OnPeerConnected;
@@ -62,7 +62,7 @@ public class IpcServerTransport : IServerTransport
     /// <inheritdoc />
     public ValueTask DisposeAsync()
     {
-        Log.Info($"[McpServer][Ipc] Disposing IpcServerTransport");
+        Log.Info($"[McpServer][Ipc] Disposing transport.");
 
         if (!_isExternalIpcProvider)
         {
@@ -104,7 +104,7 @@ public class IpcServerTransport : IServerTransport
             }
             catch (Exception ex)
             {
-                Log.Error($"[McpServer][Ipc] 在处理 IPC 对等消息时发生错误。", ex);
+                Log.Error($"[McpServer][Ipc] Error handling IPC peer message.", ex);
             }
         }
     }

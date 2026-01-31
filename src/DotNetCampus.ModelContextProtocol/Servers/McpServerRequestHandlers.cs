@@ -49,7 +49,7 @@ public class McpServerRequestHandlers
         }
         catch (Exception ex)
         {
-            Logger.Error($"[McpServer] HandleInitializeAsync failed: {ex.Message}");
+            Logger.Error($"[McpServer][Mcp] HandleInitializeAsync failed. Error={ex.Message}");
             throw;
         }
     }
@@ -104,7 +104,7 @@ public class McpServerRequestHandlers
         }
         catch (Exception ex)
         {
-            Logger.Error($"[McpServer] HandlePingAsync failed: {ex.Message}");
+            Logger.Error($"[McpServer][Mcp] HandlePingAsync failed. Error={ex.Message}");
             throw;
         }
     }
@@ -136,7 +136,7 @@ public class McpServerRequestHandlers
         }
         catch (Exception ex)
         {
-            Logger.Error($"[McpServer] HandleSetLoggingLevelAsync failed: {ex.Message}");
+            Logger.Error($"[McpServer][Mcp] HandleSetLoggingLevelAsync failed. Error={ex.Message}");
             throw;
         }
     }
@@ -174,7 +174,7 @@ public class McpServerRequestHandlers
         }
         catch (Exception ex)
         {
-            Logger.Error($"[McpServer] HandleListToolsAsync failed: {ex.Message}");
+            Logger.Error($"[McpServer][Mcp] HandleListToolsAsync failed. Error={ex.Message}");
             throw;
         }
     }
@@ -232,7 +232,7 @@ public class McpServerRequestHandlers
         }
         catch (Exception ex)
         {
-            Logger.Error($"[McpServer] HandleCallToolAsync failed: {ex.Message}");
+            Logger.Error($"[McpServer][Mcp] HandleCallToolAsync failed. Error={ex.Message}");
             throw;
         }
     }
@@ -338,7 +338,7 @@ public class McpServerRequestHandlers
         }
         catch (Exception ex)
         {
-            Logger.Error($"[McpServer] HandleListResourcesAsync failed: {ex.Message}");
+            Logger.Error($"[McpServer][Mcp] HandleListResourcesAsync failed. Error={ex.Message}");
             throw;
         }
     }
@@ -378,7 +378,7 @@ public class McpServerRequestHandlers
         }
         catch (Exception ex)
         {
-            Logger.Error($"[McpServer] HandleListResourceTemplatesAsync failed: {ex.Message}");
+            Logger.Error($"[McpServer][Mcp] HandleListResourceTemplatesAsync failed. Error={ex.Message}");
             throw;
         }
     }
@@ -440,7 +440,7 @@ public class McpServerRequestHandlers
         }
         catch (Exception ex)
         {
-            Logger.Error($"[McpServer] HandleReadResourceAsync failed: {ex.Message}");
+            Logger.Error($"[McpServer][Mcp] HandleReadResourceAsync failed. Error={ex.Message}");
             throw;
         }
     }

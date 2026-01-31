@@ -48,7 +48,7 @@ internal class LocalHostHttpServerTransportSession : IServerTransportSession
 
         try
         {
-            Log.Debug($"[McpServer][StreamableHttp][{SessionId}] SSE connection started.");
+            Log.Debug($"[McpServer][StreamableHttp] SSE connection started. SessionId={SessionId}");
 
             // Wait for messages and write them
             await foreach (var message in _outgoingMessages.Reader.ReadAllAsync(ct))
@@ -62,11 +62,11 @@ internal class LocalHostHttpServerTransportSession : IServerTransportSession
         }
         catch (Exception ex)
         {
-            Log.Warn($"[McpServer][StreamableHttp][{SessionId}] SSE connection error: {ex.Message}");
+            Log.Warn($"[McpServer][StreamableHttp] SSE connection error. SessionId={SessionId}, Error={ex.Message}");
         }
         finally
         {
-            Log.Debug($"[McpServer][StreamableHttp][{SessionId}] SSE connection ended.");
+            Log.Debug($"[McpServer][StreamableHttp] SSE connection ended. SessionId={SessionId}");
         }
     }
 
@@ -91,7 +91,7 @@ internal class LocalHostHttpServerTransportSession : IServerTransportSession
         }
         catch (Exception ex)
         {
-            Log.Error($"[McpServer][StreamableHttp][{SessionId}] Failed to write SSE message", ex);
+            Log.Error($"[McpServer][StreamableHttp] Failed to write SSE message. SessionId={SessionId}", ex);
             throw; // Re-throw to close connection if write fails
         }
     }

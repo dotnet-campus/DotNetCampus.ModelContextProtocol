@@ -30,7 +30,7 @@ internal sealed class McpProtocolBridge(McpServerContext context)
         }
         catch (Exception ex)
         {
-            context.Logger.Error($"[McpServer][Mcp] An exception occurred in OnRequestReceivingAsync: {ex}");
+            context.Logger.Error($"[McpServer][Mcp] An exception occurred in OnRequestReceivingAsync. Error={ex.Message}");
         }
 
         JsonRpcResponse? response;
@@ -45,7 +45,7 @@ internal sealed class McpProtocolBridge(McpServerContext context)
             }
             catch (Exception ex)
             {
-                context.Logger.Error($"[McpServer][Mcp] An exception occurred in OnNotificationReceivedAsync: {ex}");
+                context.Logger.Error($"[McpServer][Mcp] An exception occurred in OnNotificationReceivedAsync. Error={ex.Message}");
             }
             response = null;
         }
@@ -60,7 +60,7 @@ internal sealed class McpProtocolBridge(McpServerContext context)
             }
             catch (Exception ex)
             {
-                context.Logger.Error($"[McpServer][Mcp] An exception occurred in OnResponseSentAsync: {ex}");
+                context.Logger.Error($"[McpServer][Mcp] An exception occurred in OnResponseSentAsync. Error={ex.Message}");
             }
         }
 
@@ -79,7 +79,7 @@ internal sealed class McpProtocolBridge(McpServerContext context)
                 break;
 
             default:
-                context.Logger.Warn($"[McpServer][Mcp] Received notifications {request.Method}, but it is currently not supported.");
+                context.Logger.Warn($"[McpServer][Mcp] Received unsupported notification. Method={request.Method}");
                 break;
         }
 

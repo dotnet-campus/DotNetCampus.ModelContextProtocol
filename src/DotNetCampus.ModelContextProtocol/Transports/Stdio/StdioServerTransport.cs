@@ -40,7 +40,7 @@ public class StdioServerTransport : IServerTransport
         // System.Diagnostics.Debugger.Launch();
 #endif
 
-        Log.Info($"[McpServer][Stdio] Starting STDIO server transport.");
+        Log.Info($"[McpServer][Stdio] Transport started.");
 
         var utf8 = new UTF8Encoding(false);
         var input = new StreamReader(Console.OpenStandardInput(), utf8);
@@ -58,7 +58,7 @@ public class StdioServerTransport : IServerTransport
     /// <inheritdoc />
     public ValueTask DisposeAsync()
     {
-        Log.Info($"[McpServer][Stdio] Disposing StdioServerTransport");
+        Log.Info($"[McpServer][Stdio] Disposing transport.");
 
         // 控制台流不应该关闭，因为其他任何代码都可能会用得上。
         _stdio = null;

@@ -59,14 +59,14 @@ public class HttpClientTransport : IClientTransport
     {
         // Streamable HTTP 是惰性连接，真正连接发生在第一次发送消息时
         // 但我们在概念上认为此时已就绪
-        _logger.Info($"[McpClient][Http] Transport connected (stateless/lazy)");
+        _logger.Info($"[McpClient][Http] Transport connected.");
         return ValueTask.CompletedTask;
     }
 
     /// <inheritdoc />
     public async ValueTask DisconnectAsync(CancellationToken cancellationToken = default)
     {
-        _logger.Info($"[McpClient][Http] Disconnecting transport...");
+        _logger.Info($"[McpClient][Http] Disconnecting transport.");
 
         // 1. 停止后台接收循环
         StopReceiveLoop();
@@ -83,11 +83,11 @@ public class HttpClientTransport : IClientTransport
                 using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
                 var response = await _httpClient.SendAsync(request, cts.Token);
 
-                _logger.Debug($"[McpClient][Http] Session {_sessionId} terminated with status {response.StatusCode}");
+                _logger.Debug($"[McpClient][Http] Session terminated. SessionId={_sessionId}, StatusCode={response.StatusCode}");
             }
             catch (Exception ex)
             {
-                _logger.Warn($"[McpClient][Http] Failed to strictly terminate session {_sessionId}: {ex.Message}");
+                _logger.Warn($"[McpClient][Http] Failed to terminate session. SessionId={_sessionId}, Error={ex.Message}");
             }
         }
 
@@ -117,7 +117,7 @@ public class HttpClientTransport : IClientTransport
         }
         catch (Exception ex)
         {
-            _logger.Error($"[McpClient][Http] Error sending message: {ex.Message}", ex);
+            _logger.Error($"[McpClient][Http] Error sending message. Error={ex.Message}", ex);
             throw;
         }
     }
@@ -151,7 +151,7 @@ public class HttpClientTransport : IClientTransport
         content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
         request.Content = content;
 
-        _logger.Debug($"[McpClient][Http][POST] Sending {(isInitialize ? "Initialize" : message.GetType().Name)} to {requestUrl}");
+        _logger.Debug($"[McpClient][Http] Sending POST request. Url={requestUrl}, Type={(isInitialize ? "Initialize" : message.GetType().Name)}");
 
         // 4. 发送请求 (ResponseHeadersRead 以支持流式响应)
         var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
@@ -163,7 +163,7 @@ public class HttpClientTransport : IClientTransport
             if (!string.IsNullOrEmpty(newId) && _sessionId != newId)
             {
                 _sessionId = newId;
-                _logger.Info($"[McpClient][Http] Session negotiated: {_sessionId}");
+                _logger.Info($"[McpClient][Http] Session negotiated. SessionId={_sessionId}");
 
                 // 握手成功，启动后台接收循环
                 StartReceiveLoop();
@@ -178,7 +178,7 @@ public class HttpClientTransport : IClientTransport
         if (string.Equals(mediaType, "text/event-stream", StringComparison.OrdinalIgnoreCase))
         {
             // Case A: 瞬态 SSE 流 (Transient SSE)
-            _logger.Debug($"[McpClient][Http] Received Transient SSE Stream response");
+            _logger.Debug($"[McpClient][Http] Received SSE stream response.");
 
             await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
             await ProcessSseStreamAsync(stream, cancellationToken, isInitialize
@@ -196,7 +196,7 @@ public class HttpClientTransport : IClientTransport
             // Case B: 标准 JSON 响应
             if (response.StatusCode == System.Net.HttpStatusCode.Accepted)
             {
-                _logger.Debug($"[McpClient][Http] Received 202 Accepted (Response pending via GET loop)");
+                _logger.Debug($"[McpClient][Http] Received 202 Accepted, response pending via SSE loop.");
                 return;
             }
 
@@ -231,7 +231,7 @@ public class HttpClientTransport : IClientTransport
             var version = pv.GetString();
             if (!string.IsNullOrEmpty(version))
             {
-                _logger.Info($"[McpClient][Http] Server protocol version ({source}): {_protocolVersion}");
+                _logger.Info($"[McpClient][Http] Server protocol version extracted. Source={source}, Version={_protocolVersion}");
                 return version;
             }
         }
@@ -266,7 +266,7 @@ public class HttpClientTransport : IClientTransport
 
     private async Task ReceiveLoopAsync(CancellationToken token)
     {
-        _logger.Info($"[McpClient][Http] GET SSE Loop started");
+        _logger.Info($"[McpClient][Http] SSE receive loop started.");
 
         while (!token.IsCancellationRequested)
         {
@@ -289,7 +289,7 @@ public class HttpClientTransport : IClientTransport
                 }
                 catch (Exception sendEx)
                 {
-                    _logger.Warn($"[McpClient][Http] GET Loop connect error: {sendEx.Message}. Retrying...");
+                    _logger.Warn($"[McpClient][Http] SSE connection error, reconnecting. Error={sendEx.Message}");
                     await Task.Delay(2000, token);
                     continue;
                 }
@@ -298,7 +298,7 @@ public class HttpClientTransport : IClientTransport
                 {
                     if (!response.IsSuccessStatusCode)
                     {
-                        _logger.Warn($"[McpClient][Http] GET Loop received status {response.StatusCode}. Retrying...");
+                        _logger.Warn($"[McpClient][Http] SSE received unexpected status code, retrying. StatusCode={response.StatusCode}");
                         await Task.Delay(2000, token);
                         continue;
                     }
@@ -306,7 +306,7 @@ public class HttpClientTransport : IClientTransport
                     await using var stream = await response.Content.ReadAsStreamAsync(token);
                     await ProcessSseStreamAsync(stream, token);
                 }
-                _logger.Info($"[McpClient][Http] GET Loop stream ended. Reconnecting...");
+                _logger.Info($"[McpClient][Http] SSE stream ended, reconnecting.");
             }
             catch (OperationCanceledException)
             {
@@ -314,7 +314,7 @@ public class HttpClientTransport : IClientTransport
             }
             catch (Exception ex)
             {
-                _logger.Warn($"[McpClient][Http] GET Loop error: {ex.Message}. Reconnecting in 2s...");
+                _logger.Warn($"[McpClient][Http] SSE loop error, reconnecting. Error={ex.Message}");
                 try
                 {
                     await Task.Delay(2000, token);
@@ -326,7 +326,7 @@ public class HttpClientTransport : IClientTransport
             }
         }
 
-        _logger.Info($"[McpClient][Http] GET SSE Loop stopped");
+        _logger.Info($"[McpClient][Http] SSE receive loop stopped.");
     }
 
     // --- SSE 解析核心逻辑 ---
@@ -403,7 +403,7 @@ public class HttpClientTransport : IClientTransport
             }
             catch (Exception ex)
             {
-                _logger.Warn($"[McpClient][Http][SSE] Failed to process message: {ex.Message}");
+                _logger.Warn($"[McpClient][Http] Failed to process SSE message. Error={ex.Message}");
             }
         }
     }
