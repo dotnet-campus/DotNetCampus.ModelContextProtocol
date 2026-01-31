@@ -10,7 +10,7 @@ using static DotNetCampus.ModelContextProtocol.Protocol.RequestMethods;
 
 namespace DotNetCampus.ModelContextProtocol.Servers;
 
-internal class McpProtocolBridge(McpServerContext context)
+internal sealed class McpProtocolBridge(McpServerContext context)
 {
     public async ValueTask<JsonRpcResponse?> HandleRequestAsync(
         IServiceProvider services,
