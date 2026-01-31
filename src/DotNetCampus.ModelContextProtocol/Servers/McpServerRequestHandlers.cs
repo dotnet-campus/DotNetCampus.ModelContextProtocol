@@ -245,6 +245,9 @@ public class McpServerRequestHandlers
     /// <param name="toolName">请求的工具名称，如果为 <see langword="null"/>，则表示请求中未提供工具名称。</param>
     /// <param name="tool">要调用的工具，如果为 <see langword="null"/> 表示未找到请求名称的工具。</param>
     /// <param name="context">工具调用上下文。当 <paramref name="tool"/> 非空时，此参数也非空。</param>
+    /// <returns>
+    /// 工具调用的结果。如果调用过程中发生了异常，则工具结果表示错误，且会在 <see cref="CallToolResult.RawException"/> 中保存所发生的异常。
+    /// </returns>
     public virtual async ValueTask<CallToolResult> CallToolAsync(
         RequestContext<CallToolRequestParams> rawRequest,
         string? toolName,
@@ -270,39 +273,39 @@ public class McpServerRequestHandlers
         catch (McpToolMissingRequiredArgumentException ex)
         {
             // 调用工具时缺少必要的参数。
-            return CallToolResult.FromError(ex.Message);
+            return CallToolResult.FromException(ex);
         }
         catch (McpToolMissingRequiredTypeDiscriminatorException ex)
         {
             // 调用工具时缺少必要的类型鉴别器。
-            return CallToolResult.FromError(ex.Message);
+            return CallToolResult.FromException(ex);
         }
         catch (JsonException ex)
         {
             // 调用工具时传入的参数无法被正确反序列化。
-            return CallToolResult.FromError($"Failed to deserialize tool arguments: {ex.Message}");
+            return CallToolResult.FromException(ex, $"Failed to deserialize tool arguments: {ex.Message}");
         }
         catch (McpToolServiceNotFoundException ex)
         {
             // 调用工具时缺少必要的服务。
-            return CallToolResult.FromError(ex.Message);
+            return CallToolResult.FromException(ex);
         }
         catch (McpToolJsonTypeInfoNotFoundException ex)
         {
             // 给开发者查看的错误，提示开发者生成缺失的 JsonTypeInfo。
-            return CallToolResult.FromError(ex.Message);
+            return CallToolResult.FromException(ex);
         }
         catch (McpToolUsageException ex)
         {
             // 业务端认为工具使用不正确，而且已经在 Message 中提供了 AI 可读的错误信息。
-            return CallToolResult.FromError(ex.Message);
+            return CallToolResult.FromException(ex);
         }
         catch (Exception ex)
         {
             // 其他未知错误。
             return _server.Context.IsDebugMode
-                ? CallToolResult.FromError(McpExceptionData.From(ex).ToJsonString())
-                : CallToolResult.FromError(ex.Message);
+                ? CallToolResult.FromException(ex, McpExceptionData.From(ex).ToJsonString())
+                : CallToolResult.FromException(ex);
         }
     }
 

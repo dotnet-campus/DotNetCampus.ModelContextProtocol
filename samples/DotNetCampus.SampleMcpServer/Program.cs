@@ -20,7 +20,8 @@ internal class Program
             .WithLevel(LogLevel.Trace)
             .AddConsoleLogger(b => b
                 .WithOutput(LoggerConsoleOutputTo.StandardError)
-                .WithThreadSafe(LogWritingThreadMode.ProducerConsumer)
+                .WithThreadSafe(LogWritingThreadMode.NotThreadSafe)
+                // .WithStdioRedirectedFormat()
                 .FilterConsoleTagsFromCommandLineArgs(args))
             .AddBridge(LoggerBridgeLinker.Default)
             .Build()
@@ -28,11 +29,7 @@ internal class Program
 
         var mcpServer = new McpServerBuilder("SampleMcpServer", "1.0.0")
             .WithLogger(new McpLoggerBridge(Log.Current))
-            .WithRequestHandlers((s, h) =>
-            {
-                h.CallToolHandler = (request, token) => h.Raw.CallTool(request, token);
-                return h;
-            })
+            .WithRequestHandlers(s => new CustomRequestHandlers(s))
             .WithJsonSerializer(McpToolJsonContext.Default)
             .WithTools(t => t
                 .WithTool(() => new SampleTool())
@@ -59,6 +56,21 @@ internal class Program
             .Build();
         mcpServer.EnableDebugMode();
         await mcpServer.RunAsync();
+    }
+}
+
+internal class CustomRequestHandlers(McpServer server) : McpServerRequestHandlers(server)
+{
+    public override async ValueTask<CallToolResult> CallToolAsync(
+        RequestContext<CallToolRequestParams> rawRequest,
+        string? toolName, IMcpServerTool? tool, IMcpServerCallToolContext? context)
+    {
+        var result = await base.CallToolAsync(rawRequest, toolName, tool, context);
+        if (result.RawException is { } exception)
+        {
+            Log.Error("额外的异常记录", exception);
+        }
+        return result;
     }
 }
 

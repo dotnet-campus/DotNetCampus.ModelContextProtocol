@@ -56,6 +56,15 @@ public record CallToolResult : Result
     public bool? IsError { get; init; }
 
     /// <summary>
+    /// 如果工具调用过程中发生了异常，则此属性包含该异常对象。<br/>
+    /// 该属性不会被序列化到 MCP 协议中，仅供服务器端代码使用。<br/>
+    /// If an exception occurred during the tool call, this property contains the exception object.<br/>
+    /// This property is not serialized into the MCP protocol and is only for server-side code use.
+    /// </summary>
+    [JsonIgnore]
+    public Exception? RawException { get; init; }
+
+    /// <summary>
     /// 返回表示当前实例的字符串。
     /// </summary>
     /// <returns>表示当前实例的字符串。</returns>
@@ -122,6 +131,21 @@ public record CallToolResult : Result
         {
             IsError = true,
             Content = [new TextContentBlock { Text = errorMessage }],
+        };
+    }
+
+    /// <summary>
+    /// 从异常创建一个表示错误的 <see cref="CallToolResult"/> 实例。
+    /// </summary>
+    /// <param name="exception">异常。</param>
+    /// <param name="errorMessage">如果指定，则使用此错误消息代替异常消息。</param>
+    /// <returns>表示错误的 <see cref="CallToolResult"/> 实例。</returns>
+    public static CallToolResult FromException(Exception exception, string? errorMessage = null)
+    {
+        return new CallToolResult
+        {
+            IsError = true,
+            Content = [new TextContentBlock { Text = errorMessage ?? exception.Message }],
         };
     }
 
