@@ -91,6 +91,7 @@ public class McpRawRequestHandlers(McpServer server)
         }
 
         var arguments = request.Params?.Arguments ?? default;
+        var meta = request.Params?.Meta ?? EmptyObject.JsonElement;
         var jsonSerializer = server.Context.JsonSerializer;
         var jsonContext = jsonSerializer switch
         {
@@ -103,6 +104,7 @@ public class McpRawRequestHandlers(McpServer server)
             McpServer = server,
             Services = request.Services,
             JsonSerializerContext = jsonContext,
+            Meta = meta,
             Name = toolName,
             InputJsonArguments = arguments,
             CancellationToken = cancellationToken,
@@ -188,6 +190,7 @@ public class McpRawRequestHandlers(McpServer server)
             throw new InvalidOperationException($"Resource not found: {uri}");
         }
 
+        var meta = request.Params?.Meta ?? EmptyObject.JsonElement;
         var jsonSerializer = server.Context.JsonSerializer;
         var jsonContext = jsonSerializer switch
         {
@@ -200,6 +203,7 @@ public class McpRawRequestHandlers(McpServer server)
             McpServer = server,
             Services = request.Services,
             JsonSerializerContext = jsonContext,
+            Meta = meta,
             Uri = uri,
             MimeType = resource.MimeType,
         };

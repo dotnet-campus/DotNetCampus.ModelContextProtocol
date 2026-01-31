@@ -28,6 +28,12 @@ public interface IMcpServerPrimitiveContext
     /// JSON serialization context that can be used to deserialize MCP tool invocation input parameters.
     /// </summary>
     JsonSerializerContext JsonSerializerContext { get; }
+
+    /// <summary>
+    /// 来自 MCP 协议中请求中 _meta 字段的元数据。<br/>
+    /// Metadata from the _meta field in the request in the MCP protocol.
+    /// </summary>
+    JsonElement Meta { get; init; }
 }
 
 /// <summary>
@@ -82,6 +88,7 @@ internal sealed class McpServerCallToolContext : IMcpServerCallToolContext
     public required McpServer McpServer { get; init; }
     public required IServiceProvider Services { get; init; }
     public required JsonSerializerContext JsonSerializerContext { get; init; }
+    public required JsonElement Meta { get; init; }
     public required string Name { get; init; }
     public required JsonElement InputJsonArguments { get; init; }
     public required CancellationToken CancellationToken { get; init; }
@@ -92,6 +99,7 @@ internal sealed class McpServerReadResourceContext : IMcpServerReadResourceConte
     public required McpServer McpServer { get; init; }
     public required IServiceProvider Services { get; init; }
     public required JsonSerializerContext JsonSerializerContext { get; init; }
+    public required JsonElement Meta { get; init; }
     public required string Uri { get; init; }
     public required string? MimeType { get; init; }
 }
