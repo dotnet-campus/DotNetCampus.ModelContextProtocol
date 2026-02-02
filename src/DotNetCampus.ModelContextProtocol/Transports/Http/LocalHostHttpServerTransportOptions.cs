@@ -62,6 +62,6 @@ public record LocalHostHttpServerTransportOptions
     /// </summary>
     public IReadOnlyList<string> GetUrlPrefixes()
     {
-        return [$"http://localhost:{Port}/", $"http://127.0.0.1:{Port}/", $"http://[::1]:{Port}/"];
+        return [$"http://127.0.0.1:{Port}/", $"http://[::1]:{Port}/"];
     }
 }

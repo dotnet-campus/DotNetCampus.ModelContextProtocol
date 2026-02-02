@@ -64,7 +64,7 @@ public static class McpServerBuilderTouchSocketHttpExtensions
         {
             builder.WithTouchSocketHttp(new TouchSocketHttpServerTransportOptions
             {
-                Listen = [$"localhost:{port}", $"127.0.0.1:{port}", $"[::1]:{port}"],
+                Listen = [$"127.0.0.1:{port}", $"[::1]:{port}"],
                 EndPoint = endPoint,
             });
             return builder;
