@@ -36,16 +36,16 @@ internal class Program
     {
         // The server name and version will be sent to clients via the MCP protocol
         var mcpServer = new McpServerBuilder("Sample Server", "1.0.0")
+            // If your MCP tool parameters and return values use custom types, you need to provide a JSON serialization context
+            .WithJsonSerializer(McpToolJsonContext.Default)
             .WithTools(t => t
-                // If your MCP tool parameters and return values use custom types, you need to provide a JSON serialization context
-                .WithJsonSerializer(McpToolJsonContext.Default)
                 // Register various MCP tools
                 .WithTool(() => new SampleTools())
                 .WithTool(() => new SampleTools2())
             )
             // Use Streamable HTTP transport, listening on http://localhost:5943/mcp
             // Also compatible with SSE, listening on http://localhost:5943/mcp/sse
-            .WithHttp(5943, "mcp")
+            .WithLocalHostHttp(5943, "mcp")
             // You can also use stdio (standard input/output) transport, which is recommended by the MCP protocol for all MCP servers
             // However, it's generally not recommended to enable both http and stdio simultaneously,
             // as the former typically requires singleton execution while the latter must support multiple instances
