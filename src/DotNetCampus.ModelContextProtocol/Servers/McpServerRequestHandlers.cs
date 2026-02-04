@@ -328,6 +328,12 @@ public class McpServerRequestHandlers
             Logger.Warn($"[McpServer][Mcp] Tool call failed: Usage error. ToolName={toolName}, Error={ex.Message}");
             return CallToolResult.FromException(ex);
         }
+        catch (McpCallToolFailedException ex)
+        {
+            // 程序内部状态或其他错误导致工具执行失败。
+            Logger.Warn($"[McpServer][Mcp] Tool call failed. ToolName={toolName}, Error={ex.Message}");
+            return CallToolResult.FromException(ex);
+        }
         catch (Exception ex)
         {
             // 其他未知错误。
