@@ -248,7 +248,7 @@ public class LocalHostHttpServerTransport : IServerTransport
             try
             {
                 await _manager.WriteMessageAsync(context.Response.OutputStream, jsonRpcResponse, cancellationToken);
-                context.Response.Close();
+                context.Response.SafeClose();
             }
             catch
             {
@@ -306,7 +306,7 @@ public class LocalHostHttpServerTransport : IServerTransport
         }
         finally
         {
-            context.Response.Close();
+            context.Response.SafeClose();
         }
     }
 
@@ -351,7 +351,7 @@ file static class Extensions
         internal void RespondHttpSuccess(HttpStatusCode statusCode)
         {
             context.Response.StatusCode = (int)statusCode;
-            context.Response.Close();
+            context.Response.SafeClose();
         }
 
         internal async Task RespondHttpError(HttpStatusCode statusCode, string? message = null)
@@ -362,7 +362,20 @@ file static class Extensions
                 await using var writer = new StreamWriter(context.Response.OutputStream, Encoding.UTF8, leaveOpen: true);
                 await writer.WriteAsync(message);
             }
-            context.Response.Close();
+            context.Response.SafeClose();
+        }
+    }
+
+    internal static void SafeClose(this HttpListenerResponse response)
+    {
+        try
+        {
+            response.Close();
+        }
+        catch (HttpListenerException ex) when (ex.ErrorCode is 1229)
+        {
+            // 1229 (0x4CD) ERROR_CONNECTION_INVALID: An operation was attempted on a nonexistent network connection.
+            // 客户端已关闭连接（超时或主动断开），客户端自己会重试，因此忽略此异常。
         }
     }
 }
