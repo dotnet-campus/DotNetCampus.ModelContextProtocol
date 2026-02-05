@@ -8,7 +8,7 @@ namespace DotNetCampus.ModelContextProtocol.Exceptions;
 /// 当在 JSON 序列化上下文中未生成所需的 JsonTypeInfo 时，抛出此异常。
 /// 用于特别提示开发者修复代码。
 /// </summary>
-public class McpToolJsonTypeInfoNotFoundException : ModelContextProtocolException
+public class McpToolJsonTypeInfoNotFoundException : McpToolException
 {
     /// <summary>
     /// 初始化 <see cref="McpToolJsonTypeInfoNotFoundException"/> 类的新实例。
