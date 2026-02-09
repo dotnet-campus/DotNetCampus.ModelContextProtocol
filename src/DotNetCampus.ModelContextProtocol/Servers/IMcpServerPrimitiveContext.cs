@@ -33,7 +33,7 @@ public interface IMcpServerPrimitiveContext
     /// 来自 MCP 协议中请求中 _meta 字段的元数据。<br/>
     /// Metadata from the _meta field in the request in the MCP protocol.
     /// </summary>
-    JsonElement Meta { get; init; }
+    JsonElement Meta { get; }
 }
 
 /// <summary>
