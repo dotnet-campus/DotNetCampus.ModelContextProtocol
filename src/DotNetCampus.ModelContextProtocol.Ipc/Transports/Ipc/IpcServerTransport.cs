@@ -13,7 +13,10 @@ namespace DotNetCampus.ModelContextProtocol.Transports.Ipc;
 /// </summary>
 public class IpcServerTransport : IServerTransport
 {
-    private const ulong McpIpcHeader = 0x22CDFD581663B8F4;
+    // System.Runtime.InteropServices.MemoryMarshal.Read<ulong>("Dncp.Mcp"u8).ToString("X")
+    // 小端写入时，可在 IPC 传输序列中看到 Dncp.Mcp = DotNetCampus.ModelContextProtocol 的 ASCII 字符串。
+    private const ulong McpIpcHeader = 0x70634D2E70636E44;
+
     private readonly IServerTransportManager _manager;
     private readonly TaskCompletionSource _taskCompletionSource = new();
     private readonly IpcProvider _server;
