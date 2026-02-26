@@ -228,8 +228,12 @@ file static class Extensions
         }
 
         var arguments = constructor.Parameters.Select(p =>
-            $$"""(({{p.Type.ToUsingString()}}?){{serviceProviderVariableName}}.GetService(typeof({{p.Type.ToUsingString()}})) ?? throw new global::System.InvalidOperationException("无委托 WithTool<T>() 无法创建 {{toolType.ToDisplayString()}}：未找到构造函数参数服务 '{{p.Type.ToDisplayString()}}'。请确保已通过 McpServerBuilder.WithServices 提供该服务。"))""");
-        return $$"""new {{toolType.ToUsingString()}}({{string.Join(", ", arguments)}})""";
+            $"""        (({p.Type.ToUsingString()}?){serviceProviderVariableName}.GetService(typeof({p.Type.ToUsingString()})) ?? throw new global::System.InvalidOperationException("无委托 WithTool<T>() 无法创建 {toolType.ToDisplayString()}：未找到构造函数参数服务 '{p.Type.ToDisplayString()}'。请确保已通过 McpServerBuilder.WithServices 提供该服务。"))""");
+        return $"""
+            new {toolType.ToUsingString()}(
+            {string.Join(",\n", arguments)}
+                )
+            """;
     }
 
     private static IMethodSymbol? SelectConstructor(INamedTypeSymbol toolType)
