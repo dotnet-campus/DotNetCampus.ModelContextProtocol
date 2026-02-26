@@ -61,8 +61,10 @@ public class TestMcpFactory
                 t.WithTool(() => new EchoTool());
                 t.WithTool(() => new ExceptionTool());
                 t.WithTool(() => new LongTextTool());
+                t.WithTool<InjectedConstructorTool>();
             },
-            TestToolJsonContext.Default);
+            TestToolJsonContext.Default,
+            CreateDefaultServices());
     }
 
     /// <summary>
@@ -75,6 +77,7 @@ public class TestMcpFactory
             builder =>
             {
                 builder
+                    .WithServices(CreateDefaultServices())
                     .WithJsonSerializer(TestToolJsonContext.Default)
                     .WithTools(t =>
                     {
@@ -83,10 +86,12 @@ public class TestMcpFactory
                         t.WithTool(() => new EchoTool());
                         t.WithTool(() => new ExceptionTool());
                         t.WithTool(() => new LongTextTool());
+                        t.WithTool<InjectedConstructorTool>();
                     })
                     .WithResources(r =>
                     {
                         r.WithResource(() => new SimpleResource());
+                        r.WithResource<InjectedConstructorResource>();
                     });
             });
     }
@@ -107,10 +112,16 @@ public class TestMcpFactory
     public async ValueTask<McpTestingPackage> CreateHttpAsync(
         HttpTransportType httpTransportType,
         Action<IMcpServerToolsBuilder> configureTools,
-        System.Text.Json.Serialization.JsonSerializerContext? jsonSerializerContext)
+        System.Text.Json.Serialization.JsonSerializerContext? jsonSerializerContext,
+        IServiceProvider? services = null)
     {
         return await CreateHttpCoreAsync(httpTransportType, builder =>
         {
+            if (services is not null)
+            {
+                builder.WithServices(services);
+            }
+
             builder.WithTools(configureTools);
             if (jsonSerializerContext is not null)
             {
@@ -156,6 +167,12 @@ public class TestMcpFactory
             .Build();
 
         return new McpTestingPackage(mcpServer, mcpClient);
+    }
+
+    private static IServiceProvider CreateDefaultServices()
+    {
+        return new TestServiceProvider()
+            .AddService(new TestInjectedDependency("mcp-test"));
     }
 }
 

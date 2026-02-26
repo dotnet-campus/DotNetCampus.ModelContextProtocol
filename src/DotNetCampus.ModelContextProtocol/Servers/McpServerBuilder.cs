@@ -209,7 +209,7 @@ public class McpServerBuilder(string serverName, string serverVersion)
 
         public IMcpServerResourcesProvider Resources => _builder._resources;
 
-        public IMcpServerToolsBuilder WithResource<TMcpServerResourceType>(CreationMode creationMode = CreationMode.Singleton)
+        public IMcpServerResourcesBuilder WithResource<TMcpServerResourceType>(CreationMode creationMode = CreationMode.Singleton)
             where TMcpServerResourceType : class
         {
             throw new InvalidOperationException(
@@ -288,7 +288,7 @@ public interface IMcpServerResourcesBuilder
     /// 添加工具（由源生成器拦截）。<br/>
     /// <typeparamref name="TMcpServerResourceType"/> 支持无参和有参构造函数，其中有参构造函数参数由 <see cref="McpServerBuilder.WithServices"/> 提供。
     /// </summary>
-    IMcpServerToolsBuilder WithResource<TMcpServerResourceType>(CreationMode creationMode = CreationMode.Singleton)
+    IMcpServerResourcesBuilder WithResource<TMcpServerResourceType>(CreationMode creationMode = CreationMode.Singleton)
         where TMcpServerResourceType : class;
 
     /// <summary>
