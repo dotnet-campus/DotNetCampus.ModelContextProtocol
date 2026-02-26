@@ -14,10 +14,12 @@ namespace DotNetCampus.ModelContextProtocol.Generators.Models;
 /// </summary>
 /// <param name="InterceptableLocation">拦截位置信息。</param>
 /// <param name="ToolType">被拦截的工具类型。</param>
+/// <param name="InvocationKind">WithTool 调用重载类型。</param>
 /// <param name="ToolModels">工具类型中所有标记了 McpServerToolAttribute 的方法对应的模型。</param>
 public record WithToolInterceptorGeneratingModel(
     InterceptableLocation InterceptableLocation,
     INamedTypeSymbol ToolType,
+    WithToolInvocationKind InvocationKind,
     List<McpServerToolGeneratingModel> ToolModels)
 {
     /// <summary>
@@ -62,6 +64,11 @@ public record WithToolInterceptorGeneratingModel(
         }
 
         var toolType = targetMethod.TypeArguments[0];
+        var invocationKind = GetInvocationKind(targetMethod, toolType);
+        if (invocationKind is null)
+        {
+            return null;
+        }
 
         // 在 toolType 中查找所有标记了 McpServerToolAttribute 的方法
         var toolMethods = toolType.GetMembers()
@@ -90,6 +97,50 @@ public record WithToolInterceptorGeneratingModel(
         return new WithToolInterceptorGeneratingModel(
             interceptableLocation,
             (INamedTypeSymbol)toolType,
+            invocationKind.Value,
             toolModels);
     }
+
+    private static WithToolInvocationKind? GetInvocationKind(IMethodSymbol targetMethod, ITypeSymbol toolType)
+    {
+        var parameters = targetMethod.Parameters;
+
+        // IMcpServerToolsBuilder.WithTool<T>(CreationMode creationMode = ...)
+        if (parameters.Length == 1
+            && parameters[0].Type.ToGlobalDisplayString() == G.CreationMode)
+        {
+            return WithToolInvocationKind.WithoutFactory;
+        }
+
+        // IMcpServerToolsBuilder.WithTool<T>(Func<T> toolFactory, CreationMode creationMode = ...)
+        if (parameters.Length == 2
+            && parameters[0].Type is INamedTypeSymbol
+            {
+                Name: "Func",
+                TypeArguments.Length: 1,
+            } funcType
+            && SymbolEqualityComparer.Default.Equals(funcType.TypeArguments[0], toolType)
+            && parameters[1].Type.ToGlobalDisplayString() == G.CreationMode)
+        {
+            return WithToolInvocationKind.WithFactory;
+        }
+
+        return null;
+    }
 };
+
+/// <summary>
+/// WithTool 调用重载类型。
+/// </summary>
+public enum WithToolInvocationKind
+{
+    /// <summary>
+    /// WithTool&lt;T&gt;(Func&lt;T&gt; toolFactory, ...)
+    /// </summary>
+    WithFactory,
+
+    /// <summary>
+    /// WithTool&lt;T&gt;(...)
+    /// </summary>
+    WithoutFactory,
+}
