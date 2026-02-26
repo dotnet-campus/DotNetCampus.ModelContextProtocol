@@ -12,6 +12,12 @@ namespace DotNetCampus.ModelContextProtocol.Servers;
 public interface IMcpServerResourcesProvider : IReadOnlyCollection<IMcpServerResource>
 {
     /// <summary>
+    /// 获取当前 MCP 服务实例。<br/>
+    /// Get current MCP server instance.
+    /// </summary>
+    McpServer Server { get; }
+
+    /// <summary>
     /// 尝试根据 URI 路由到匹配的资源，并提取参数。<br/>
     /// Try to route to a matching resource by URI and extract parameters.
     /// </summary>
@@ -56,7 +62,7 @@ internal sealed class McpServerResourcesProvider : IMcpServerResourcesProvider
     /// <summary>
     /// 提供给 <see cref="McpServerBuilder"/> 调用，当部分 MCP 资源需要注入时，可使用此属性进行注入。
     /// </summary>
-    internal McpServer Server
+    public McpServer Server
     {
         get => field ?? throw new InvalidOperationException("MCP 服务实例未被设置，这应该是 McpServerBuilder 实现的错误。");
         set => field = field switch

@@ -12,6 +12,12 @@ namespace DotNetCampus.ModelContextProtocol.Servers;
 public interface IMcpServerToolsProvider : IReadOnlyCollection<IMcpServerTool>
 {
     /// <summary>
+    /// 获取当前 MCP 服务实例。<br/>
+    /// Get current MCP server instance.
+    /// </summary>
+    McpServer Server { get; }
+
+    /// <summary>
     /// 尝试获取指定名称的工具。<br/>
     /// Try to get a tool by name.
     /// </summary>
@@ -42,7 +48,7 @@ internal sealed class McpServerToolsProvider : IMcpServerToolsProvider
     /// <summary>
     /// 提供给 <see cref="McpServerBuilder"/> 调用，当部分 MCP 工具需要注入时，可使用此属性进行注入。
     /// </summary>
-    internal McpServer Server
+    public McpServer Server
     {
         get => field ?? throw new InvalidOperationException("MCP 服务实例未被设置，这应该是 McpServerBuilder 实现的错误。");
         set => field = field switch

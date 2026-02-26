@@ -211,11 +211,10 @@ file static class Extensions
                 return {{resourceCreationExpression}};
             }
 
-            var server = builder.Resources.GetOrAddSingleton<global::DotNetCampus.ModelContextProtocol.Servers.McpServer>("DotNetCampus.ModelContextProtocol.Server.{{resourceType.ToDisplayString()}}", s => s);
             {{G.Func}}<{{resourceType.ToUsingString()}}> typedFactory = creationMode switch
             {
                 {{G.CreationMode}}.Singleton => () => builder.Resources.GetOrAddSingleton<{{resourceType.ToUsingString()}}>("{{resourceType.ToDisplayString()}}", CreateResource),
-                _ => () => CreateResource(server),
+                _ => () => CreateResource(builder.Resources.Server),
             };
             """;
     }

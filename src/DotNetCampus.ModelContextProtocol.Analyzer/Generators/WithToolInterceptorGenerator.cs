@@ -211,11 +211,10 @@ file static class Extensions
                 return {{toolCreationExpression}};
             }
 
-            var server = builder.Tools.GetOrAddSingleton<global::DotNetCampus.ModelContextProtocol.Servers.McpServer>("DotNetCampus.ModelContextProtocol.Server.{{toolType.ToDisplayString()}}", s => s);
             {{G.Func}}<{{toolType.ToUsingString()}}> typedFactory = creationMode switch
             {
                 {{G.CreationMode}}.Singleton => () => builder.Tools.GetOrAddSingleton<{{toolType.ToUsingString()}}>("{{toolType.ToDisplayString()}}", CreateTool),
-                _ => () => CreateTool(server),
+                _ => () => CreateTool(builder.Tools.Server),
             };
             """;
     }
