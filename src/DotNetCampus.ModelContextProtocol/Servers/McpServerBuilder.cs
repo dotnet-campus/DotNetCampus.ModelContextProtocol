@@ -180,6 +180,8 @@ public class McpServerBuilder(string serverName, string serverVersion)
             Tools = _tools,
             Resources = _resources,
         };
+        _tools.Server = server;
+        _resources.Server = server;
 
         // Context (Handlers + Transport)
         context.Handlers = _requestHandlers is { } requestHandlers
@@ -206,6 +208,13 @@ public class McpServerBuilder(string serverName, string serverVersion)
         }
 
         public IMcpServerResourcesProvider Resources => _builder._resources;
+
+        public IMcpServerToolsBuilder WithResource<TMcpServerResourceType>(CreationMode creationMode = CreationMode.Singleton)
+            where TMcpServerResourceType : class
+        {
+            throw new InvalidOperationException(
+                "拦截器未能成功拦截 WithResource<T> 方法调用。请确保：1. 所有需要被拦截的方法均已标记了 [McpServerResourceAttribute] 特性。2. 编译项目时没有出现与 DotNetCampus.ModelContextProtocol 源生成器相关的警告或错误（CS8785;CS9057）。");
+        }
 
         public IMcpServerResourcesBuilder WithResource<TMcpServerResourceType>(Func<TMcpServerResourceType> resourceFactory,
             CreationMode creationMode = CreationMode.Singleton)
@@ -237,6 +246,12 @@ public class McpServerBuilder(string serverName, string serverVersion)
         }
 
         public IMcpServerToolsProvider Tools => _builder._tools;
+
+        public IMcpServerToolsBuilder WithTool<TMcpServerToolType>(CreationMode creationMode = CreationMode.Singleton) where TMcpServerToolType : class
+        {
+            throw new InvalidOperationException(
+                "拦截器未能成功拦截 WithTool<T> 方法调用。请确保：1. 所有需要被拦截的方法均已标记了 [McpServerToolAttribute] 特性。2. 编译项目时没有出现与 DotNetCampus.ModelContextProtocol 源生成器相关的警告或错误（CS8785;CS9057）。");
+        }
 
         public IMcpServerToolsBuilder WithTool<TMcpServerToolType>(Func<TMcpServerToolType> toolFactory,
             CreationMode creationMode = CreationMode.Singleton)
@@ -270,14 +285,22 @@ public interface IMcpServerResourcesBuilder
     IMcpServerResourcesProvider Resources { get; }
 
     /// <summary>
-    /// 添加资源（由源生成器拦截）
+    /// 添加工具（由源生成器拦截）。<br/>
+    /// <typeparamref name="TMcpServerResourceType"/> 支持无参和有参构造函数，其中有参构造函数参数由 <see cref="McpServerBuilder.WithServices"/> 提供。
+    /// </summary>
+    IMcpServerToolsBuilder WithResource<TMcpServerResourceType>(CreationMode creationMode = CreationMode.Singleton)
+        where TMcpServerResourceType : class;
+
+    /// <summary>
+    /// 添加资源（由源生成器拦截）。<br/>
+    /// 使用委托创建 <typeparamref name="TMcpServerResourceType"/>。
     /// </summary>
     IMcpServerResourcesBuilder WithResource<TMcpServerResourceType>(Func<TMcpServerResourceType> resourceFactory,
         CreationMode creationMode = CreationMode.Singleton)
         where TMcpServerResourceType : class;
 
     /// <summary>
-    /// 添加资源（由源生成器调用）
+    /// 添加资源（由源生成器调用）。
     /// </summary>
     [EditorBrowsable(EditorBrowsableState.Never)]
     IMcpServerResourcesBuilder WithResource<TMcpServerResourceType>(IMcpServerResource resource)
@@ -295,7 +318,15 @@ public interface IMcpServerToolsBuilder
     IMcpServerToolsProvider Tools { get; }
 
     /// <summary>
-    /// 添加工具（由源生成器拦截）。
+    /// 添加工具（由源生成器拦截）。<br/>
+    /// <typeparamref name="TMcpServerToolType"/> 支持无参和有参构造函数，其中有参构造函数参数由 <see cref="McpServerBuilder.WithServices"/> 提供。
+    /// </summary>
+    IMcpServerToolsBuilder WithTool<TMcpServerToolType>(CreationMode creationMode = CreationMode.Singleton)
+        where TMcpServerToolType : class;
+
+    /// <summary>
+    /// 添加工具（由源生成器拦截）。<br/>
+    /// 使用委托创建 <typeparamref name="TMcpServerToolType"/>。
     /// </summary>
     IMcpServerToolsBuilder WithTool<TMcpServerToolType>(Func<TMcpServerToolType> toolFactory,
         CreationMode creationMode = CreationMode.Singleton)

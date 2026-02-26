@@ -24,7 +24,7 @@ public interface IMcpServerToolsProvider : IReadOnlyCollection<IMcpServerTool>
     /// 获取或添加单例容器实例。<br/>
     /// Get or add a singleton container instance.
     /// </summary>
-    T GetOrAddSingleton<T>(string containerId, Func<T> factory) where T : notnull;
+    T GetOrAddSingleton<T>(string containerId, Func<McpServer, T> factory) where T : notnull;
 }
 
 /// <summary>
@@ -39,6 +39,19 @@ internal sealed class McpServerToolsProvider : IMcpServerToolsProvider
     /// <inheritdoc />
     public int Count => _tools.Count;
 
+    /// <summary>
+    /// 提供给 <see cref="McpServerBuilder"/> 调用，当部分 MCP 工具需要注入时，可使用此属性进行注入。
+    /// </summary>
+    internal McpServer Server
+    {
+        get => field ?? throw new InvalidOperationException("MCP 服务实例未被设置，这应该是 McpServerBuilder 实现的错误。");
+        set => field = field switch
+        {
+            null => value,
+            _ => throw new InvalidOperationException("MCP 服务实例已被设置，不可重复设置。"),
+        };
+    }
+
     /// <inheritdoc />
     public bool TryGet(string name, [NotNullWhen(true)] out IMcpServerTool? tool)
     {
@@ -46,14 +59,14 @@ internal sealed class McpServerToolsProvider : IMcpServerToolsProvider
     }
 
     /// <inheritdoc />
-    public T GetOrAddSingleton<T>(string containerId, Func<T> factory) where T : notnull
+    public T GetOrAddSingleton<T>(string containerId, Func<McpServer, T> factory) where T : notnull
     {
         if (_containerInstances.TryGetValue(containerId, out var existingContainer))
         {
             return (T)existingContainer;
         }
 
-        var instance = factory();
+        var instance = factory(Server);
         _containerInstances[containerId] = instance;
         return instance;
     }

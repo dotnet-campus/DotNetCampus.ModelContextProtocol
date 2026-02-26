@@ -27,6 +27,11 @@ public interface IMcpServerContext
     string? JsonSerializerTypeName { get; }
 
     /// <summary>
+    /// 为 MCP 工具参数提供依赖注入。
+    /// </summary>
+    IServiceProvider? ServiceProvider { get; }
+
+    /// <summary>
     /// 指示是否启用调试模式。<br/>
     /// 启用后会记录或报告更多调试信息，这些调试信息甚至会通过 MCP 协议传输到客户端。
     /// </summary>

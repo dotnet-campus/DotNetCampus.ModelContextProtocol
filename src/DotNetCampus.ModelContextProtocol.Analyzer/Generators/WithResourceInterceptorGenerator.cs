@@ -100,12 +100,12 @@ file static class Extensions
             """;
 
         return builder.AddMethodDeclaration(signature, m => m
-            .WithSummaryComment($"拦截 WithResource&lt;{{{resourceType.Name}}}&gt; 方法调用。")
+            .WithSummaryComment($"拦截 WithResource&lt;{resourceType.Name}&gt; 方法调用。")
             .AddAttributes(models.Select(GenerateInterceptsLocationAttribute))
             .AddRawStatement($$"""
                 {{G.Func}}<{{resourceType.ToUsingString()}}> typedFactory = creationMode switch
                 {
-                    {{G.CreationMode}}.Singleton => () => builder.Resources.GetOrAddSingleton<{{resourceType.ToUsingString()}}>("{{resourceType.ToDisplayString()}}", () => ({{resourceType.ToUsingString()}})(object)resourceFactory()),
+                    {{G.CreationMode}}.Singleton => () => builder.Resources.GetOrAddSingleton<{{resourceType.ToUsingString()}}>("{{resourceType.ToDisplayString()}}", _ => ({{resourceType.ToUsingString()}})(object)resourceFactory()),
                     _ => () => ({{resourceType.ToUsingString()}})(object)resourceFactory(),
                 };
                 """)
