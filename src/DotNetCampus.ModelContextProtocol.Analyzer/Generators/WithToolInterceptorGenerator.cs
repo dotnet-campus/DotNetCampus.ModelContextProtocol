@@ -108,14 +108,14 @@ file static class Extensions
 
         var signature = invocationKind switch
         {
-            WithToolInvocationKind.WithFactory => $"""
+            WithFactoryInvocationKind.WithFactory => $"""
                 public static {G.IMcpServerToolsBuilder} WithTool_{simplifiedTypeName}<TMcpServerToolType>(
                     this {G.IMcpServerToolsBuilder} builder,
                     {G.Func}<TMcpServerToolType> toolFactory,
                     {G.CreationMode} creationMode = {G.CreationMode}.Singleton)
                     where TMcpServerToolType : class
                 """,
-            WithToolInvocationKind.WithoutFactory => $"""
+            WithFactoryInvocationKind.WithoutFactory => $"""
                 public static {G.IMcpServerToolsBuilder} WithTool_{simplifiedTypeName}<TMcpServerToolType>(
                     this {G.IMcpServerToolsBuilder} builder,
                     {G.CreationMode} creationMode = {G.CreationMode}.Singleton)
@@ -163,18 +163,18 @@ file static class Extensions
         return $"""[global::System.Runtime.CompilerServices.InterceptsLocation({location.Version}, "{location.Data}")] // {displayLocation}""";
     }
 
-    private static string GenerateTypedFactoryStatement(INamedTypeSymbol toolType, WithToolInvocationKind invocationKind)
+    private static string GenerateTypedFactoryStatement(INamedTypeSymbol toolType, WithFactoryInvocationKind invocationKind)
     {
         return invocationKind switch
         {
-            WithToolInvocationKind.WithFactory => $$"""
+            WithFactoryInvocationKind.WithFactory => $$"""
                 {{G.Func}}<{{toolType.ToUsingString()}}> typedFactory = creationMode switch
                 {
                     {{G.CreationMode}}.Singleton => () => builder.Tools.GetOrAddSingleton<{{toolType.ToUsingString()}}>("{{toolType.ToDisplayString()}}", _ => ({{toolType.ToUsingString()}})(object)toolFactory()),
                     _ => () => ({{toolType.ToUsingString()}})(object)toolFactory(),
                 };
                 """,
-            WithToolInvocationKind.WithoutFactory => GenerateTypedFactoryForNoFactoryInvocation(toolType),
+            WithFactoryInvocationKind.WithoutFactory => GenerateTypedFactoryForNoFactoryInvocation(toolType),
             _ => throw new ArgumentOutOfRangeException(nameof(invocationKind), invocationKind, null),
         };
     }
@@ -224,7 +224,7 @@ file static class Extensions
     {
         if (constructor.Parameters.Length == 0)
         {
-            return $$"""new {{toolType.ToUsingString()}}()""";
+            return $"new {toolType.ToUsingString()}()";
         }
 
         var arguments = constructor.Parameters.Select(p =>

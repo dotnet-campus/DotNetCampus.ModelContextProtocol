@@ -19,7 +19,7 @@ namespace DotNetCampus.ModelContextProtocol.Generators.Models;
 public record WithToolInterceptorGeneratingModel(
     InterceptableLocation InterceptableLocation,
     INamedTypeSymbol ToolType,
-    WithToolInvocationKind InvocationKind,
+    WithFactoryInvocationKind InvocationKind,
     List<McpServerToolGeneratingModel> ToolModels)
 {
     /// <summary>
@@ -101,7 +101,7 @@ public record WithToolInterceptorGeneratingModel(
             toolModels);
     }
 
-    private static WithToolInvocationKind? GetInvocationKind(IMethodSymbol targetMethod, ITypeSymbol toolType)
+    private static WithFactoryInvocationKind? GetInvocationKind(IMethodSymbol targetMethod, ITypeSymbol toolType)
     {
         var parameters = targetMethod.Parameters;
 
@@ -109,7 +109,7 @@ public record WithToolInterceptorGeneratingModel(
         if (parameters.Length == 1
             && parameters[0].Type.ToGlobalDisplayString() == G.CreationMode)
         {
-            return WithToolInvocationKind.WithoutFactory;
+            return WithFactoryInvocationKind.WithoutFactory;
         }
 
         // IMcpServerToolsBuilder.WithTool<T>(Func<T> toolFactory, CreationMode creationMode = ...)
@@ -122,25 +122,9 @@ public record WithToolInterceptorGeneratingModel(
             && SymbolEqualityComparer.Default.Equals(funcType.TypeArguments[0], toolType)
             && parameters[1].Type.ToGlobalDisplayString() == G.CreationMode)
         {
-            return WithToolInvocationKind.WithFactory;
+            return WithFactoryInvocationKind.WithFactory;
         }
 
         return null;
     }
 };
-
-/// <summary>
-/// WithTool 调用重载类型。
-/// </summary>
-public enum WithToolInvocationKind
-{
-    /// <summary>
-    /// WithTool&lt;T&gt;(Func&lt;T&gt; toolFactory, ...)
-    /// </summary>
-    WithFactory,
-
-    /// <summary>
-    /// WithTool&lt;T&gt;(...)
-    /// </summary>
-    WithoutFactory,
-}

@@ -76,7 +76,7 @@ public class WithResourceInterceptorGenerator : IIncrementalGenerator
 file static class Extensions
 {
     /// <summary>
-    /// 添加拦截器方法（为同一资源类型的所有拦截位置生成一个方法）。
+    /// 添加拦截器方法（为同一资源类型的所有拦截位置生成方法）。
     /// </summary>
     public static IAllowMemberDeclaration AddResourceInterceptorMethod(
         this IAllowMemberDeclaration builder,
@@ -89,27 +89,46 @@ file static class Extensions
 
         var firstModel = models[0];
         var resourceType = firstModel.ResourceType;
-        var simplifiedTypeName = NamingHelper.MakePascalCase(resourceType.ToDisplayString());
 
-        var signature = $"""
-            public static {G.IMcpServerResourcesBuilder} WithResource_{simplifiedTypeName}<TMcpServerResourceType>(
-                this {G.IMcpServerResourcesBuilder} builder,
-                {G.Func}<TMcpServerResourceType> resourceFactory,
-                {G.CreationMode} creationMode = {G.CreationMode}.Singleton)
-                where TMcpServerResourceType : class
-            """;
+        foreach (var kindModels in models.GroupBy(x => x.InvocationKind))
+        {
+            builder = builder.AddResourceInterceptorMethodByKind(kindModels.ToList(), resourceType);
+        }
+
+        return builder;
+    }
+
+    private static IAllowMemberDeclaration AddResourceInterceptorMethodByKind(
+        this IAllowMemberDeclaration builder,
+        List<WithResourceInterceptorGeneratingModel> models,
+        INamedTypeSymbol resourceType)
+    {
+        var simplifiedTypeName = NamingHelper.MakePascalCase(resourceType.ToDisplayString());
+        var invocationKind = models[0].InvocationKind;
+
+        var signature = invocationKind switch
+        {
+            WithFactoryInvocationKind.WithFactory => $"""
+                public static {G.IMcpServerResourcesBuilder} WithResource_{simplifiedTypeName}<TMcpServerResourceType>(
+                    this {G.IMcpServerResourcesBuilder} builder,
+                    {G.Func}<TMcpServerResourceType> resourceFactory,
+                    {G.CreationMode} creationMode = {G.CreationMode}.Singleton)
+                    where TMcpServerResourceType : class
+                """,
+            WithFactoryInvocationKind.WithoutFactory => $"""
+                public static {G.IMcpServerResourcesBuilder} WithResource_{simplifiedTypeName}<TMcpServerResourceType>(
+                    this {G.IMcpServerResourcesBuilder} builder,
+                    {G.CreationMode} creationMode = {G.CreationMode}.Singleton)
+                    where TMcpServerResourceType : class
+                """,
+            _ => throw new ArgumentOutOfRangeException(nameof(invocationKind), invocationKind, null),
+        };
 
         return builder.AddMethodDeclaration(signature, m => m
             .WithSummaryComment($"拦截 WithResource&lt;{resourceType.Name}&gt; 方法调用。")
             .AddAttributes(models.Select(GenerateInterceptsLocationAttribute))
-            .AddRawStatement($$"""
-                {{G.Func}}<{{resourceType.ToUsingString()}}> typedFactory = creationMode switch
-                {
-                    {{G.CreationMode}}.Singleton => () => builder.Resources.GetOrAddSingleton<{{resourceType.ToUsingString()}}>("{{resourceType.ToDisplayString()}}", _ => ({{resourceType.ToUsingString()}})(object)resourceFactory()),
-                    _ => () => ({{resourceType.ToUsingString()}})(object)resourceFactory(),
-                };
-                """)
-            .AddRawStatements(firstModel.ResourceModels.SelectMany(resourceModel => GenerateResourceBridgeCreation(resourceModel, resourceType)))
+            .AddRawStatement(GenerateTypedFactoryStatement(resourceType, invocationKind))
+            .AddRawStatements(models[0].ResourceModels.SelectMany(resourceModel => GenerateResourceBridgeCreation(resourceModel, resourceType)))
             .AddRawStatement("return builder;")
         );
     }
@@ -142,6 +161,103 @@ file static class Extensions
         var location = model.InterceptableLocation;
         var displayLocation = location.GetDisplayLocation();
         return $"""[global::System.Runtime.CompilerServices.InterceptsLocation({location.Version}, "{location.Data}")] // {displayLocation}""";
+    }
+
+    private static string GenerateTypedFactoryStatement(INamedTypeSymbol resourceType, WithFactoryInvocationKind invocationKind)
+    {
+        return invocationKind switch
+        {
+            WithFactoryInvocationKind.WithFactory => $$"""
+                {{G.Func}}<{{resourceType.ToUsingString()}}> typedFactory = creationMode switch
+                {
+                    {{G.CreationMode}}.Singleton => () => builder.Resources.GetOrAddSingleton<{{resourceType.ToUsingString()}}>("{{resourceType.ToDisplayString()}}", _ => ({{resourceType.ToUsingString()}})(object)resourceFactory()),
+                    _ => () => ({{resourceType.ToUsingString()}})(object)resourceFactory(),
+                };
+                """,
+            WithFactoryInvocationKind.WithoutFactory => GenerateTypedFactoryForNoFactoryInvocation(resourceType),
+            _ => throw new ArgumentOutOfRangeException(nameof(invocationKind), invocationKind, null),
+        };
+    }
+
+    private static string GenerateTypedFactoryForNoFactoryInvocation(INamedTypeSymbol resourceType)
+    {
+        var constructor = SelectConstructor(resourceType);
+        if (constructor is null)
+        {
+            return $$"""
+                #error 无法拦截 WithResource<{{resourceType.ToDisplayString()}}>()：未找到可访问的实例构造函数。请为该类型提供 public/internal/protected internal 构造函数，或改用 WithResource(() => new {{resourceType.ToDisplayString()}}(...))。
+                {{G.Func}}<{{resourceType.ToUsingString()}}> typedFactory = () => throw new global::System.InvalidOperationException("无法创建 {{resourceType.ToDisplayString()}} 实例，因为未找到可访问的实例构造函数。");
+                """;
+        }
+
+        if (constructor.Parameters.Length == 0)
+        {
+            var creationExpression = GenerateResourceCreationExpression(resourceType, constructor, "_");
+            return $$"""
+                {{G.Func}}<{{resourceType.ToUsingString()}}> typedFactory = creationMode switch
+                {
+                    {{G.CreationMode}}.Singleton => () => builder.Resources.GetOrAddSingleton<{{resourceType.ToUsingString()}}>("{{resourceType.ToDisplayString()}}", _ => {{creationExpression}}),
+                    _ => () => {{creationExpression}},
+                };
+                """;
+        }
+
+        var resourceCreationExpression = GenerateResourceCreationExpression(resourceType, constructor, "serviceProvider");
+        return $$"""
+            static {{resourceType.ToUsingString()}} CreateResource(global::DotNetCampus.ModelContextProtocol.Servers.McpServer server)
+            {
+                var serviceProvider = server.Context.ServiceProvider
+                    ?? throw new global::System.InvalidOperationException("无委托 WithResource<T>() 需要可用的 IServiceProvider，请先调用 McpServerBuilder.WithServices。\n当前资源类型：{{resourceType.ToDisplayString()}}。");
+                return {{resourceCreationExpression}};
+            }
+
+            var server = builder.Resources.GetOrAddSingleton<global::DotNetCampus.ModelContextProtocol.Servers.McpServer>("DotNetCampus.ModelContextProtocol.Server.{{resourceType.ToDisplayString()}}", s => s);
+            {{G.Func}}<{{resourceType.ToUsingString()}}> typedFactory = creationMode switch
+            {
+                {{G.CreationMode}}.Singleton => () => builder.Resources.GetOrAddSingleton<{{resourceType.ToUsingString()}}>("{{resourceType.ToDisplayString()}}", CreateResource),
+                _ => () => CreateResource(server),
+            };
+            """;
+    }
+
+    private static string GenerateResourceCreationExpression(INamedTypeSymbol resourceType, IMethodSymbol constructor, string serviceProviderVariableName)
+    {
+        if (constructor.Parameters.Length == 0)
+        {
+            return $"new {resourceType.ToUsingString()}()";
+        }
+
+        var arguments = constructor.Parameters.Select(p =>
+            $"""        (({p.Type.ToUsingString()}?){serviceProviderVariableName}.GetService(typeof({p.Type.ToUsingString()})) ?? throw new global::System.InvalidOperationException(\"无委托 WithResource<T>() 无法创建 {resourceType.ToDisplayString()}：未找到构造函数参数服务 '{p.Type.ToDisplayString()}'。请确保已通过 McpServerBuilder.WithServices 提供该服务。\"))""");
+        return $"""
+            new {resourceType.ToUsingString()}(
+            {string.Join(",\n", arguments)}
+                )
+            """;
+    }
+
+    private static IMethodSymbol? SelectConstructor(INamedTypeSymbol resourceType)
+    {
+        var constructors = resourceType.InstanceConstructors
+            .Where(IsAccessibleFromGeneratedCode)
+            .ToList();
+
+        if (constructors.Count == 0)
+        {
+            return null;
+        }
+
+        return constructors
+            .OrderByDescending(c => c.Parameters.Length)
+            .ThenBy(c => c.IsImplicitlyDeclared)
+            .First();
+    }
+
+    private static bool IsAccessibleFromGeneratedCode(IMethodSymbol constructor)
+    {
+        return constructor.DeclaredAccessibility is Accessibility.Public
+            or Accessibility.Internal
+            or Accessibility.ProtectedOrInternal;
     }
 
     /// <summary>
