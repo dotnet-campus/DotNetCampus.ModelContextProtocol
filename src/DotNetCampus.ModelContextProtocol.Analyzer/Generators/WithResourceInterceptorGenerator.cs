@@ -181,7 +181,7 @@ file static class Extensions
 
     private static string GenerateTypedFactoryForNoFactoryInvocation(INamedTypeSymbol resourceType)
     {
-        var constructor = SelectConstructor(resourceType);
+        var constructor = WithInterceptorGeneratorHelper.SelectConstructor(resourceType);
         if (constructor is null)
         {
             return $$"""
@@ -192,7 +192,7 @@ file static class Extensions
 
         if (constructor.Parameters.Length == 0)
         {
-            var creationExpression = GenerateResourceCreationExpression(resourceType, constructor, "_");
+            var creationExpression = WithInterceptorGeneratorHelper.GenerateCreationExpression(resourceType, constructor, "_", "WithResource");
             return $$"""
                 {{G.Func}}<{{resourceType.ToUsingString()}}> typedFactory = creationMode switch
                 {
@@ -202,7 +202,7 @@ file static class Extensions
                 """;
         }
 
-        var resourceCreationExpression = GenerateResourceCreationExpression(resourceType, constructor, "serviceProvider");
+        var resourceCreationExpression = WithInterceptorGeneratorHelper.GenerateCreationExpression(resourceType, constructor, "serviceProvider", "WithResource");
         return $$"""
             static {{resourceType.ToUsingString()}} CreateResource(global::DotNetCampus.ModelContextProtocol.Servers.McpServer server)
             {
@@ -218,46 +218,6 @@ file static class Extensions
                 _ => () => CreateResource(server),
             };
             """;
-    }
-
-    private static string GenerateResourceCreationExpression(INamedTypeSymbol resourceType, IMethodSymbol constructor, string serviceProviderVariableName)
-    {
-        if (constructor.Parameters.Length == 0)
-        {
-            return $"new {resourceType.ToUsingString()}()";
-        }
-
-        var arguments = constructor.Parameters.Select(p =>
-            $"""        (({p.Type.ToUsingString()}?){serviceProviderVariableName}.GetService(typeof({p.Type.ToUsingString()})) ?? throw new global::System.InvalidOperationException(\"无委托 WithResource<T>() 无法创建 {resourceType.ToDisplayString()}：未找到构造函数参数服务 '{p.Type.ToDisplayString()}'。请确保已通过 McpServerBuilder.WithServices 提供该服务。\"))""");
-        return $"""
-            new {resourceType.ToUsingString()}(
-            {string.Join(",\n", arguments)}
-                )
-            """;
-    }
-
-    private static IMethodSymbol? SelectConstructor(INamedTypeSymbol resourceType)
-    {
-        var constructors = resourceType.InstanceConstructors
-            .Where(IsAccessibleFromGeneratedCode)
-            .ToList();
-
-        if (constructors.Count == 0)
-        {
-            return null;
-        }
-
-        return constructors
-            .OrderByDescending(c => c.Parameters.Length)
-            .ThenBy(c => c.IsImplicitlyDeclared)
-            .First();
-    }
-
-    private static bool IsAccessibleFromGeneratedCode(IMethodSymbol constructor)
-    {
-        return constructor.DeclaredAccessibility is Accessibility.Public
-            or Accessibility.Internal
-            or Accessibility.ProtectedOrInternal;
     }
 
     /// <summary>

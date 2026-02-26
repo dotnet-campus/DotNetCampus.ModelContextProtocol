@@ -181,7 +181,7 @@ file static class Extensions
 
     private static string GenerateTypedFactoryForNoFactoryInvocation(INamedTypeSymbol toolType)
     {
-        var constructor = SelectConstructor(toolType);
+        var constructor = WithInterceptorGeneratorHelper.SelectConstructor(toolType);
         if (constructor is null)
         {
             return $$"""
@@ -192,7 +192,7 @@ file static class Extensions
 
         if (constructor.Parameters.Length == 0)
         {
-            var creationExpression = GenerateToolCreationExpression(toolType, constructor, "_");
+            var creationExpression = WithInterceptorGeneratorHelper.GenerateCreationExpression(toolType, constructor, "_", "WithTool");
             return $$"""
                 {{G.Func}}<{{toolType.ToUsingString()}}> typedFactory = creationMode switch
                 {
@@ -202,7 +202,7 @@ file static class Extensions
                 """;
         }
 
-        var toolCreationExpression = GenerateToolCreationExpression(toolType, constructor, "serviceProvider");
+        var toolCreationExpression = WithInterceptorGeneratorHelper.GenerateCreationExpression(toolType, constructor, "serviceProvider", "WithTool");
         return $$"""
             static {{toolType.ToUsingString()}} CreateTool(global::DotNetCampus.ModelContextProtocol.Servers.McpServer server)
             {
@@ -218,46 +218,6 @@ file static class Extensions
                 _ => () => CreateTool(server),
             };
             """;
-    }
-
-    private static string GenerateToolCreationExpression(INamedTypeSymbol toolType, IMethodSymbol constructor, string serviceProviderVariableName)
-    {
-        if (constructor.Parameters.Length == 0)
-        {
-            return $"new {toolType.ToUsingString()}()";
-        }
-
-        var arguments = constructor.Parameters.Select(p =>
-            $"""        (({p.Type.ToUsingString()}?){serviceProviderVariableName}.GetService(typeof({p.Type.ToUsingString()})) ?? throw new global::System.InvalidOperationException("无委托 WithTool<T>() 无法创建 {toolType.ToDisplayString()}：未找到构造函数参数服务 '{p.Type.ToDisplayString()}'。请确保已通过 McpServerBuilder.WithServices 提供该服务。"))""");
-        return $"""
-            new {toolType.ToUsingString()}(
-            {string.Join(",\n", arguments)}
-                )
-            """;
-    }
-
-    private static IMethodSymbol? SelectConstructor(INamedTypeSymbol toolType)
-    {
-        var constructors = toolType.InstanceConstructors
-            .Where(IsAccessibleFromGeneratedCode)
-            .ToList();
-
-        if (constructors.Count == 0)
-        {
-            return null;
-        }
-
-        return constructors
-            .OrderByDescending(c => c.Parameters.Length)
-            .ThenBy(c => c.IsImplicitlyDeclared)
-            .First();
-    }
-
-    private static bool IsAccessibleFromGeneratedCode(IMethodSymbol constructor)
-    {
-        return constructor.DeclaredAccessibility is Accessibility.Public
-            or Accessibility.Internal
-            or Accessibility.ProtectedOrInternal;
     }
 
     /// <summary>

@@ -64,7 +64,7 @@ public record WithResourceInterceptorGeneratingModel(
         }
 
         var resourceType = targetMethod.TypeArguments[0];
-        var invocationKind = GetInvocationKind(targetMethod, resourceType);
+        var invocationKind = WithFactoryInvocationKindResolver.TryResolve(targetMethod, resourceType);
         if (invocationKind is null)
         {
             return null;
@@ -99,32 +99,5 @@ public record WithResourceInterceptorGeneratingModel(
             (INamedTypeSymbol)resourceType,
             invocationKind.Value,
             resourceModels);
-    }
-
-    private static WithFactoryInvocationKind? GetInvocationKind(IMethodSymbol targetMethod, ITypeSymbol resourceType)
-    {
-        var parameters = targetMethod.Parameters;
-
-        // IMcpServerResourcesBuilder.WithResource<T>(CreationMode creationMode = ...)
-        if (parameters.Length == 1
-            && parameters[0].Type.ToGlobalDisplayString() == G.CreationMode)
-        {
-            return WithFactoryInvocationKind.WithoutFactory;
-        }
-
-        // IMcpServerResourcesBuilder.WithResource<T>(Func<T> resourceFactory, CreationMode creationMode = ...)
-        if (parameters.Length == 2
-            && parameters[0].Type is INamedTypeSymbol
-            {
-                Name: "Func",
-                TypeArguments.Length: 1,
-            } funcType
-            && SymbolEqualityComparer.Default.Equals(funcType.TypeArguments[0], resourceType)
-            && parameters[1].Type.ToGlobalDisplayString() == G.CreationMode)
-        {
-            return WithFactoryInvocationKind.WithFactory;
-        }
-
-        return null;
     }
 }

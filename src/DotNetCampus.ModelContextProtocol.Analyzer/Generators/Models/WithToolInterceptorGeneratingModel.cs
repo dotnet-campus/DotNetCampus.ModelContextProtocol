@@ -64,7 +64,7 @@ public record WithToolInterceptorGeneratingModel(
         }
 
         var toolType = targetMethod.TypeArguments[0];
-        var invocationKind = GetInvocationKind(targetMethod, toolType);
+        var invocationKind = WithFactoryInvocationKindResolver.TryResolve(targetMethod, toolType);
         if (invocationKind is null)
         {
             return null;
@@ -99,32 +99,5 @@ public record WithToolInterceptorGeneratingModel(
             (INamedTypeSymbol)toolType,
             invocationKind.Value,
             toolModels);
-    }
-
-    private static WithFactoryInvocationKind? GetInvocationKind(IMethodSymbol targetMethod, ITypeSymbol toolType)
-    {
-        var parameters = targetMethod.Parameters;
-
-        // IMcpServerToolsBuilder.WithTool<T>(CreationMode creationMode = ...)
-        if (parameters.Length == 1
-            && parameters[0].Type.ToGlobalDisplayString() == G.CreationMode)
-        {
-            return WithFactoryInvocationKind.WithoutFactory;
-        }
-
-        // IMcpServerToolsBuilder.WithTool<T>(Func<T> toolFactory, CreationMode creationMode = ...)
-        if (parameters.Length == 2
-            && parameters[0].Type is INamedTypeSymbol
-            {
-                Name: "Func",
-                TypeArguments.Length: 1,
-            } funcType
-            && SymbolEqualityComparer.Default.Equals(funcType.TypeArguments[0], toolType)
-            && parameters[1].Type.ToGlobalDisplayString() == G.CreationMode)
-        {
-            return WithFactoryInvocationKind.WithFactory;
-        }
-
-        return null;
     }
 };
