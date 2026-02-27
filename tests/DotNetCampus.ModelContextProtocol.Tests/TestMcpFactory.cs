@@ -48,6 +48,17 @@ public class TestMcpFactory
     }
 
     /// <summary>
+    /// 创建一个仅包含 transient 计数工具的 HTTP 传输 MCP 测试包。
+    /// 用于验证 CreationMode.Transient 的实例语义。
+    /// </summary>
+    public async ValueTask<McpTestingPackage> CreateTransientCounterHttpAsync(HttpTransportType httpTransportType)
+    {
+        return await CreateHttpAsync(
+            httpTransportType,
+            t => t.WithTool<StatefulCounterTool>(CreationMode.Transient));
+    }
+
+    /// <summary>
     /// 创建一个完整的 HTTP 传输 MCP 测试包（包含所有测试工具）。
     /// </summary>
     public async ValueTask<McpTestingPackage> CreateFullHttpAsync(HttpTransportType httpTransportType)
@@ -61,6 +72,7 @@ public class TestMcpFactory
                 t.WithTool(() => new EchoTool());
                 t.WithTool(() => new ExceptionTool());
                 t.WithTool(() => new LongTextTool());
+                t.WithTool(() => new StatefulCounterTool());
                 t.WithTool<InjectedConstructorTool>();
             },
             TestToolJsonContext.Default,
@@ -86,6 +98,7 @@ public class TestMcpFactory
                         t.WithTool(() => new EchoTool());
                         t.WithTool(() => new ExceptionTool());
                         t.WithTool(() => new LongTextTool());
+                        t.WithTool(() => new StatefulCounterTool());
                         t.WithTool<InjectedConstructorTool>();
                     })
                     .WithResources(r =>

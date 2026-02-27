@@ -211,6 +211,58 @@ public class CoreTests
         Assert.AreEqual(testMessage, textContent.Text);
     }
 
+    [TestMethod("CallTool_StatefulCounter_Singleton: 同一工具实例跨调用复用")]
+    [DataRow(HttpTransportType.LocalHost, DisplayName = "LocalHost")]
+    [DataRow(HttpTransportType.TouchSocket, DisplayName = "TouchSocket")]
+    public async Task CallTool_StatefulCounter_Singleton(HttpTransportType transportType)
+    {
+        // Arrange
+        await using var package = await TestMcpFactory.Shared.CreateFullHttpAsync(transportType);
+
+        // Act
+        var first = await package.Client.CallToolAsync("stateful_counter");
+        var second = await package.Client.CallToolAsync("stateful_counter");
+
+        // Assert
+        Assert.AreNotEqual(true, first.IsError);
+        Assert.AreNotEqual(true, second.IsError);
+        Assert.IsTrue(first.Content.Count > 0);
+        Assert.IsTrue(second.Content.Count > 0);
+        Assert.IsInstanceOfType<TextContentBlock>(first.Content[0]);
+        Assert.IsInstanceOfType<TextContentBlock>(second.Content[0]);
+
+        var firstText = (TextContentBlock)first.Content[0];
+        var secondText = (TextContentBlock)second.Content[0];
+        Assert.AreEqual("1", firstText.Text);
+        Assert.AreEqual("2", secondText.Text);
+    }
+
+    [TestMethod("CallTool_StatefulCounter_Transient: 每次调用应创建新实例")]
+    [DataRow(HttpTransportType.LocalHost, DisplayName = "LocalHost")]
+    [DataRow(HttpTransportType.TouchSocket, DisplayName = "TouchSocket")]
+    public async Task CallTool_StatefulCounter_Transient(HttpTransportType transportType)
+    {
+        // Arrange
+        await using var package = await TestMcpFactory.Shared.CreateTransientCounterHttpAsync(transportType);
+
+        // Act
+        var first = await package.Client.CallToolAsync("stateful_counter");
+        var second = await package.Client.CallToolAsync("stateful_counter");
+
+        // Assert
+        Assert.AreNotEqual(true, first.IsError);
+        Assert.AreNotEqual(true, second.IsError);
+        Assert.IsTrue(first.Content.Count > 0);
+        Assert.IsTrue(second.Content.Count > 0);
+        Assert.IsInstanceOfType<TextContentBlock>(first.Content[0]);
+        Assert.IsInstanceOfType<TextContentBlock>(second.Content[0]);
+
+        var firstText = (TextContentBlock)first.Content[0];
+        var secondText = (TextContentBlock)second.Content[0];
+        Assert.AreEqual("1", firstText.Text);
+        Assert.AreEqual("1", secondText.Text);
+    }
+
     #endregion
 
     #region 1.3 资源访问
