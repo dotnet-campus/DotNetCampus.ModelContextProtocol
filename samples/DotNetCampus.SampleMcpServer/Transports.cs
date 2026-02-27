@@ -1,0 +1,9 @@
+﻿using DotNetCampus.ModelContextProtocol.CompilerServices;
+
+namespace DotNetCampus.SampleMcpServer;
+
+[GenerateMcpServerTransport(McpServerTransportPackageId.TouchSocketHttp)]
+public partial class TouchSocketHttpServerTransport;
+
+[GenerateMcpClientTransport(McpClientTransportPackageId.DotNetCampusIpc)]
+public partial class TouchSocketHttpClientTransport;

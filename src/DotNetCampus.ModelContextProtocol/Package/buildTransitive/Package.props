@@ -1,0 +1,35 @@
+<Project>
+
+  <PropertyGroup>
+
+    <!--
+      The analyzers in this package is very important, so we treat related warnings as errors.
+      - CS8785: Analyzer does not generate sources
+      - CS9057: Analyzer version is greater than the compiler version
+    -->
+    <WarningsAsErrors>$(WarningsAsErrors);CS8785;CS9057</WarningsAsErrors>
+
+    <!-- 默认不生成传输层代码，除非项目显式指定。 -->
+    <DotNetCampusModelContextProtocolGenerateTransports Condition="'$(DotNetCampusModelContextProtocolGenerateTransports)' == ''">false</DotNetCampusModelContextProtocolGenerateTransports>
+
+    <!-- 默认使用拦截器，除非项目显式关闭。 -->
+    <DotNetCampusModelContextProtocolUseInterceptor Condition="'$(DotNetCampusModelContextProtocolUseInterceptor)' == ''">true</DotNetCampusModelContextProtocolUseInterceptor>
+    <InterceptorsNamespaces>$(InterceptorsNamespaces);DotNetCampus.ModelContextProtocol.Compiler</InterceptorsNamespaces>
+
+    <!--
+      https://github.com/dotnet/roslyn/blob/main/docs/features/interceptors.md
+
+      For compatibility, the property <InterceptorsPreviewNamespaces> can be used as an alias for <InterceptorsNamespaces>.
+      If both properties have non-empty values, they will be concatenated together in the order $(InterceptorsNamespaces);$(InterceptorsPreviewNamespaces) when passed to the compiler.
+      为了兼容性，属性 <InterceptorsPreviewNamespaces> 可用作 <InterceptorsNamespaces> 的别名。
+      如果两个属性都具有非空值，则它们在传递给编译器时将按 $(InterceptorsNamespaces);$(InterceptorsPreviewNamespaces) 的顺序连接在一起。
+    -->
+    <InterceptorsPreviewNamespaces>$(InterceptorsPreviewNamespaces);DotNetCampus.ModelContextProtocol.Compiler</InterceptorsPreviewNamespaces>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <CompilerVisibleProperty Include="DotNetCampusModelContextProtocolGenerateTransports" />
+    <CompilerVisibleProperty Include="DotNetCampusModelContextProtocolUseInterceptor" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,39 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <IsPackable>false</IsPackable>
+    <PublishAot>true</PublishAot>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <DotNetCampusModelContextProtocolGenerateTransports>false</DotNetCampusModelContextProtocolGenerateTransports>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="DotNetCampus.CommandLine" />
+    <PackageReference Include="dotnetCampus.Ipc" />
+    <PackageReference Include="DotNetCampus.LatestCSharpFeatures" />
+    <PackageReference Include="DotNetCampus.Logger" />
+    <PackageReference Include="TouchSocket.Http" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\DotNetCampus.ModelContextProtocol.Analyzer\DotNetCampus.ModelContextProtocol.Analyzer.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="..\..\src\DotNetCampus.ModelContextProtocol.Ipc\DotNetCampus.ModelContextProtocol.Ipc.csproj" />
+    <ProjectReference Include="..\..\src\DotNetCampus.ModelContextProtocol.TouchSocket.Http\DotNetCampus.ModelContextProtocol.TouchSocket.Http.csproj" />
+    <ProjectReference Include="..\..\src\DotNetCampus.ModelContextProtocol\DotNetCampus.ModelContextProtocol.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="mcp-simple-diagram.avif">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Update="CommandLineOptions.cs">
+      <DependentUpon>Program.cs</DependentUpon>
+    </Compile>
+  </ItemGroup>
+
+</Project>

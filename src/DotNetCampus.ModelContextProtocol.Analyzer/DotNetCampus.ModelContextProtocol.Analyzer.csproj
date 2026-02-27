@@ -1,0 +1,40 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <IsPackable>false</IsPackable>
+    <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
+    <IsRoslynComponent>true</IsRoslynComponent>
+    <RootNamespace>DotNetCampus.ModelContextProtocol</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="DotNetCampus.CodeAnalysisUtils" />
+    <PackageReference Include="DotNetCampus.LatestCSharpFeatures" />
+    <PackageReference Include="Microsoft.CodeAnalysis.Analyzers">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Workspaces" />
+    <PackageReference Include="System.Collections.Immutable" />
+    <PackageReference Include="System.Text.Json" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageVersion Update="System.Text.Json" Version="8.0.6" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="..\DotNetCampus.ModelContextProtocol\Properties\Compatibility.cs" LinkBase="Properties" />
+    <Compile Include="..\DotNetCampus.ModelContextProtocol\CompilerServices\*Attribute.cs" LinkBase="CompilerServices" />
+    <Compile Include="..\DotNetCampus.ModelContextProtocol\CompilerServices\CompiledJsonSchema.cs" LinkBase="CompilerServices" />
+    <Compile Include="..\DotNetCampus.ModelContextProtocol\Servers\CreationMode.cs" LinkBase="CompilerServices" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="..\DotNetCampus.ModelContextProtocol.Ipc\**\*.cs" LinkBase="Transports\DotNetCampus.Ipc" />
+    <EmbeddedResource Include="..\DotNetCampus.ModelContextProtocol.TouchSocket.Http\**\*.cs" LinkBase="Transports\TouchSocket.Http" />
+  </ItemGroup>
+
+</Project>
