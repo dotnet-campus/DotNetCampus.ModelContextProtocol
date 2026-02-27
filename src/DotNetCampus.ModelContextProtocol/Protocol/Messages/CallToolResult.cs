@@ -17,6 +17,7 @@ public record CallToolResult : Result
     /// </summary>
     public static CallToolResult Empty { get; } = new CallToolResult
     {
+        IsError = false,
         Content = [],
     };
 
@@ -114,6 +115,7 @@ public record CallToolResult : Result
     {
         return new CallToolResult
         {
+            IsError = false,
             Content = textContent is null
                 ? []
                 : [new TextContentBlock { Text = textContent }],
@@ -158,6 +160,7 @@ public record CallToolResult : Result
     {
         return new CallToolResult
         {
+            IsError = false,
             Content = textContent is null
                 ? []
                 : [new TextContentBlock { Text = textContent }],
@@ -191,13 +194,17 @@ public record CallToolResult : Result
     /// <param name="result">要包含的结果。</param>
     /// <typeparam name="TResult">结果的类型。</typeparam>
     /// <returns>一个可以被序列化成 <see cref="CallToolResult"/> 的延迟实例。</returns>
-    public static CallToolResult FromResult<TResult>(TResult? result) => result is null
-        ? new CallToolResult
+    public static CallToolResult FromResult<TResult>(TResult? result) => result switch
+    {
+        null => new CallToolResult
         {
+            IsError = false,
             Content = [],
-        }
-        : new CallToolResult<TResult>(result)
+        },
+        CallToolResult r => r,
+        _ => new CallToolResult<TResult>(result)
         {
+            IsError = false,
             ResultFactory = (r, t) =>
             {
                 var json = JsonSerializer.SerializeToElement(r, t);
@@ -213,5 +220,6 @@ public record CallToolResult : Result
                     StructuredContent = json,
                 };
             },
-        };
+        },
+    };
 }
