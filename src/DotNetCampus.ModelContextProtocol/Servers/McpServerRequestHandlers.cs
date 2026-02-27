@@ -325,19 +325,19 @@ public class McpServerRequestHandlers
         catch (McpToolUsageException ex)
         {
             // 业务端认为工具使用不正确，而且已经在 Message 中提供了 AI 可读的错误信息。
-            Logger.Warn($"[McpServer][Mcp] Tool call failed: Usage error. ToolName={toolName}, Error={ex.Message}");
+            Logger.Warn($"[McpServer][Mcp] Tool call failed: Usage error. ToolName={toolName}, Arguments={rawRequest.Params}, Error={ex.Message}");
             return CallToolResult.FromException(ex);
         }
         catch (McpToolException ex)
         {
             // 通用的工具执行失败。
-            Logger.Warn($"[McpServer][Mcp] Tool call failed. ToolName={toolName}, Error={ex.Message}");
+            Logger.Warn($"[McpServer][Mcp] Tool call failed. ToolName={toolName}, Arguments={rawRequest.Params}, Error={ex.Message}");
             return CallToolResult.FromException(ex);
         }
         catch (Exception ex)
         {
             // 其他未知错误。
-            Logger.Error($"[McpServer][Mcp] Tool call failed: Unexpected error. ToolName={toolName}, Error={ex.Message}");
+            Logger.Error($"[McpServer][Mcp] Tool call failed: Unexpected error. ToolName={toolName}, Arguments={rawRequest.Params}, Error={ex.Message}");
             return _server.Context.IsDebugMode
                 ? CallToolResult.FromException(ex, McpExceptionData.From(ex).ToJsonString())
                 : CallToolResult.FromException(ex);
