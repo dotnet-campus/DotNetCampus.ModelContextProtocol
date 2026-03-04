@@ -184,7 +184,7 @@ internal static class McpServerToolSourceBuilder
         {
             // InputObject 类型：直接反序列化整个 jsonArguments
             ToolParameterType.InputObject => $"""
-var {parameter.Name} = context.EnsureDeserialize<{parameter.Type.ToUsingString()}>(jsonArguments, "{parameter.Type.ToSimpleDisplayString()}", "{parameter.Type.ToDisplayString()}", {FormatNullableString(typeDiscriminatorPropertyName)}{FormatExpectedTypeDiscriminatorValues(expectedTypeDiscriminatorValues)});
+var {parameter.Name} = context.EnsureDeserialize<{parameter.Type.ToNullableDisabledGlobalDisplayString()}>(jsonArguments, "{parameter.Type.ToSimpleDisplayString()}", "{parameter.Type.ToDisplayString()}", {FormatNullableString(typeDiscriminatorPropertyName)}{FormatExpectedTypeDiscriminatorValues(expectedTypeDiscriminatorValues)});
 """,
             ToolParameterType.Injected when parameter.Type.IsNullableType => $"""
 var {parameter.Name} = context.TryGetService<{parameter.Type.ToUsingString()}>();
@@ -200,7 +200,7 @@ var {parameter.Name} = jsonArguments.TryGetProperty("{jsonName}", out var {param
             // Parameter 类型：从 jsonArguments 中提取对应属性
             ToolParameterType.Parameter => $"""
 var {parameter.Name} = jsonArguments.TryGetProperty("{jsonName}", out var {parameter.Name}Property)
-    ? context.EnsureDeserialize<{parameter.Type.ToUsingString()}>({parameter.Name}Property, "{parameter.Type.ToSimpleDisplayString()}", "{parameter.Type.ToDisplayString()}", {FormatNullableString(typeDiscriminatorPropertyName)}{FormatExpectedTypeDiscriminatorValues(expectedTypeDiscriminatorValues)})
+    ? context.EnsureDeserialize<{parameter.Type.ToNullableDisabledGlobalDisplayString()}>({parameter.Name}Property, "{parameter.Type.ToSimpleDisplayString()}", "{parameter.Type.ToDisplayString()}", {FormatNullableString(typeDiscriminatorPropertyName)}{FormatExpectedTypeDiscriminatorValues(expectedTypeDiscriminatorValues)})
     : {(hasDefault ? parameter.GetDefaultValueExpression() : $"throw new {G.McpToolMissingRequiredArgumentException}(\"{jsonName}\")")};
 """,
             _ => null,
