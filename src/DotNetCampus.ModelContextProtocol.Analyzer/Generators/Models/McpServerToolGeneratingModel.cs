@@ -165,7 +165,18 @@ public record McpServerToolGeneratingModel
             return JsonPropertySchemaInfo.From(resultType, "result");
         }
 
-        // 4. 可序列化的对象 - 使用此对象的结构化返回
+        // 4. 集合/数组类型 - MCP 协议不支持直接返回集合作为 structuredContent
+        // MCP 规范要求 outputSchema.type 固定为 "object"，CallToolResult.StructuredContent 是对象而非数组
+        if (returnType.ToJsonSchemaTypeString() == "array")
+        {
+            throw new DiagnosticsException(
+                Diagnostics.DM0101_McpToolCollectionReturnTypeNotSupported,
+                Method.Locations.FirstOrDefault() ?? Location.None,
+                Method.Name,
+                returnType.ToDisplayString());
+        }
+
+        // 5. 可序列化的对象 - 使用此对象的结构化返回
         return JsonPropertySchemaInfo.From(returnType, "result");
     }
 
