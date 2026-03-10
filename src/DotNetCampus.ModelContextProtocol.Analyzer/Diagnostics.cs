@@ -26,7 +26,8 @@ public class Diagnostics
         Categories.Compiler,
         DiagnosticSeverity.Error,
         true,
-        description: Localize(nameof(DM0101_Description)));
+        description: Localize(nameof(DM0101_Description)),
+        customTags: WellKnownDiagnosticTags.NotConfigurable);
 
     private static class Categories
     {

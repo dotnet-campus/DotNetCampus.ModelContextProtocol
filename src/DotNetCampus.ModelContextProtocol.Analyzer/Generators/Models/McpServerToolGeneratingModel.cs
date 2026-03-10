@@ -169,9 +169,15 @@ public record McpServerToolGeneratingModel
         // MCP 规范要求 outputSchema.type 固定为 "object"，CallToolResult.StructuredContent 是对象而非数组
         if (returnType.ToJsonSchemaTypeString() == "array")
         {
+            // 尽量将错误标注到返回类型语法节点上，而非整个方法
+            var returnTypeLocation = (Method.DeclaringSyntaxReferences.FirstOrDefault()?.GetSyntax()
+                as Microsoft.CodeAnalysis.CSharp.Syntax.MethodDeclarationSyntax)
+                ?.ReturnType.GetLocation()
+                ?? Method.Locations.FirstOrDefault()
+                ?? Location.None;
             throw new DiagnosticsException(
                 Diagnostics.DM0101_McpToolCollectionReturnTypeNotSupported,
-                Method.Locations.FirstOrDefault() ?? Location.None,
+                returnTypeLocation,
                 Method.Name,
                 returnType.ToDisplayString());
         }
