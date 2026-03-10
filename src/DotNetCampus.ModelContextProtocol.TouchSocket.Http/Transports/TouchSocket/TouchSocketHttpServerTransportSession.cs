@@ -19,8 +19,14 @@ public class TouchSocketHttpServerTransportSession : IServerTransportSession
 
     private IMcpLogger Log => _manager.Context.Logger;
 
+    /// <inheritdoc />
     public string SessionId { get; }
 
+    /// <summary>
+    /// 初始化 <see cref="TouchSocketHttpServerTransportSession"/> 类的新实例。
+    /// </summary>
+    /// <param name="manager">辅助管理 MCP 传输层的管理器。</param>
+    /// <param name="sessionId">唯一标识此会话的 ID。</param>
     public TouchSocketHttpServerTransportSession(IServerTransportManager manager, string sessionId)
     {
         _manager = manager;
@@ -32,6 +38,7 @@ public class TouchSocketHttpServerTransportSession : IServerTransportSession
         });
     }
 
+    /// <inheritdoc />
     public Task SendMessageAsync(JsonRpcMessage message, CancellationToken cancellationToken = default)
     {
         if (_disposeCts.IsCancellationRequested)
@@ -41,6 +48,11 @@ public class TouchSocketHttpServerTransportSession : IServerTransportSession
         return _outgoingMessages.Writer.WriteAsync(message, cancellationToken).AsTask();
     }
 
+    /// <summary>
+    /// 运行 SSE 长连接，持续向客户端推送消息，直到连接断开或取消。
+    /// </summary>
+    /// <param name="outputStream">用于向客户端写入 SSE 数据的输出流。</param>
+    /// <param name="cancellationToken">用于取消操作的令牌。</param>
     public async Task RunSseConnectionAsync(Stream outputStream, CancellationToken cancellationToken)
     {
         using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _disposeCts.Token);
@@ -96,6 +108,7 @@ public class TouchSocketHttpServerTransportSession : IServerTransportSession
         }
     }
 
+    /// <inheritdoc />
     public async ValueTask DisposeAsync()
     {
         if (_disposeCts.IsCancellationRequested)
