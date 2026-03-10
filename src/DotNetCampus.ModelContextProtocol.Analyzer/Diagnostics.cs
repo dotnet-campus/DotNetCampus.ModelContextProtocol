@@ -23,7 +23,7 @@ public class Diagnostics
         nameof(DM0101),
         Localize(nameof(DM0101)),
         Localize(nameof(DM0101_Message)),
-        Categories.Compiler,
+        Categories.RuntimeException,
         DiagnosticSeverity.Error,
         true,
         description: Localize(nameof(DM0101_Description)),
