@@ -22,7 +22,7 @@ internal class ServerTransportManager(McpServer server, McpServerContext context
     /// <summary>
     /// 已注册的传输层集合。
     /// </summary>
-    private readonly HashSet<IServerTransport> _transports = [];
+    private readonly List<IServerTransport> _transports = [];
 
     /// <summary>
     /// 当前正在使用的传输层会话集合。
@@ -49,11 +49,22 @@ internal class ServerTransportManager(McpServer server, McpServerContext context
     /// </summary>
     public string ServerVersion => server.ServerVersion;
 
+    /// <inheritdoc />
     public IServerTransportContext Context => context;
+
+    /// <summary>
+    /// 获取已注册的传输层列表。
+    /// </summary>
+    public IReadOnlyList<IServerTransport> Transports => _transports;
 
     public bool Add(IServerTransport transport)
     {
-        return _transports.Add(transport);
+        if (_transports.Contains(transport))
+        {
+            return false;
+        }
+        _transports.Add(transport);
+        return true;
     }
 
     public async Task RunAsync(CancellationToken cancellationToken)

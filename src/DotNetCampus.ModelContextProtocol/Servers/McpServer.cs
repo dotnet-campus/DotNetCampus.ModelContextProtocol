@@ -24,6 +24,15 @@ public class McpServer
     private ServerTransportManager Transport => (ServerTransportManager)_context.Transport;
 
     /// <summary>
+    /// 获取 MCP 服务器使用的传输层列表。
+    /// </summary>
+    /// <remarks>
+    /// 一般的 MCP 服务器都会添加且只添加一个传输层，这是因为 MCP 协议要求必须实现的两个传输层 Stdio 和 StreamableHttp 在业务上就很难同时工作。<br/>
+    /// 但是，MCP 协议同时又允许实现其他的传输层，而其他传输层则可能与 StreamableHttp 共存；在这种情况下，MCP 服务器就可能会包含多个传输层。
+    /// </remarks>
+    public IReadOnlyList<IServerTransport> Transports => Transport.Transports;
+
+    /// <summary>
     /// 获取或初始化服务器名称。
     /// </summary>
     public required string ServerName { get; init; }

@@ -24,6 +24,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "1.build", "1.build", "{68A2
 		build\Version.props = build\Version.props
 		.github\workflows\dotnet-build.yml = .github\workflows\dotnet-build.yml
 		.github\workflows\nuget-tag-publish.yml = .github\workflows\nuget-tag-publish.yml
+		build\Package.props = build\Package.props
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "3.samples", "3.samples", "{F04A0D77-F872-48D9-818B-18C0AAAC466F}"

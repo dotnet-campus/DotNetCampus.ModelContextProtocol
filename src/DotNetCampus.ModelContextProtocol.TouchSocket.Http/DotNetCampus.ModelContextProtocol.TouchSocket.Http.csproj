@@ -1,10 +1,11 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
+  <Import Project="..\..\build\Package.props" />
+
   <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <Nullable>enable</Nullable>
+    <TargetFrameworks>net10.0;net8.0;net6.0</TargetFrameworks>
     <RootNamespace>DotNetCampus.ModelContextProtocol</RootNamespace>
+    <Description>Extension package for DotNetCampus.ModelContextProtocol that provides an implementation of the MCP protocol using TouchSocket.Http as the transport layer.</Description>
   </PropertyGroup>
 
   <ItemGroup>
@@ -12,7 +13,13 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="DotNetCampus.LatestCSharpFeatures" PrivateAssets="all" />
+    <PackageReference Include="System.Text.Json" Condition="!$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net10.0'))" />
     <PackageReference Include="TouchSocket.Http" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="..\DotNetCampus.ModelContextProtocol\Properties\Compatibility.cs" LinkBase="Properties" />
   </ItemGroup>
 
 </Project>
