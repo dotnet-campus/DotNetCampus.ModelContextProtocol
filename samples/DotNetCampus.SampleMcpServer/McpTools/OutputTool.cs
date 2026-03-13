@@ -64,6 +64,16 @@ public class OutputTool
             Second = now.Second,
         };
     }
+
+    // /// <summary>
+    // /// 解除注释后，此代码将报告编译错误
+    // /// </summary>
+    // /// <returns></returns>
+    // [McpServerTool(ReadOnly = true)]
+    // public IReadOnlyList<string> TestListReturn()
+    // {
+    //     return ["Hello", "World", "MCP", "Tool",];
+    // }
 }
 
 /// <summary>

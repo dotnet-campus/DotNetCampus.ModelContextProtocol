@@ -103,6 +103,7 @@ public class TouchSocketHttpServerTransport : PluginBase, IHttpPlugin, IServerTr
 
     #region HTTP
 
+    /// <inheritdoc />
     public async Task OnHttpRequest(IHttpSessionClient client, HttpContextEventArgs e)
     {
         try
