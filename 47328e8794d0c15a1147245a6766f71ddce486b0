@@ -1,0 +1,30 @@
+src/DotNetCampus.ModelContextProtocol.Analyzer/Generators/Models/JsonPropertySchemaInfo.cs
+  8036e901489d9a11 88,96,107-108,277
+samples/DotNetCampus.SampleMcpServer/McpTools/McpToolJsonContext.cs
+  8036e901489d9a11 11
+src/DotNetCampus.ModelContextProtocol.Analyzer/Generators/Models/ToolSymbolExtensions.cs
+  8036e901489d9a11 136-138,140-156
+samples/DotNetCampus.SampleMcpServer/McpTools/OutputTool.cs
+  8036e901489d9a11 1-2,78-93,131-154
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.23",
+  "base_commit_sha": "47328e8794d0c15a1147245a6766f71ddce486b0",
+  "prompts": {
+    "8036e901489d9a11": {
+      "agent_id": {
+        "tool": "github-copilot",
+        "id": "40231340-932d-4847-bea6-619e6d1a6629",
+        "model": "copilot/claude-sonnet-4.6"
+      },
+      "human_author": "walterlv <xblero@gmail.com>",
+      "messages": [],
+      "total_additions": 1503,
+      "total_deletions": 2633,
+      "accepted_lines": 1364,
+      "overriden_lines": 2,
+      "messages_url": "https://gitai.gz.cvte.cn/cas/cd21b2b663df37578d84be372d90aa2b072459a46190fc161105714abbaf1a7a"
+    }
+  }
+}
