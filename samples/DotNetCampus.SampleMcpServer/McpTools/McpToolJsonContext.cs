@@ -8,6 +8,7 @@ namespace DotNetCampus.SampleMcpServer.McpTools;
 [JsonSerializable(typeof(SampleComplexInputObject))]
 [JsonSerializable(typeof(PolymorphicBase))]
 [JsonSerializable(typeof(LocalTimeInfo))]
+[JsonSerializable(typeof(LocalTimeInfoWithCustomNames))]
 [JsonSourceGenerationOptions(
     PropertyNameCaseInsensitive = true,
     PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,

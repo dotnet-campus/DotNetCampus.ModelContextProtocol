@@ -1,4 +1,5 @@
-﻿using DotNetCampus.ModelContextProtocol.CompilerServices;
+﻿using System.Text.Json.Serialization;
+using DotNetCampus.ModelContextProtocol.CompilerServices;
 
 namespace DotNetCampus.SampleMcpServer.McpTools;
 
@@ -74,6 +75,22 @@ public class OutputTool
     // {
     //     return ["Hello", "World", "MCP", "Tool",];
     // }
+
+    /// <summary>
+    /// 测试返回含有 [JsonPropertyName] 特性的结构化输出，验证生成的 Schema 使用自定义属性名
+    /// </summary>
+    /// <returns></returns>
+    [McpServerTool(ReadOnly = true)]
+    public LocalTimeInfoWithCustomNames TestJsonPropertyNameReturn()
+    {
+        var now = DateTime.Now;
+        return new LocalTimeInfoWithCustomNames
+        {
+            Year = now.Year,
+            Month = now.Month,
+            Day = now.Day,
+        };
+    }
 }
 
 /// <summary>
@@ -110,4 +127,28 @@ public record LocalTimeInfo
     /// 秒数
     /// </summary>
     public int Second { get; init; }
+}
+
+/// <summary>
+/// 用于测试 [JsonPropertyName] 特性的时间信息结构，属性名使用 snake_case 自定义命名
+/// </summary>
+public record LocalTimeInfoWithCustomNames
+{
+    /// <summary>
+    /// 年份（JSON 键名：year_value）
+    /// </summary>
+    [JsonPropertyName("year_value")]
+    public int Year { get; init; }
+
+    /// <summary>
+    /// 月份（JSON 键名：month_value）
+    /// </summary>
+    [JsonPropertyName("month_value")]
+    public int Month { get; init; }
+
+    /// <summary>
+    /// 日期（JSON 键名：day_value）
+    /// </summary>
+    [JsonPropertyName("day_value")]
+    public int Day { get; init; }
 }
