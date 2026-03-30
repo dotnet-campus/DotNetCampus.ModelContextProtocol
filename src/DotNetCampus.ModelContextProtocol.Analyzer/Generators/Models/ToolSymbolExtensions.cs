@@ -133,6 +133,27 @@ public static class ToolSymbolExtensions
         }
     }
 
+    extension(IPropertySymbol property)
+    {
+        /// <summary>
+        /// 获取 C# 属性在 JSON 中的属性名称。优先使用 <c>[JsonPropertyName]</c> 特性，否则使用 camelCase 形式的属性名。
+        /// </summary>
+        public string GetJsonPropertyName()
+        {
+            var jsonPropertyNameAttr = property.GetAttributes()
+                .FirstOrDefault(a => a.AttributeClass?.ToDisplayString()
+                    == "System.Text.Json.Serialization.JsonPropertyNameAttribute");
+
+            if (jsonPropertyNameAttr?.ConstructorArguments is { Length: > 0 } args
+                && args[0].Value is string name)
+            {
+                return name;
+            }
+
+            return NamingHelper.MakeCamelCase(property.Name);
+        }
+    }
+
     extension(ITypeSymbol type)
     {
         /// <summary>

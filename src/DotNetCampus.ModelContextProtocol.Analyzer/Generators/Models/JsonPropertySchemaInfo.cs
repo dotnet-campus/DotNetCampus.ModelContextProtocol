@@ -84,6 +84,8 @@ public record JsonPropertySchemaInfo(ITypeSymbol PropertyType)
         }
 
         var properties = new List<JsonPropertySchemaInfo>();
+        // 记录已通过属性语法添加的 C# 属性名，用于 record 主构造函数参数去重。
+        var addedMemberNames = new HashSet<string>();
 
         // 获取所有公共属性。
         foreach (var member in typeSymbol.GetMembers())
@@ -91,6 +93,7 @@ public record JsonPropertySchemaInfo(ITypeSymbol PropertyType)
             if (member is IPropertySymbol { DeclaredAccessibility: Accessibility.Public, IsStatic: false } property)
             {
                 properties.Add(From(property));
+                addedMemberNames.Add(property.Name);
             }
         }
 
@@ -101,9 +104,8 @@ public record JsonPropertySchemaInfo(ITypeSymbol PropertyType)
                          .Where(ctor => ctor.DeclaredAccessibility == Accessibility.Public)
                          .SelectMany(x => x.Parameters))
             {
-                var jsonName = NamingHelper.MakeCamelCase(param.Name);
-                // 检查是否已经通过属性添加。
-                if (properties.All(p => p.JsonPropertyName != jsonName))
+                // 按 C# 属性名判断是否已添加（避免 [JsonPropertyName] 导致 JSON 名不同时重复添加）。
+                if (!addedMemberNames.Contains(param.Name))
                 {
                     properties.Add(From(param));
                 }
@@ -272,7 +274,7 @@ public record JsonPropertySchemaInfo(ITypeSymbol PropertyType)
 
         return new JsonPropertySchemaInfo(property.Type)
         {
-            JsonPropertyName = NamingHelper.MakeCamelCase(property.Name),
+            JsonPropertyName = property.GetJsonPropertyName(),
             JsonSchemaType = property.Type.ToJsonSchemaTypeString(),
             IsNullableType = property.Type.IsNullableType,
             Description = property.GetSummaryFromSymbol(),
