@@ -115,19 +115,25 @@ internal partial class McpServerToolJsonContext : JsonSerializerContext;
 /// 提供给 MCP 协议中，服务端收到来自客户端的请求数据时使用的 JSON 序列化上下文。
 /// </summary>
 [JsonSerializable(typeof(CallToolRequestParams))]
+[JsonSerializable(typeof(CreateMessageRequestParams))]
 [JsonSerializable(typeof(GetPromptRequestParams))]
 [JsonSerializable(typeof(InitializeRequestParams))]
 [JsonSerializable(typeof(JsonElement))]
 [JsonSerializable(typeof(ListPromptsRequestParams))]
 [JsonSerializable(typeof(JsonRpcNotification))]
 [JsonSerializable(typeof(JsonRpcRequest))]
+[JsonSerializable(typeof(JsonRpcResponse))]
 [JsonSerializable(typeof(ListResourcesRequestParams))]
 [JsonSerializable(typeof(ListResourceTemplatesRequestParams))]
 [JsonSerializable(typeof(ListToolsRequestParams))]
 [JsonSerializable(typeof(LoggingLevel))]
+[JsonSerializable(typeof(ModelHint))]
+[JsonSerializable(typeof(ModelPreferences))]
 [JsonSerializable(typeof(PingRequestParams))]
 [JsonSerializable(typeof(ReadResourceRequestParams))]
+[JsonSerializable(typeof(SamplingMessage))]
 [JsonSerializable(typeof(SetLevelRequestParams))]
+[JsonSerializable(typeof(ToolChoice))]
 [JsonSourceGenerationOptions(
     PropertyNameCaseInsensitive = true,
     PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,
@@ -144,12 +150,14 @@ internal partial class McpServerRequestJsonContext : JsonSerializerContext;
 [JsonSerializable(typeof(CallToolResult))]
 [JsonSerializable(typeof(CompiledJsonSchema))]
 [JsonSerializable(typeof(ContentBlock))]
+[JsonSerializable(typeof(CreateMessageResult))]
 [JsonSerializable(typeof(EmbeddedResourceContentBlock))]
 [JsonSerializable(typeof(EmptyObject))]
 [JsonSerializable(typeof(GetPromptResult))]
 [JsonSerializable(typeof(ImageContentBlock))]
 [JsonSerializable(typeof(InitializeResult))]
 [JsonSerializable(typeof(JsonElement))]
+[JsonSerializable(typeof(JsonRpcRequest))]
 [JsonSerializable(typeof(JsonRpcResponse))]
 [JsonSerializable(typeof(ListPromptsResult))]
 [JsonSerializable(typeof(ListResourcesResult))]
@@ -159,6 +167,7 @@ internal partial class McpServerRequestJsonContext : JsonSerializerContext;
 [JsonSerializable(typeof(ReadResourceResult))]
 [JsonSerializable(typeof(ResourceContents))]
 [JsonSerializable(typeof(ResourceLinkContentBlock))]
+[JsonSerializable(typeof(SamplingMessage))]
 [JsonSerializable(typeof(TextContentBlock))]
 [JsonSerializable(typeof(TextResourceContents))]
 [JsonSourceGenerationOptions(

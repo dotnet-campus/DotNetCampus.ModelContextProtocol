@@ -395,16 +395,51 @@ public class HttpClientTransport : IClientTransport
                     }
                 }
 
-                var response = await _manager.ReadResponseAsync(data);
-                if (response != null)
+                // 检测是服务器主动发起的请求（有 method），还是对客户端请求的响应（有 result/error）。
+                bool isServerRequest;
+                try
                 {
-                    await _manager.HandleRespondAsync(response, token);
+                    using var doc = JsonDocument.Parse(data);
+                    isServerRequest = doc.RootElement.TryGetProperty("method", out _);
+                }
+                catch
+                {
+                    isServerRequest = false;
+                }
+
+                if (isServerRequest)
+                {
+                    var request = TryParseServerRequest(data);
+                    if (request is not null)
+                    {
+                        await _manager.HandleServerRequestAsync(request, token);
+                    }
+                }
+                else
+                {
+                    var response = await _manager.ReadResponseAsync(data);
+                    if (response != null)
+                    {
+                        await _manager.HandleRespondAsync(response, token);
+                    }
                 }
             }
             catch (Exception ex)
             {
                 _logger.Warn($"[McpClient][Http] Failed to process SSE message. Error={ex.Message}");
             }
+        }
+    }
+
+    private static JsonRpcRequest? TryParseServerRequest(string json)
+    {
+        try
+        {
+            return JsonSerializer.Deserialize(json, CompilerServices.McpServerRequestJsonContext.Default.JsonRpcRequest);
+        }
+        catch
+        {
+            return null;
         }
     }
 }

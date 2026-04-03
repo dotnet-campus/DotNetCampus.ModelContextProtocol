@@ -1,5 +1,7 @@
-﻿using System.Threading.Channels;
+﻿using System.Collections.Concurrent;
+using System.Threading.Channels;
 using DotNetCampus.ModelContextProtocol.Hosting.Logging;
+using DotNetCampus.ModelContextProtocol.Protocol.Messages;
 using DotNetCampus.ModelContextProtocol.Protocol.Messages.JsonRpc;
 
 namespace DotNetCampus.ModelContextProtocol.Transports.Http;
@@ -16,10 +18,14 @@ internal class LocalHostHttpServerTransportSession : IServerTransportSession
     private readonly IServerTransportManager _manager;
     private readonly Channel<JsonRpcMessage> _outgoingMessages;
     private readonly CancellationTokenSource _disposeCts = new();
+    private readonly ConcurrentDictionary<string, TaskCompletionSource<JsonRpcResponse>> _pendingRequests = [];
 
     private IMcpLogger Log => _manager.Context.Logger;
 
     public string SessionId { get; }
+
+    /// <inheritdoc />
+    public ClientCapabilities? ConnectedClientCapabilities { get; set; }
 
     public LocalHostHttpServerTransportSession(IServerTransportManager manager, string sessionId)
     {
@@ -39,6 +45,51 @@ internal class LocalHostHttpServerTransportSession : IServerTransportSession
             return Task.CompletedTask;
         }
         return _outgoingMessages.Writer.WriteAsync(message, cancellationToken).AsTask();
+    }
+
+    /// <inheritdoc />
+    public async Task<JsonRpcResponse> SendRequestAsync(JsonRpcRequest request, CancellationToken cancellationToken = default)
+    {
+        if (request.Id?.ToString() is not { } id)
+        {
+            throw new InvalidOperationException("请求 ID 不能为 null。Request ID must not be null.");
+        }
+
+        var tcs = new TaskCompletionSource<JsonRpcResponse>(TaskCreationOptions.RunContinuationsAsynchronously);
+        _pendingRequests[id] = tcs;
+
+        using var registration = cancellationToken.Register(() =>
+        {
+            if (_pendingRequests.TryRemove(id, out var removed))
+            {
+                removed.TrySetCanceled(cancellationToken);
+            }
+        });
+
+        try
+        {
+            // 通过 SSE 通道将请求发送给客户端。
+            await SendMessageAsync(request, cancellationToken).ConfigureAwait(false);
+            return await tcs.Task.ConfigureAwait(false);
+        }
+        finally
+        {
+            _pendingRequests.TryRemove(id, out _);
+        }
+    }
+
+    /// <inheritdoc />
+    public void HandleResponseAsync(JsonRpcResponse response)
+    {
+        if (response.Id?.ToString() is not { } id)
+        {
+            return;
+        }
+
+        if (_pendingRequests.TryRemove(id, out var tcs))
+        {
+            tcs.TrySetResult(response);
+        }
     }
 
     public async Task RunSseConnectionAsync(Stream outputStream, CancellationToken cancellationToken)
@@ -110,6 +161,11 @@ internal class LocalHostHttpServerTransportSession : IServerTransportSession
         _disposeCts.Cancel();
 #endif
         _outgoingMessages.Writer.TryComplete();
+        foreach (var (_, tcs) in _pendingRequests)
+        {
+            tcs.TrySetCanceled();
+        }
+        _pendingRequests.Clear();
         _disposeCts.Dispose();
     }
 }

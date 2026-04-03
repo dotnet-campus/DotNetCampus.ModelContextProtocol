@@ -17,6 +17,7 @@ internal class ClientTransportManager(IClientTransportContext context) : IClient
 {
     private readonly ConcurrentDictionary<string, TaskCompletionSource<JsonRpcResponse>> _pendingRequests = [];
     private IClientTransport? _transport;
+    private Func<CreateMessageRequestParams, CancellationToken, Task<CreateMessageResult>>? _samplingHandler;
 
     /// <inheritdoc />
     public IClientTransportContext Context { get; } = context;
@@ -27,6 +28,14 @@ internal class ClientTransportManager(IClientTransportContext context) : IClient
     internal void SetTransport(IClientTransport transport)
     {
         _transport = transport;
+    }
+
+    /// <summary>
+    /// 设置 Sampling 请求处理器，供服务器主动发起 sampling/createMessage 请求时调用。
+    /// </summary>
+    internal void SetSamplingHandler(Func<CreateMessageRequestParams, CancellationToken, Task<CreateMessageResult>> handler)
+    {
+        _samplingHandler = handler;
     }
 
     /// <inheritdoc />
@@ -53,6 +62,7 @@ internal class ClientTransportManager(IClientTransportContext context) : IClient
     public string WriteMessageAsync(JsonRpcMessage message) => message switch
     {
         JsonRpcRequest request => JsonSerializer.Serialize(request, McpServerRequestJsonContext.Default.JsonRpcRequest),
+        JsonRpcResponse response => JsonSerializer.Serialize(response, McpServerResponseJsonContext.Default.JsonRpcResponse),
         JsonRpcNotification notification => JsonSerializer.Serialize(notification, McpServerRequestJsonContext.Default.JsonRpcNotification),
         _ => throw new ArgumentException($"不支持的消息类型：{message.GetType().FullName}."),
     };
@@ -64,6 +74,8 @@ internal class ClientTransportManager(IClientTransportContext context) : IClient
         {
             JsonRpcRequest request => JsonSerializer.SerializeAsync(
                 requestStream, request, McpServerRequestJsonContext.Default.JsonRpcRequest, cancellationToken),
+            JsonRpcResponse response => JsonSerializer.SerializeAsync(
+                requestStream, response, McpServerResponseJsonContext.Default.JsonRpcResponse, cancellationToken),
             JsonRpcNotification notification => JsonSerializer.SerializeAsync(
                 requestStream, notification, McpServerRequestJsonContext.Default.JsonRpcNotification, cancellationToken),
             _ => throw new ArgumentException($"不支持的消息类型：{message.GetType().FullName}."),
@@ -87,7 +99,57 @@ internal class ClientTransportManager(IClientTransportContext context) : IClient
 
         return ValueTask.CompletedTask;
     }
+    /// <inheritdoc />
+    public async ValueTask HandleServerRequestAsync(JsonRpcRequest request, CancellationToken cancellationToken = default)
+    {
+        JsonRpcResponse response;
 
+        if (request.Method == RequestMethods.SamplingCreateMessage && _samplingHandler is { } handler)
+        {
+            try
+            {
+                CreateMessageRequestParams? requestParams = null;
+                if (request.Params is { } paramsElement)
+                {
+                    requestParams = paramsElement.Deserialize(McpServerRequestJsonContext.Default.CreateMessageRequestParams);
+                }
+                requestParams ??= new CreateMessageRequestParams { Messages = [], MaxTokens = 1024 };
+
+                var result = await handler(requestParams, cancellationToken).ConfigureAwait(false);
+                response = new JsonRpcResponse
+                {
+                    Id = request.Id,
+                    Result = JsonSerializer.SerializeToElement(result, McpServerResponseJsonContext.Default.CreateMessageResult),
+                };
+            }
+            catch (Exception ex)
+            {
+                response = new JsonRpcResponse
+                {
+                    Id = request.Id,
+                    Error = new JsonRpcError
+                    {
+                        Code = (int)JsonRpcErrorCode.InternalError,
+                        Message = ex.Message,
+                    },
+                };
+            }
+        }
+        else
+        {
+            response = new JsonRpcResponse
+            {
+                Id = request.Id,
+                Error = new JsonRpcError
+                {
+                    Code = (int)JsonRpcErrorCode.MethodNotFound,
+                    Message = $"Method '{request.Method}' not found or no handler registered.",
+                },
+            };
+        }
+
+        await SendMessageAsync(response, cancellationToken).ConfigureAwait(false);
+    }
     /// <summary>
     /// 发送请求并等待响应。
     /// </summary>

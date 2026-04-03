@@ -1,6 +1,8 @@
 ﻿using System.Diagnostics;
 using System.Diagnostics.Contracts;
 using System.Text;
+using System.Text.Json;
+using DotNetCampus.ModelContextProtocol.CompilerServices;
 using DotNetCampus.ModelContextProtocol.Hosting.Logging;
 using DotNetCampus.ModelContextProtocol.Protocol.Messages.JsonRpc;
 
@@ -98,6 +100,24 @@ public class StdioClientTransport : IClientTransport
                 break;
             }
 
+            if (string.IsNullOrWhiteSpace(line))
+            {
+                continue;
+            }
+
+            // 检测是服务器主动发起的请求（有 method），还是对客户端请求的响应（有 result/error）。
+            if (IsServerRequest(line))
+            {
+                var request = TryParseServerRequest(line);
+                if (request is null)
+                {
+                    Log.Warn($"[McpClient][Stdio] Invalid server request received.");
+                    continue;
+                }
+                await _manager.HandleServerRequestAsync(request, cancellationToken);
+                continue;
+            }
+
             var response = await _manager.ParseAndCatchResponseAsync(line);
             if (response is null)
             {
@@ -106,6 +126,31 @@ public class StdioClientTransport : IClientTransport
             }
 
             await _manager.HandleRespondAsync(response, cancellationToken);
+        }
+    }
+
+    private static bool IsServerRequest(string json)
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(json);
+            return doc.RootElement.TryGetProperty("method", out _);
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static JsonRpcRequest? TryParseServerRequest(string json)
+    {
+        try
+        {
+            return JsonSerializer.Deserialize(json, McpServerRequestJsonContext.Default.JsonRpcRequest);
+        }
+        catch
+        {
+            return null;
         }
     }
 

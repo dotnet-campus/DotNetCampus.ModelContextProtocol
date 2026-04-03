@@ -1,6 +1,9 @@
 ﻿using System.Text;
+using System.Text.Json;
+using DotNetCampus.ModelContextProtocol.CompilerServices;
 using DotNetCampus.ModelContextProtocol.Hosting.Logging;
 using DotNetCampus.ModelContextProtocol.Protocol.Messages.JsonRpc;
+using DotNetCampus.ModelContextProtocol.Servers;
 
 namespace DotNetCampus.ModelContextProtocol.Transports.Stdio;
 
@@ -50,6 +53,7 @@ public class StdioServerTransport : IServerTransport
             StandardInput = input,
             StandardOutput = output,
         };
+        _session.SetOutput(output);
         _manager.Add(_session);
 
         return Task.FromResult(RunLoopAsync(runningCancellationToken));
@@ -84,6 +88,24 @@ public class StdioServerTransport : IServerTransport
                 break;
             }
 
+            if (string.IsNullOrWhiteSpace(line))
+            {
+                continue;
+            }
+
+            // 检测是请求（有 method 字段）还是响应（无 method 字段）。
+            // Detect whether it's a request (has "method" field) or a response (no "method" field).
+            if (IsJsonRpcResponse(line))
+            {
+                // 将响应路由到等待的请求。
+                var response = TryParseResponse(line);
+                if (response is not null)
+                {
+                    _session.HandleResponseAsync(response);
+                }
+                continue;
+            }
+
             var request = await _manager.ParseAndCatchRequestAsync(line);
             if (request is null)
             {
@@ -98,15 +120,56 @@ public class StdioServerTransport : IServerTransport
                 continue;
             }
 
-            var response = await _manager.HandleRequestAsync(request, null, cancellationToken);
-            if (response is null)
+            var session = _session;
+            var response2 = await _manager.HandleRequestAsync(request,
+                s =>
+                {
+                    s.AddScoped<IServerTransportSession>(session);
+                    s.AddScoped<IMcpServerSampling>(new McpServerSampling(session));
+                },
+                cancellationToken);
+            if (response2 is null)
             {
                 // 按照 MCP 协议规范，本次请求仅需响应而无需回复。
                 await output.WriteLineAsync();
                 continue;
             }
 
-            await _manager.RespondJsonRpcAsync(output, response, cancellationToken);
+            await _manager.RespondJsonRpcAsync(output, response2, cancellationToken);
+        }
+    }
+
+    /// <summary>
+    /// 判断 JSON 字符串是否为 JSON-RPC 响应（没有 method 字段，有 result 或 error 字段）。
+    /// </summary>
+    private static bool IsJsonRpcResponse(string json)
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(json);
+            var root = doc.RootElement;
+            // 请求必须有 method 字段；响应没有 method 字段但有 result 或 error。
+            if (root.TryGetProperty("method", out _))
+            {
+                return false;
+            }
+            return root.TryGetProperty("result", out _) || root.TryGetProperty("error", out _);
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static JsonRpcResponse? TryParseResponse(string json)
+    {
+        try
+        {
+            return JsonSerializer.Deserialize(json, McpServerResponseJsonContext.Default.JsonRpcResponse);
+        }
+        catch
+        {
+            return null;
         }
     }
 

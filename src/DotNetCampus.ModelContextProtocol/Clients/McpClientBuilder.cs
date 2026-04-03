@@ -18,6 +18,7 @@ public class McpClientBuilder
     private IServiceProvider? _serviceProvider;
     private Func<IClientTransportManager, IClientTransport>? _transportFactory;
     private ClientCapabilities _capabilities = new();
+    private Func<CreateMessageRequestParams, CancellationToken, Task<CreateMessageResult>>? _samplingHandler;
 
     /// <summary>
     /// 设置客户端名称和版本。
@@ -132,6 +133,49 @@ public class McpClientBuilder
     }
 
     /// <summary>
+    /// 配置 Sampling 处理器，使客户端支持服务器发起的 sampling/createMessage 请求。<br/>
+    /// 调用此方法会自动在客户端能力中声明 Sampling 支持。<br/>
+    /// Configures a handler for server-initiated sampling/createMessage requests.
+    /// Calling this method automatically declares Sampling capability in client capabilities.
+    /// </summary>
+    /// <param name="handler">
+    /// 当服务器请求采样时的处理函数。接收 <see cref="CreateMessageRequestParams"/> 并返回 <see cref="CreateMessageResult"/>。<br/>
+    /// Handler invoked when the server requests sampling. Receives <see cref="CreateMessageRequestParams"/> and returns <see cref="CreateMessageResult"/>.
+    /// </param>
+    /// <returns>用于链式调用的 MCP 客户端生成器。</returns>
+    public McpClientBuilder WithSamplingHandler(
+        Func<CreateMessageRequestParams, CancellationToken, Task<CreateMessageResult>> handler)
+    {
+        _samplingHandler = handler;
+        _capabilities = _capabilities with
+        {
+            Sampling = _capabilities.Sampling ?? new SamplingCapability(),
+        };
+        return this;
+    }
+
+    /// <summary>
+    /// 配置 Sampling 处理器，使客户端支持服务器发起的 sampling/createMessage 请求。<br/>
+    /// 调用此方法会自动在客户端能力中声明 Sampling 支持。<br/>
+    /// Configures a handler for server-initiated sampling/createMessage requests.
+    /// Calling this method automatically declares Sampling capability in client capabilities.
+    /// </summary>
+    /// <param name="handlerFactory">
+    /// 处理函数工厂，接收 <see cref="IServiceProvider"/> 以便从中获取所需服务。<br/>
+    /// Handler factory that receives an <see cref="IServiceProvider"/> for resolving dependencies.
+    /// </param>
+    /// <returns>用于链式调用的 MCP 客户端生成器。</returns>
+    public McpClientBuilder WithSamplingHandler(
+        Func<IServiceProvider?, Func<CreateMessageRequestParams, CancellationToken, Task<CreateMessageResult>>> handlerFactory)
+    {
+        return WithSamplingHandler((p, ct) =>
+        {
+            var handler = handlerFactory(_serviceProvider);
+            return handler(p, ct);
+        });
+    }
+
+    /// <summary>
     /// 构建 MCP 客户端实例。
     /// </summary>
     /// <returns>构建好的 MCP 客户端。</returns>
@@ -150,6 +194,11 @@ public class McpClientBuilder
 
         var transportManager = new ClientTransportManager(context);
         context.Transport = transportManager;
+
+        if (_samplingHandler is { } handler)
+        {
+            transportManager.SetSamplingHandler(handler);
+        }
 
         var transport = _transportFactory(transportManager);
         transportManager.SetTransport(transport);

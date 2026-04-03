@@ -13,8 +13,8 @@ namespace DotNetCampus.ModelContextProtocol.Protocol.Messages;
 [JsonDerivedType(typeof(AudioContentBlock), typeDiscriminator: "audio")]
 [JsonDerivedType(typeof(ResourceLinkContentBlock), typeDiscriminator: "resource_link")]
 [JsonDerivedType(typeof(EmbeddedResourceContentBlock), typeDiscriminator: "resource")]
-[JsonDerivedType(typeof(ToolUseContent), typeDiscriminator: "toolUse")]
-[JsonDerivedType(typeof(ToolResultContent), typeDiscriminator: "toolResult")]
+[JsonDerivedType(typeof(ToolUseContent), typeDiscriminator: "tool_use")]
+[JsonDerivedType(typeof(ToolResultContent), typeDiscriminator: "tool_result")]
 public abstract record ContentBlock
 {
     /// <summary>

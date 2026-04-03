@@ -2,9 +2,11 @@
 using System.Net;
 using System.Text;
 using System.Text.Json;
+using DotNetCampus.ModelContextProtocol.CompilerServices;
 using DotNetCampus.ModelContextProtocol.Hosting.Logging;
 using DotNetCampus.ModelContextProtocol.Protocol;
 using DotNetCampus.ModelContextProtocol.Protocol.Messages.JsonRpc;
+using DotNetCampus.ModelContextProtocol.Servers;
 
 namespace DotNetCampus.ModelContextProtocol.Transports.Http;
 
@@ -184,10 +186,64 @@ public class LocalHostHttpServerTransport : IServerTransport
             }
         }
 
+        // 读取 body 到内存，以便检查是请求还是响应。
+        byte[] bodyBytes;
+        try
+        {
+            using var ms = new MemoryStream();
+            await request.InputStream.CopyToAsync(ms, cancellationToken);
+            bodyBytes = ms.ToArray();
+        }
+        catch
+        {
+            await context.RespondHttpError(HttpStatusCode.BadRequest, "Failed to read request body");
+            return;
+        }
+
+        if (bodyBytes.Length == 0)
+        {
+            await context.RespondHttpError(HttpStatusCode.BadRequest, "Empty body");
+            return;
+        }
+
+        // 检测是 JSON-RPC 请求（有 method）还是响应（无 method）。
+        var isResponse = IsJsonRpcResponseBytes(bodyBytes);
+
+        var sessionIdStr = request.Headers[SessionIdHeader];
+
+        if (isResponse)
+        {
+            // 客户端响应服务器发起的请求（如 sampling/createMessage）。
+            if (string.IsNullOrEmpty(sessionIdStr) || !_sessions.TryGetValue(sessionIdStr, out var responseSession))
+            {
+                await context.RespondHttpError(HttpStatusCode.NotFound, "Session not found");
+                return;
+            }
+
+            JsonRpcResponse? jsonRpcResponse;
+            try
+            {
+                jsonRpcResponse = JsonSerializer.Deserialize(bodyBytes, McpServerResponseJsonContext.Default.JsonRpcResponse);
+            }
+            catch (JsonException)
+            {
+                await context.RespondHttpError(HttpStatusCode.BadRequest, "Invalid JSON response");
+                return;
+            }
+
+            if (jsonRpcResponse is not null)
+            {
+                responseSession.HandleResponseAsync(jsonRpcResponse);
+            }
+
+            context.RespondHttpSuccess(HttpStatusCode.Accepted);
+            return;
+        }
+
         JsonRpcRequest? jsonRpcRequest;
         try
         {
-            jsonRpcRequest = await _manager.ReadRequestAsync(request.InputStream);
+            jsonRpcRequest = JsonSerializer.Deserialize(bodyBytes, McpServerRequestJsonContext.Default.JsonRpcRequest);
         }
         catch (JsonException)
         {
@@ -202,7 +258,6 @@ public class LocalHostHttpServerTransport : IServerTransport
         }
 
         var isInitialize = jsonRpcRequest.Method == RequestMethods.Initialize;
-        var sessionIdStr = request.Headers[SessionIdHeader];
         LocalHostHttpServerTransportSession? session;
 
         if (isInitialize)
@@ -238,16 +293,23 @@ public class LocalHostHttpServerTransport : IServerTransport
             }
         }
 
-        var jsonRpcResponse = await _manager.HandleRequestAsync(jsonRpcRequest, cancellationToken: cancellationToken);
+        var capturedSession = session;
+        var jsonRpcResponse2 = await _manager.HandleRequestAsync(jsonRpcRequest,
+            s =>
+            {
+                s.AddScoped<IServerTransportSession>(capturedSession);
+                s.AddScoped<IMcpServerSampling>(new McpServerSampling(capturedSession));
+            },
+            cancellationToken);
 
-        if (jsonRpcResponse != null)
+        if (jsonRpcResponse2 != null)
         {
             // Request: Success or Failed.
             context.Response.ContentType = "application/json";
             context.Response.StatusCode = (int)HttpStatusCode.OK;
             try
             {
-                await _manager.WriteMessageAsync(context.Response.OutputStream, jsonRpcResponse, cancellationToken);
+                await _manager.WriteMessageAsync(context.Response.OutputStream, jsonRpcResponse2, cancellationToken);
                 context.Response.SafeClose();
             }
             catch
@@ -259,6 +321,31 @@ public class LocalHostHttpServerTransport : IServerTransport
         {
             // Notification: No need to respond.
             context.RespondHttpSuccess(HttpStatusCode.Accepted);
+        }
+    }
+
+    private static bool IsJsonRpcResponseBytes(byte[] bodyBytes)
+    {
+        try
+        {
+            var reader = new Utf8JsonReader(bodyBytes);
+            if (!JsonDocument.TryParseValue(ref reader, out var doc))
+            {
+                return false;
+            }
+            using (doc)
+            {
+                var root = doc.RootElement;
+                if (root.TryGetProperty("method", out _))
+                {
+                    return false;
+                }
+                return root.TryGetProperty("result", out _) || root.TryGetProperty("error", out _);
+            }
+        }
+        catch
+        {
+            return false;
         }
     }
 

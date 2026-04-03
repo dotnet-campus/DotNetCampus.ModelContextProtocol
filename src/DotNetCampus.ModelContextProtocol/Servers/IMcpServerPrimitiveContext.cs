@@ -4,6 +4,7 @@ using System.Text.Json.Serialization;
 
 namespace DotNetCampus.ModelContextProtocol.Servers;
 
+
 /// <summary>
 /// 包含 MCP 服务器收到来自客户端的请求时，服务端处理请求具体实现可能会用到的各种上下文信息。<br/>
 /// Contains various context information that the server-side implementation of the MCP server
@@ -60,6 +61,13 @@ public interface IMcpServerCallToolContext : IMcpServerPrimitiveContext
     /// Cancellation token used to cancel the tool invocation operation.
     /// </summary>
     CancellationToken CancellationToken { get; }
+
+    /// <summary>
+    /// 提供服务器向客户端发起 Sampling 请求的能力。如果当前传输层或客户端不支持 Sampling，调用相关方法将抛出异常。<br/>
+    /// Provides the ability to send Sampling requests from the server to the client.
+    /// If the current transport or client does not support Sampling, calling the related methods will throw an exception.
+    /// </summary>
+    IMcpServerSampling Sampling { get; }
 }
 
 /// <summary>
@@ -92,6 +100,8 @@ internal sealed class McpServerCallToolContext : IMcpServerCallToolContext
     public required string Name { get; init; }
     public required JsonElement InputJsonArguments { get; init; }
     public required CancellationToken CancellationToken { get; init; }
+    public IMcpServerSampling Sampling => (IMcpServerSampling?)Services.GetService(typeof(IMcpServerSampling))
+        ?? throw new InvalidOperationException("当前传输层未提供 IMcpServerSampling 服务，或客户端未声明 Sampling 能力。The current transport has not provided IMcpServerSampling, or the client has not declared Sampling capability.");
 }
 
 internal sealed class McpServerReadResourceContext : IMcpServerReadResourceContext

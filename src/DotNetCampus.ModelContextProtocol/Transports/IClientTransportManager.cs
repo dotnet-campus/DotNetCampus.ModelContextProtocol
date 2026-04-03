@@ -77,4 +77,12 @@ public interface IClientTransportManager
     /// <param name="cancellationToken">取消令牌。</param>
     /// <remarks>此方法绝对不会发生异常。</remarks>
     ValueTask HandleRespondAsync(JsonRpcResponse response, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 提供给传输层调用。当传输层收到来自服务器的 JSON-RPC 请求时（如 sampling/createMessage），调用此方法可以将请求交给 MCP 客户端进行处理并回送响应。<br/>
+    /// Called by the transport layer when a server-initiated JSON-RPC request is received (e.g. sampling/createMessage).
+    /// </summary>
+    /// <param name="request">从传输层解析出来的服务器发起的 JSON-RPC 请求。</param>
+    /// <param name="cancellationToken">取消令牌。</param>
+    ValueTask HandleServerRequestAsync(JsonRpcRequest request, CancellationToken cancellationToken = default);
 }

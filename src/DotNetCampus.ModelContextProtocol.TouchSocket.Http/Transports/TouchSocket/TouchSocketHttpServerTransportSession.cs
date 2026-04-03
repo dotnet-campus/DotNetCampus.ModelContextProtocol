@@ -1,4 +1,6 @@
+using System.Collections.Concurrent;
 using System.Threading.Channels;
+using DotNetCampus.ModelContextProtocol.Protocol.Messages;
 using DotNetCampus.ModelContextProtocol.Protocol.Messages.JsonRpc;
 using DotNetCampus.ModelContextProtocol.Hosting.Logging;
 
@@ -16,11 +18,15 @@ public class TouchSocketHttpServerTransportSession : IServerTransportSession
     private readonly IServerTransportManager _manager;
     private readonly Channel<JsonRpcMessage> _outgoingMessages;
     private readonly CancellationTokenSource _disposeCts = new();
+    private readonly ConcurrentDictionary<string, TaskCompletionSource<JsonRpcResponse>> _pendingRequests = [];
 
     private IMcpLogger Log => _manager.Context.Logger;
 
     /// <inheritdoc />
     public string SessionId { get; }
+
+    /// <inheritdoc />
+    public ClientCapabilities? ConnectedClientCapabilities { get; set; }
 
     /// <summary>
     /// 初始化 <see cref="TouchSocketHttpServerTransportSession"/> 类的新实例。
@@ -46,6 +52,50 @@ public class TouchSocketHttpServerTransportSession : IServerTransportSession
             return Task.CompletedTask;
         }
         return _outgoingMessages.Writer.WriteAsync(message, cancellationToken).AsTask();
+    }
+
+    /// <inheritdoc />
+    public async Task<JsonRpcResponse> SendRequestAsync(JsonRpcRequest request, CancellationToken cancellationToken = default)
+    {
+        if (request.Id?.ToString() is not { } id)
+        {
+            throw new InvalidOperationException("请求 ID 不能为 null。Request ID must not be null.");
+        }
+
+        var tcs = new TaskCompletionSource<JsonRpcResponse>(TaskCreationOptions.RunContinuationsAsynchronously);
+        _pendingRequests[id] = tcs;
+
+        using var registration = cancellationToken.Register(() =>
+        {
+            if (_pendingRequests.TryRemove(id, out var removed))
+            {
+                removed.TrySetCanceled(cancellationToken);
+            }
+        });
+
+        try
+        {
+            await SendMessageAsync(request, cancellationToken).ConfigureAwait(false);
+            return await tcs.Task.ConfigureAwait(false);
+        }
+        finally
+        {
+            _pendingRequests.TryRemove(id, out _);
+        }
+    }
+
+    /// <inheritdoc />
+    public void HandleResponseAsync(JsonRpcResponse response)
+    {
+        if (response.Id?.ToString() is not { } id)
+        {
+            return;
+        }
+
+        if (_pendingRequests.TryRemove(id, out var tcs))
+        {
+            tcs.TrySetResult(response);
+        }
     }
 
     /// <summary>
@@ -123,6 +173,11 @@ public class TouchSocketHttpServerTransportSession : IServerTransportSession
         _disposeCts.Cancel();
 #endif
         _outgoingMessages.Writer.TryComplete();
+        foreach (var (_, tcs) in _pendingRequests)
+        {
+            tcs.TrySetCanceled();
+        }
+        _pendingRequests.Clear();
         _disposeCts.Dispose();
     }
 }
