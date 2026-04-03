@@ -15,7 +15,7 @@ public class SamplingTool
     [McpServerTool]
     public async Task<string> AskLlm(string message, IMcpServerCallToolContext context)
     {
-        if (!context.Sampling.HasSamplingCapability)
+        if (!context.Sampling.IsSupported)
         {
             throw new InvalidOperationException("Sampling service not available in this context.");
         }
@@ -25,11 +25,11 @@ public class SamplingTool
     }
 
     /// <summary>
-    /// 检查客户端是否声明了 Sampling 能力（HasSamplingCapability）。
+    /// 检查客户端是否支持 Sampling 能力（IsSupported）。
     /// </summary>
     [McpServerTool]
     public string CheckSamplingCapability(IMcpServerCallToolContext context)
     {
-        return $"has_capability={context.Sampling.HasSamplingCapability}";
+        return $"has_capability={context.Sampling.IsSupported}";
     }
 }

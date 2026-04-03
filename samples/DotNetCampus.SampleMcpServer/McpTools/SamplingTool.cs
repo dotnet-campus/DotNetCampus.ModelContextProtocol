@@ -22,7 +22,7 @@ public class SamplingTool
         string? systemPrompt = null,
         IMcpServerCallToolContext context = null!)
     {
-        if (!context.Sampling.HasSamplingCapability)
+        if (!context.Sampling.IsSupported)
         {
             return CallToolResult.FromError(
                 "当前客户端未声明 Sampling 能力。请确保客户端支持 sampling/createMessage 请求。\n" +

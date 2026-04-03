@@ -17,11 +17,11 @@ public interface IMcpServerSampling
 {
     /// <summary>
     /// 指示连接的客户端是否声明了对 Sampling 的支持。<br/>
-    /// 在调用 <see cref="CreateMessageAsync"/> 前应检查此属性；若为 <see langword="false"/>，调用将抛出异常。<br/>
+    /// 在调用 <see cref="CreateMessageAsync"/> 前应检查此属性；若为 <see langword="false"/>，调用将抛出 <see cref="McpSamplingNotSupportedException"/>。<br/>
     /// Indicates whether the connected client has declared support for Sampling.
-    /// Check this property before calling <see cref="CreateMessageAsync"/>; if false, the call will throw.
+    /// Check this property before calling <see cref="CreateMessageAsync"/>; if false, the call will throw <see cref="McpSamplingNotSupportedException"/>.
     /// </summary>
-    bool HasSamplingCapability { get; }
+    bool IsSupported { get; }
 
     /// <summary>
     /// 向客户端发送 sampling/createMessage 请求，通过客户端对 LLM 进行采样。<br/>
@@ -30,7 +30,7 @@ public interface IMcpServerSampling
     /// <param name="requestParams">采样请求参数。Sampling request parameters.</param>
     /// <param name="cancellationToken">取消令牌。Cancellation token.</param>
     /// <returns>LLM 生成的采样结果。The LLM-generated sampling result.</returns>
-    /// <exception cref="InvalidOperationException">当客户端未声明 Sampling 能力时抛出。Thrown when the client has not declared Sampling capability.</exception>
+    /// <exception cref="McpSamplingNotSupportedException">当客户端未声明 Sampling 能力时抛出。Thrown when the client has not declared Sampling capability.</exception>
     /// <exception cref="McpSamplingRejectedException">当采样请求被用户（人工审批）拒绝时抛出。Thrown when the sampling request was rejected by the user (human-in-the-loop).</exception>
     Task<CreateMessageResult> CreateMessageAsync(CreateMessageRequestParams requestParams, CancellationToken cancellationToken = default);
 }
@@ -51,6 +51,7 @@ public static class McpServerSamplingExtensions
     /// <param name="systemPrompt">可选的系统提示词。Optional system prompt.</param>
     /// <param name="cancellationToken">取消令牌。Cancellation token.</param>
     /// <returns>LLM 生成的采样结果。The LLM-generated sampling result.</returns>
+    /// <exception cref="McpSamplingNotSupportedException">当客户端未声明 Sampling 能力时抛出。Thrown when the client has not declared Sampling capability.</exception>
     /// <exception cref="McpSamplingRejectedException">当采样请求被用户拒绝时抛出。Thrown when the sampling request was rejected by the user.</exception>
     public static Task<CreateMessageResult> CreateMessageAsync(
         this IMcpServerSampling sampling,
@@ -82,16 +83,16 @@ public static class McpServerSamplingExtensions
 internal sealed class McpServerSampling(IServerTransportSession session) : IMcpServerSampling
 {
     /// <inheritdoc />
-    public bool HasSamplingCapability => session.ConnectedClientCapabilities?.Sampling is not null;
+    public bool IsSupported => session.ConnectedClientCapabilities?.Sampling is not null;
 
     /// <inheritdoc />
     public async Task<CreateMessageResult> CreateMessageAsync(
         CreateMessageRequestParams requestParams,
         CancellationToken cancellationToken = default)
     {
-        if (!HasSamplingCapability)
+        if (!IsSupported)
         {
-            throw new InvalidOperationException("连接的客户端未声明对 Sampling 的支持。The connected client has not declared Sampling capability.");
+            throw new McpSamplingNotSupportedException();
         }
 
         var request = new JsonRpcRequest
@@ -133,19 +134,19 @@ internal sealed class McpServerSampling(IServerTransportSession session) : IMcpS
 /// 当传输层或客户端不支持 Sampling 时，用于占位的空对象实现。<br/>
 /// Null-object implementation of <see cref="IMcpServerSampling"/> used when the transport or client does not support Sampling.
 /// </summary>
-internal sealed class McpServerSamplingNull : IMcpServerSampling
+internal sealed class NotSupportedMcpServerSampling : IMcpServerSampling
 {
     /// <summary>
     /// 获取全局单例实例。
     /// </summary>
-    public static readonly McpServerSamplingNull Instance = new();
+    public static readonly NotSupportedMcpServerSampling Instance = new();
 
-    private McpServerSamplingNull() { }
+    private NotSupportedMcpServerSampling() { }
 
     /// <inheritdoc />
-    public bool HasSamplingCapability => false;
+    public bool IsSupported => false;
 
     /// <inheritdoc />
     public Task<CreateMessageResult> CreateMessageAsync(CreateMessageRequestParams requestParams, CancellationToken cancellationToken = default)
-        => throw new InvalidOperationException("当前传输层未提供 Sampling 服务，或客户端未声明 Sampling 能力。The current transport has not provided Sampling, or the client has not declared Sampling capability.");
+        => throw new McpSamplingNotSupportedException();
 }

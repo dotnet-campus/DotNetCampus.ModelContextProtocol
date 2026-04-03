@@ -52,10 +52,10 @@ public class SamplingTests
         Assert.AreEqual(expectedResponseText, textContent.Text, "工具返回的文本应与 Sampling 响应一致");
     }
 
-    [TestMethod("Sampling: 无 Sampling 能力时 HasSamplingCapability 为 false")]
+    [TestMethod("Sampling: 无 Sampling 能力时 IsSupported 为 false")]
     [DataRow(HttpTransportType.LocalHost, DisplayName = "LocalHost")]
     [DataRow(HttpTransportType.TouchSocket, DisplayName = "TouchSocket")]
-    public async Task HasSamplingCapabilityIsFalseWhenClientHasNoCapability(HttpTransportType transportType)
+    public async Task IsSupportedIsFalseWhenClientHasNoCapability(HttpTransportType transportType)
     {
         // Arrange - 客户端不配置 WithSamplingHandler，因此不声明采样能力
         await using var package = await TestMcpFactory.Shared.CreateHttpCoreAsync(
@@ -73,7 +73,7 @@ public class SamplingTests
         var textContent = callResult.Content.OfType<TextContentBlock>().FirstOrDefault();
         Assert.IsNotNull(textContent, "工具调用结果应包含文本内容");
         Assert.AreEqual("has_capability=False", textContent.Text,
-            "当客户端未声明 Sampling 能力时，HasSamplingCapability 应为 false");
+            "when客户端未声明 Sampling 能力时，IsSupported 应为 false");
     }
 
     #endregion
