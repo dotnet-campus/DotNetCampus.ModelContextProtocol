@@ -94,7 +94,7 @@ internal sealed class McpServerSampling(IServerTransportSession session) : IMcpS
         {
             Id = RequestId.MakeNew().ToJsonElement(),
             Method = RequestMethods.SamplingCreateMessage,
-            Params = JsonSerializer.SerializeToElement(requestParams, McpServerRequestJsonContext.Default.CreateMessageRequestParams),
+            Params = JsonSerializer.SerializeToElement(requestParams, McpInternalJsonContext.Default.CreateMessageRequestParams),
         };
 
         var response = await session.SendRequestAsync(request, cancellationToken).ConfigureAwait(false);
@@ -109,7 +109,7 @@ internal sealed class McpServerSampling(IServerTransportSession session) : IMcpS
             throw new McpClientException("Sampling response missing result.");
         }
 
-        return resultElement.Deserialize(McpServerResponseJsonContext.Default.CreateMessageResult)
+        return resultElement.Deserialize(McpInternalJsonContext.Default.CreateMessageResult)
                ?? throw new McpClientException("Failed to deserialize sampling result.");
     }
 }

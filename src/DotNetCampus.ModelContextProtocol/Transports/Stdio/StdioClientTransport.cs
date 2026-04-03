@@ -1,4 +1,4 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 using System.Diagnostics.Contracts;
 using System.Text;
 using System.Text.Json;
@@ -146,7 +146,7 @@ public class StdioClientTransport : IClientTransport
     {
         try
         {
-            return JsonSerializer.Deserialize(json, McpServerRequestJsonContext.Default.JsonRpcRequest);
+            return JsonSerializer.Deserialize(json, McpInternalJsonContext.Default.JsonRpcRequest);
         }
         catch
         {

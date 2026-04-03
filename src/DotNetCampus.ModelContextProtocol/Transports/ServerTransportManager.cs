@@ -1,4 +1,4 @@
-﻿using System.Buffers;
+using System.Buffers;
 using System.Collections.Concurrent;
 using System.Diagnostics.CodeAnalysis;
 using System.IO.Pipelines;
@@ -137,7 +137,7 @@ internal class ServerTransportManager(McpServer server, McpServerContext context
 
     public ValueTask<JsonRpcRequest?> ReadRequestAsync(string requestLine)
     {
-        var message = JsonSerializer.Deserialize(requestLine, McpServerRequestJsonContext.Default.JsonRpcRequest);
+        var message = JsonSerializer.Deserialize(requestLine, McpInternalJsonContext.Default.JsonRpcRequest);
         if (message is { Method: RequestMethods.Initialize, Id: null })
         {
             return ValueTask.FromResult<JsonRpcRequest?>(message with { Id = MakeNewSessionId().ToJsonElement() });
@@ -147,7 +147,7 @@ internal class ServerTransportManager(McpServer server, McpServerContext context
 
     public async ValueTask<JsonRpcRequest?> ReadRequestAsync(Stream requestStream)
     {
-        var message = await JsonSerializer.DeserializeAsync(requestStream, McpServerRequestJsonContext.Default.JsonRpcRequest);
+        var message = await JsonSerializer.DeserializeAsync(requestStream, McpInternalJsonContext.Default.JsonRpcRequest);
         if (message is { Method: RequestMethods.Initialize, Id: null })
         {
             return message with { Id = MakeNewSessionId().ToJsonElement() };
@@ -158,7 +158,7 @@ internal class ServerTransportManager(McpServer server, McpServerContext context
     public async ValueTask<JsonRpcRequest?> ReadRequestAsync(ReadOnlyMemory<byte> requestMemory)
     {
         var pipeReader = PipeReader.Create(new ReadOnlySequence<byte>(requestMemory));
-        var message = await JsonSerializer.DeserializeAsync(pipeReader, McpServerRequestJsonContext.Default.JsonRpcRequest);
+        var message = await JsonSerializer.DeserializeAsync(pipeReader, McpInternalJsonContext.Default.JsonRpcRequest);
         if (message is { Method: RequestMethods.Initialize, Id: null })
         {
             return message with { Id = MakeNewSessionId().ToJsonElement() };
@@ -166,14 +166,20 @@ internal class ServerTransportManager(McpServer server, McpServerContext context
         return message;
     }
 
+    public async ValueTask<JsonRpcResponse?> ReadResponseAsync(ReadOnlyMemory<byte> responseMemory)
+    {
+        var pipeReader = PipeReader.Create(new ReadOnlySequence<byte>(responseMemory));
+        return await JsonSerializer.DeserializeAsync(pipeReader, McpInternalJsonContext.Default.JsonRpcResponse);
+    }
+
     public Task WriteMessageAsync(Stream stream, JsonRpcMessage message, CancellationToken cancellationToken) => message switch
     {
         JsonRpcResponse response => JsonSerializer.SerializeAsync(stream, response,
-            McpServerResponseJsonContext.Default.JsonRpcResponse, cancellationToken),
+            McpInternalJsonContext.Default.JsonRpcResponse, cancellationToken),
         JsonRpcRequest request => JsonSerializer.SerializeAsync(stream, request,
-            McpServerRequestJsonContext.Default.JsonRpcRequest, cancellationToken),
+            McpInternalJsonContext.Default.JsonRpcRequest, cancellationToken),
         JsonRpcNotification notification => JsonSerializer.SerializeAsync(stream, notification,
-            McpServerRequestJsonContext.Default.JsonRpcNotification, cancellationToken),
+            McpInternalJsonContext.Default.JsonRpcNotification, cancellationToken),
         _ => throw new InvalidOperationException($"Unsupported message type: {message.GetType().FullName}"),
     };
 

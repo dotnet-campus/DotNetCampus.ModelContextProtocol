@@ -6,6 +6,7 @@ using DotNetCampus.ModelContextProtocol.Hosting.Services;
 using DotNetCampus.ModelContextProtocol.Protocol;
 using DotNetCampus.ModelContextProtocol.Protocol.Messages.JsonRpc;
 using DotNetCampus.ModelContextProtocol.Servers;
+using DotNetCampus.ModelContextProtocol.Transports;
 using DotNetCampus.ModelContextProtocol.Transports.Http;
 using TouchSocket.Core;
 using TouchSocket.Http;
@@ -257,11 +258,15 @@ public class TouchSocketHttpServerTransport : PluginBase, IHttpPlugin, IServerTr
             }
         }
 
-        JsonRpcRequest? jsonRpcRequest;
+        var sessionIdStr = request.Headers.Get(SessionIdHeader).First;
+
+        // 将 body 读取并解析为 JsonDocument，通过 JsonElement 检测消息类型。
+        ReadOnlyMemory<byte> bodyBytes;
+        JsonDocument bodyDoc;
         try
         {
-            var bodyBytes = await request.GetContentAsync();
-            jsonRpcRequest = await _manager.ReadRequestAsync(bodyBytes);
+            bodyBytes = await request.GetContentAsync();
+            bodyDoc = JsonDocument.Parse(bodyBytes);
         }
         catch (JsonException)
         {
@@ -270,71 +275,125 @@ public class TouchSocketHttpServerTransport : PluginBase, IHttpPlugin, IServerTr
             return;
         }
 
-        if (jsonRpcRequest == null)
+        using (bodyDoc)
         {
-            Log.Warn($"[McpServer][TouchSocket] POST request rejected: Empty body.");
-            await context.RespondHttpError(HttpStatusCode.BadRequest, "Empty body");
-            return;
-        }
+            var bodyElement = bodyDoc.RootElement;
 
-        var isInitialize = jsonRpcRequest.Method == RequestMethods.Initialize;
-        var sessionIdStr = request.Headers.Get(SessionIdHeader).First;
-        TouchSocketHttpServerTransportSession? session;
+            // 检测是 JSON-RPC 请求（有 method）还是响应（无 method，有 result 或 error）。
+            var isResponse = !bodyElement.TryGetProperty("method", out _)
+                && (bodyElement.TryGetProperty("result", out _) || bodyElement.TryGetProperty("error", out _));
 
-        if (isInitialize)
-        {
-            // 初始化请求，创建新 Session
-            var newSessionId = _manager.MakeNewSessionId();
-            var newSession = new TouchSocketHttpServerTransportSession(_manager, newSessionId.Id);
-
-            if (_sessions.TryAdd(newSessionId.Id, newSession))
+            if (isResponse)
             {
-                session = newSession;
-                _manager.Add(session);
-                context.Response.Headers.Add(SessionIdHeader, newSessionId.Id);
-                Log.Info($"[McpServer][TouchSocket] Session created. SessionId={newSessionId.Id}");
+                // 客户端响应服务器发起的请求（如 sampling/createMessage）。
+                if (string.IsNullOrEmpty(sessionIdStr) || !_sessions.TryGetValue(sessionIdStr, out var responseSession))
+                {
+                    Log.Warn($"[McpServer][TouchSocket] Response routing failed: Session not found. SessionId={sessionIdStr}");
+                    await context.RespondHttpError(HttpStatusCode.NotFound, "Session not found");
+                    return;
+                }
+
+                JsonRpcResponse? jsonRpcResponse;
+                try
+                {
+                    jsonRpcResponse = await _manager.ReadResponseAsync(bodyBytes);
+                }
+                catch (JsonException)
+                {
+                    await context.RespondHttpError(HttpStatusCode.BadRequest, "Invalid JSON response");
+                    return;
+                }
+
+                if (jsonRpcResponse is not null)
+                {
+                    responseSession.HandleResponseAsync(jsonRpcResponse);
+                }
+
+                await context.RespondHttpSuccess(HttpStatusCode.Accepted);
+                return;
+            }
+
+            JsonRpcRequest? jsonRpcRequest;
+            try
+            {
+                jsonRpcRequest = await _manager.ReadRequestAsync(bodyBytes);
+            }
+            catch (JsonException)
+            {
+                Log.Warn($"[McpServer][TouchSocket] POST request rejected: Invalid JSON.");
+                await context.RespondHttpError(HttpStatusCode.BadRequest, "Invalid JSON");
+                return;
+            }
+
+            if (jsonRpcRequest == null)
+            {
+                Log.Warn($"[McpServer][TouchSocket] POST request rejected: Empty body.");
+                await context.RespondHttpError(HttpStatusCode.BadRequest, "Empty body");
+                return;
+            }
+
+            var isInitialize = jsonRpcRequest.Method == RequestMethods.Initialize;
+            TouchSocketHttpServerTransportSession? session;
+
+            if (isInitialize)
+            {
+                // 初始化请求，创建新 Session
+                var newSessionId = _manager.MakeNewSessionId();
+                var newSession = new TouchSocketHttpServerTransportSession(_manager, newSessionId.Id);
+
+                if (_sessions.TryAdd(newSessionId.Id, newSession))
+                {
+                    session = newSession;
+                    _manager.Add(session);
+                    context.Response.Headers.Add(SessionIdHeader, newSessionId.Id);
+                    Log.Info($"[McpServer][TouchSocket] Session created. SessionId={newSessionId.Id}");
+                }
+                else
+                {
+                    Log.Error($"[McpServer][TouchSocket] Session ID collision. SessionId={newSessionId.Id}");
+                    await context.RespondHttpError(HttpStatusCode.InternalServerError, "Session ID collision");
+                    return;
+                }
             }
             else
             {
-                Log.Error($"[McpServer][TouchSocket] Session ID collision. SessionId={newSessionId.Id}");
-                await context.RespondHttpError(HttpStatusCode.InternalServerError, "Session ID collision");
-                return;
+                if (string.IsNullOrEmpty(sessionIdStr))
+                {
+                    Log.Warn($"[McpServer][TouchSocket] POST request rejected: Missing Mcp-Session-Id header. Method={jsonRpcRequest.Method}");
+                    await context.RespondHttpError(HttpStatusCode.BadRequest, "Missing Mcp-Session-Id header");
+                    return;
+                }
+
+                if (!_sessions.TryGetValue(sessionIdStr, out session))
+                {
+                    Log.Warn($"[McpServer][TouchSocket] POST request rejected: Session not found. SessionId={sessionIdStr}, Method={jsonRpcRequest.Method}");
+                    await context.RespondHttpError(HttpStatusCode.NotFound, "Session not found");
+                    return;
+                }
             }
-        }
-        else
-        {
-            if (string.IsNullOrEmpty(sessionIdStr))
+
+            Log.Debug($"[McpServer][TouchSocket] Handling JSON-RPC request. SessionId={session.SessionId}, Method={jsonRpcRequest.Method}, MessageId={jsonRpcRequest.Id}");
+
+            var jsonRpcResponse2 = await _manager.HandleRequestAsync(jsonRpcRequest,
+                s =>
+                {
+                    s.AddHttpTransportServices(session.SessionId, request);
+                    s.AddTransportSession(session);
+                },
+                cancellationToken: cancellationToken);
+
+            if (jsonRpcResponse2 != null)
             {
-                Log.Warn($"[McpServer][TouchSocket] POST request rejected: Missing Mcp-Session-Id header. Method={jsonRpcRequest.Method}");
-                await context.RespondHttpError(HttpStatusCode.BadRequest, "Missing Mcp-Session-Id header");
-                return;
+                // Request: Success or Failed.
+                Log.Debug($"[McpServer][TouchSocket] Sending JSON-RPC response. SessionId={session.SessionId}, Method={jsonRpcRequest.Method}, MessageId={jsonRpcRequest.Id}");
+                await context.RespondJsonRpcAsync(_manager, HttpStatusCode.OK, jsonRpcResponse2);
             }
-
-            if (!_sessions.TryGetValue(sessionIdStr, out session))
+            else
             {
-                Log.Warn($"[McpServer][TouchSocket] POST request rejected: Session not found. SessionId={sessionIdStr}, Method={jsonRpcRequest.Method}");
-                await context.RespondHttpError(HttpStatusCode.NotFound, "Session not found");
-                return;
+                // Notification: No need to respond.
+                Log.Debug($"[McpServer][TouchSocket] No response for notification. SessionId={session.SessionId}, Method={jsonRpcRequest.Method}, MessageId={jsonRpcRequest.Id}");
+                await context.RespondHttpSuccess(HttpStatusCode.Accepted);
             }
-        }
-
-        Log.Debug($"[McpServer][TouchSocket] Handling JSON-RPC request. SessionId={session.SessionId}, Method={jsonRpcRequest.Method}, MessageId={jsonRpcRequest.Id}");
-
-        var jsonRpcResponse = await _manager.HandleRequestAsync(jsonRpcRequest,
-            s => s.AddHttpTransportServices(session.SessionId, request),
-            cancellationToken: cancellationToken);
-
-        if (jsonRpcResponse != null)
-        {
-            // Request: Success or Failed.
-            Log.Debug($"[McpServer][TouchSocket] Sending JSON-RPC response. SessionId={session.SessionId}, Method={jsonRpcRequest.Method}, MessageId={jsonRpcRequest.Id}");
-            await context.RespondJsonRpcAsync(_manager, HttpStatusCode.OK, jsonRpcResponse);
-        }
-        else
-        {
-            // Notification: No need to respond.
-            Log.Debug($"[McpServer][TouchSocket] No response for notification. SessionId={session.SessionId}, Method={jsonRpcRequest.Method}, MessageId={jsonRpcRequest.Id}");
-            await context.RespondHttpSuccess(HttpStatusCode.Accepted);
         }
     }
 

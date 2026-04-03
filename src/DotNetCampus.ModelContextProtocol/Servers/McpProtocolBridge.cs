@@ -1,4 +1,4 @@
-﻿using System.Diagnostics.CodeAnalysis;
+using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
 using DotNetCampus.ModelContextProtocol.CompilerServices;
@@ -122,28 +122,28 @@ internal sealed class McpProtocolBridge(McpServerContext context)
                 },
             },
             Initialize => await HandleRequestAsync(request, services, context.Handlers.HandleInitializeAsync,
-                McpServerRequestJsonContext.Default.InitializeRequestParams, McpServerResponseJsonContext.Default.InitializeResult,
+                McpInternalJsonContext.Default.InitializeRequestParams, McpInternalJsonContext.Default.InitializeResult,
                 cancellationToken),
             Ping => await HandleRequestAsync(request, services, context.Handlers.HandlePingAsync,
-                McpServerRequestJsonContext.Default.PingRequestParams, McpServerResponseJsonContext.Default.EmptyObject,
+                McpInternalJsonContext.Default.PingRequestParams, McpInternalJsonContext.Default.EmptyObject,
                 cancellationToken),
             LoggingSetLevel => await HandleRequestAsync(request, services, context.Handlers.HandleSetLoggingLevelAsync,
-                McpServerRequestJsonContext.Default.SetLevelRequestParams, McpServerResponseJsonContext.Default.EmptyObject,
+                McpInternalJsonContext.Default.SetLevelRequestParams, McpInternalJsonContext.Default.EmptyObject,
                 cancellationToken),
             ToolsList => await HandleRequestAsync(request, services, context.Handlers.HandleListToolsAsync,
-                McpServerRequestJsonContext.Default.ListToolsRequestParams, McpServerResponseJsonContext.Default.ListToolsResult,
+                McpInternalJsonContext.Default.ListToolsRequestParams, McpInternalJsonContext.Default.ListToolsResult,
                 cancellationToken),
             ToolsCall => await HandleRequestAsync(request, services, context.Handlers.HandleCallToolAsync,
-                McpServerRequestJsonContext.Default.CallToolRequestParams, McpServerResponseJsonContext.Default.CallToolResult,
+                McpInternalJsonContext.Default.CallToolRequestParams, McpInternalJsonContext.Default.CallToolResult,
                 cancellationToken),
             ResourcesList => await HandleRequestAsync(request, services, context.Handlers.HandleListResourcesAsync,
-                McpServerRequestJsonContext.Default.ListResourcesRequestParams, McpServerResponseJsonContext.Default.ListResourcesResult,
+                McpInternalJsonContext.Default.ListResourcesRequestParams, McpInternalJsonContext.Default.ListResourcesResult,
                 cancellationToken),
             ResourcesTemplatesList => await HandleRequestAsync(request, services, context.Handlers.HandleListResourceTemplatesAsync,
-                McpServerRequestJsonContext.Default.ListResourceTemplatesRequestParams, McpServerResponseJsonContext.Default.ListResourceTemplatesResult,
+                McpInternalJsonContext.Default.ListResourceTemplatesRequestParams, McpInternalJsonContext.Default.ListResourceTemplatesResult,
                 cancellationToken),
             ResourcesRead => await HandleRequestAsync(request, services, context.Handlers.HandleReadResourceAsync,
-                McpServerRequestJsonContext.Default.ReadResourceRequestParams, McpServerResponseJsonContext.Default.ReadResourceResult,
+                McpInternalJsonContext.Default.ReadResourceRequestParams, McpInternalJsonContext.Default.ReadResourceResult,
                 cancellationToken),
             _ => new JsonRpcResponse
             {

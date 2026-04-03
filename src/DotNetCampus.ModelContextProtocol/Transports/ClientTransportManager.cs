@@ -47,23 +47,23 @@ internal class ClientTransportManager(IClientTransportContext context) : IClient
     /// <inheritdoc />
     public ValueTask<JsonRpcResponse?> ReadResponseAsync(string responseLine)
     {
-        var message = JsonSerializer.Deserialize(responseLine, McpServerResponseJsonContext.Default.JsonRpcResponse);
+        var message = JsonSerializer.Deserialize(responseLine, McpInternalJsonContext.Default.JsonRpcResponse);
         return ValueTask.FromResult<JsonRpcResponse?>(message);
     }
 
     /// <inheritdoc />
     public ValueTask<JsonRpcResponse?> ReadResponseAsync(Stream responseStream)
     {
-        var message = JsonSerializer.Deserialize(responseStream, McpServerResponseJsonContext.Default.JsonRpcResponse);
+        var message = JsonSerializer.Deserialize(responseStream, McpInternalJsonContext.Default.JsonRpcResponse);
         return ValueTask.FromResult<JsonRpcResponse?>(message);
     }
 
     /// <inheritdoc />
     public string WriteMessageAsync(JsonRpcMessage message) => message switch
     {
-        JsonRpcRequest request => JsonSerializer.Serialize(request, McpServerRequestJsonContext.Default.JsonRpcRequest),
-        JsonRpcResponse response => JsonSerializer.Serialize(response, McpServerResponseJsonContext.Default.JsonRpcResponse),
-        JsonRpcNotification notification => JsonSerializer.Serialize(notification, McpServerRequestJsonContext.Default.JsonRpcNotification),
+        JsonRpcRequest request => JsonSerializer.Serialize(request, McpInternalJsonContext.Default.JsonRpcRequest),
+        JsonRpcResponse response => JsonSerializer.Serialize(response, McpInternalJsonContext.Default.JsonRpcResponse),
+        JsonRpcNotification notification => JsonSerializer.Serialize(notification, McpInternalJsonContext.Default.JsonRpcNotification),
         _ => throw new ArgumentException($"不支持的消息类型：{message.GetType().FullName}."),
     };
 
@@ -73,11 +73,11 @@ internal class ClientTransportManager(IClientTransportContext context) : IClient
         await (message switch
         {
             JsonRpcRequest request => JsonSerializer.SerializeAsync(
-                requestStream, request, McpServerRequestJsonContext.Default.JsonRpcRequest, cancellationToken),
+                requestStream, request, McpInternalJsonContext.Default.JsonRpcRequest, cancellationToken),
             JsonRpcResponse response => JsonSerializer.SerializeAsync(
-                requestStream, response, McpServerResponseJsonContext.Default.JsonRpcResponse, cancellationToken),
+                requestStream, response, McpInternalJsonContext.Default.JsonRpcResponse, cancellationToken),
             JsonRpcNotification notification => JsonSerializer.SerializeAsync(
-                requestStream, notification, McpServerRequestJsonContext.Default.JsonRpcNotification, cancellationToken),
+                requestStream, notification, McpInternalJsonContext.Default.JsonRpcNotification, cancellationToken),
             _ => throw new ArgumentException($"不支持的消息类型：{message.GetType().FullName}."),
         });
     }
@@ -111,7 +111,7 @@ internal class ClientTransportManager(IClientTransportContext context) : IClient
                 CreateMessageRequestParams? requestParams = null;
                 if (request.Params is { } paramsElement)
                 {
-                    requestParams = paramsElement.Deserialize(McpServerRequestJsonContext.Default.CreateMessageRequestParams);
+                    requestParams = paramsElement.Deserialize(McpInternalJsonContext.Default.CreateMessageRequestParams);
                 }
                 requestParams ??= new CreateMessageRequestParams { Messages = [], MaxTokens = 1024 };
 
@@ -119,7 +119,7 @@ internal class ClientTransportManager(IClientTransportContext context) : IClient
                 response = new JsonRpcResponse
                 {
                     Id = request.Id,
-                    Result = JsonSerializer.SerializeToElement(result, McpServerResponseJsonContext.Default.CreateMessageResult),
+                    Result = JsonSerializer.SerializeToElement(result, McpInternalJsonContext.Default.CreateMessageResult),
                 };
             }
             catch (Exception ex)
@@ -221,7 +221,7 @@ internal class ClientTransportManager(IClientTransportContext context) : IClient
                     Version = client.ClientVersion,
                 },
                 Capabilities = client.Capabilities,
-            }, McpServerRequestJsonContext.Default.InitializeRequestParams),
+            }, McpInternalJsonContext.Default.InitializeRequestParams),
         };
 
         var response = await SendRequestAsync(request, cancellationToken).ConfigureAwait(false);
@@ -236,7 +236,7 @@ internal class ClientTransportManager(IClientTransportContext context) : IClient
             throw new McpClientException("初始化响应格式不正确");
         }
 
-        var result = responseResult.Deserialize<InitializeResult>(McpServerResponseJsonContext.Default.InitializeResult)
+        var result = responseResult.Deserialize<InitializeResult>(McpInternalJsonContext.Default.InitializeResult)
                      ?? throw new McpClientException("无法解析初始化响应");
 
         // 发送 initialized 通知。

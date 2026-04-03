@@ -63,11 +63,11 @@ public interface IMcpServerCallToolContext : IMcpServerPrimitiveContext
     CancellationToken CancellationToken { get; }
 
     /// <summary>
-    /// 提供服务器向客户端发起 Sampling 请求的能力。如果当前传输层或客户端不支持 Sampling，调用相关方法将抛出异常。<br/>
+    /// 提供服务器向客户端发起 Sampling 请求的能力。当传输层或客户端不支持 Sampling 时返回 <see langword="null"/>。<br/>
     /// Provides the ability to send Sampling requests from the server to the client.
-    /// If the current transport or client does not support Sampling, calling the related methods will throw an exception.
+    /// Returns <see langword="null"/> when the transport or client does not support Sampling.
     /// </summary>
-    IMcpServerSampling Sampling { get; }
+    IMcpServerSampling? Sampling { get; }
 }
 
 /// <summary>
@@ -100,8 +100,7 @@ internal sealed class McpServerCallToolContext : IMcpServerCallToolContext
     public required string Name { get; init; }
     public required JsonElement InputJsonArguments { get; init; }
     public required CancellationToken CancellationToken { get; init; }
-    public IMcpServerSampling Sampling => (IMcpServerSampling?)Services.GetService(typeof(IMcpServerSampling))
-        ?? throw new InvalidOperationException("当前传输层未提供 IMcpServerSampling 服务，或客户端未声明 Sampling 能力。The current transport has not provided IMcpServerSampling, or the client has not declared Sampling capability.");
+    public IMcpServerSampling? Sampling => (IMcpServerSampling?)Services.GetService(typeof(IMcpServerSampling));
 }
 
 internal sealed class McpServerReadResourceContext : IMcpServerReadResourceContext

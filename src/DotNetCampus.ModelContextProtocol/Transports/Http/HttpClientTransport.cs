@@ -1,4 +1,4 @@
-﻿using System.Net.Http.Headers;
+using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 using DotNetCampus.ModelContextProtocol.Hosting.Logging;
@@ -435,7 +435,7 @@ public class HttpClientTransport : IClientTransport
     {
         try
         {
-            return JsonSerializer.Deserialize(json, CompilerServices.McpServerRequestJsonContext.Default.JsonRpcRequest);
+            return JsonSerializer.Deserialize(json, CompilerServices.McpInternalJsonContext.Default.JsonRpcRequest);
         }
         catch
         {

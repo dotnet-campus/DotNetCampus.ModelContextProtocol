@@ -1,4 +1,4 @@
-﻿using System.Collections.Concurrent;
+using System.Collections.Concurrent;
 using System.Text;
 using System.Text.Json;
 using DotNetCampus.ModelContextProtocol.CompilerServices;
@@ -112,9 +112,9 @@ public class StdioServerTransportSession : IServerTransportSession
 
     private static System.Text.Json.Serialization.Metadata.JsonTypeInfo GetTypeInfo(JsonRpcMessage message) => message switch
     {
-        JsonRpcResponse response => McpServerResponseJsonContext.Default.JsonRpcResponse,
-        JsonRpcRequest request => McpServerRequestJsonContext.Default.JsonRpcRequest,
-        JsonRpcNotification notification => McpServerRequestJsonContext.Default.JsonRpcNotification,
+        JsonRpcResponse response => McpInternalJsonContext.Default.JsonRpcResponse,
+        JsonRpcRequest request => McpInternalJsonContext.Default.JsonRpcRequest,
+        JsonRpcNotification notification => McpInternalJsonContext.Default.JsonRpcNotification,
         _ => throw new ArgumentException($"不支持的消息类型：{message.GetType().FullName}."),
     };
 }

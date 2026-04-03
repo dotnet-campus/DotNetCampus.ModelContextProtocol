@@ -112,67 +112,53 @@ public partial class CompiledSchemaJsonContext : JsonSerializerContext;
 internal partial class McpServerToolJsonContext : JsonSerializerContext;
 
 /// <summary>
-/// 提供给 MCP 协议中，服务端收到来自客户端的请求数据时使用的 JSON 序列化上下文。
+/// MCP 协议内部使用的统一 JSON 序列化上下文，涵盖所有请求参数类型和响应结果类型。
 /// </summary>
+[JsonSerializable(typeof(Annotations))]
+[JsonSerializable(typeof(AudioContentBlock))]
+[JsonSerializable(typeof(BlobResourceContents))]
 [JsonSerializable(typeof(CallToolRequestParams))]
+[JsonSerializable(typeof(CallToolResult))]
+[JsonSerializable(typeof(CompiledJsonSchema))]
+[JsonSerializable(typeof(ContentBlock))]
 [JsonSerializable(typeof(CreateMessageRequestParams))]
+[JsonSerializable(typeof(CreateMessageResult))]
+[JsonSerializable(typeof(EmbeddedResourceContentBlock))]
+[JsonSerializable(typeof(EmptyObject))]
 [JsonSerializable(typeof(GetPromptRequestParams))]
+[JsonSerializable(typeof(GetPromptResult))]
+[JsonSerializable(typeof(ImageContentBlock))]
 [JsonSerializable(typeof(InitializeRequestParams))]
+[JsonSerializable(typeof(InitializeResult))]
 [JsonSerializable(typeof(JsonElement))]
-[JsonSerializable(typeof(ListPromptsRequestParams))]
 [JsonSerializable(typeof(JsonRpcNotification))]
 [JsonSerializable(typeof(JsonRpcRequest))]
 [JsonSerializable(typeof(JsonRpcResponse))]
+[JsonSerializable(typeof(ListPromptsRequestParams))]
+[JsonSerializable(typeof(ListPromptsResult))]
 [JsonSerializable(typeof(ListResourcesRequestParams))]
+[JsonSerializable(typeof(ListResourcesResult))]
 [JsonSerializable(typeof(ListResourceTemplatesRequestParams))]
+[JsonSerializable(typeof(ListResourceTemplatesResult))]
 [JsonSerializable(typeof(ListToolsRequestParams))]
+[JsonSerializable(typeof(ListToolsResult))]
 [JsonSerializable(typeof(LoggingLevel))]
+[JsonSerializable(typeof(McpExceptionData))]
 [JsonSerializable(typeof(ModelHint))]
 [JsonSerializable(typeof(ModelPreferences))]
 [JsonSerializable(typeof(PingRequestParams))]
 [JsonSerializable(typeof(ReadResourceRequestParams))]
+[JsonSerializable(typeof(ReadResourceResult))]
+[JsonSerializable(typeof(ResourceContents))]
+[JsonSerializable(typeof(ResourceLinkContentBlock))]
 [JsonSerializable(typeof(SamplingMessage))]
 [JsonSerializable(typeof(SetLevelRequestParams))]
+[JsonSerializable(typeof(TextContentBlock))]
+[JsonSerializable(typeof(TextResourceContents))]
 [JsonSerializable(typeof(ToolChoice))]
 [JsonSourceGenerationOptions(
     PropertyNameCaseInsensitive = true,
     PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,
     UseStringEnumConverter = true,
     WriteIndented = false)]
-internal partial class McpServerRequestJsonContext : JsonSerializerContext;
-
-/// <summary>
-/// 提供给 MCP 协议中，服务端发送给客户端的响应数据时使用的 JSON 序列化上下文。
-/// </summary>
-[JsonSerializable(typeof(Annotations))]
-[JsonSerializable(typeof(AudioContentBlock))]
-[JsonSerializable(typeof(BlobResourceContents))]
-[JsonSerializable(typeof(CallToolResult))]
-[JsonSerializable(typeof(CompiledJsonSchema))]
-[JsonSerializable(typeof(ContentBlock))]
-[JsonSerializable(typeof(CreateMessageResult))]
-[JsonSerializable(typeof(EmbeddedResourceContentBlock))]
-[JsonSerializable(typeof(EmptyObject))]
-[JsonSerializable(typeof(GetPromptResult))]
-[JsonSerializable(typeof(ImageContentBlock))]
-[JsonSerializable(typeof(InitializeResult))]
-[JsonSerializable(typeof(JsonElement))]
-[JsonSerializable(typeof(JsonRpcRequest))]
-[JsonSerializable(typeof(JsonRpcResponse))]
-[JsonSerializable(typeof(ListPromptsResult))]
-[JsonSerializable(typeof(ListResourcesResult))]
-[JsonSerializable(typeof(ListResourceTemplatesResult))]
-[JsonSerializable(typeof(ListToolsResult))]
-[JsonSerializable(typeof(McpExceptionData))]
-[JsonSerializable(typeof(ReadResourceResult))]
-[JsonSerializable(typeof(ResourceContents))]
-[JsonSerializable(typeof(ResourceLinkContentBlock))]
-[JsonSerializable(typeof(SamplingMessage))]
-[JsonSerializable(typeof(TextContentBlock))]
-[JsonSerializable(typeof(TextResourceContents))]
-[JsonSourceGenerationOptions(
-    PropertyNameCaseInsensitive = true,
-    PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,
-    UseStringEnumConverter = true,
-    WriteIndented = false)]
-internal partial class McpServerResponseJsonContext : JsonSerializerContext;
+internal partial class McpInternalJsonContext : JsonSerializerContext;

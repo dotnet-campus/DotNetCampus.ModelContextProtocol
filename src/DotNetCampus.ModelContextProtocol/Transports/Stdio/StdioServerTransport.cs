@@ -1,4 +1,4 @@
-﻿using System.Text;
+using System.Text;
 using System.Text.Json;
 using DotNetCampus.ModelContextProtocol.CompilerServices;
 using DotNetCampus.ModelContextProtocol.Hosting.Logging;
@@ -165,7 +165,7 @@ public class StdioServerTransport : IServerTransport
     {
         try
         {
-            return JsonSerializer.Deserialize(json, McpServerResponseJsonContext.Default.JsonRpcResponse);
+            return JsonSerializer.Deserialize(json, McpInternalJsonContext.Default.JsonRpcResponse);
         }
         catch
         {

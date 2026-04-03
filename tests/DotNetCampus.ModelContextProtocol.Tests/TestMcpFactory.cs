@@ -144,11 +144,12 @@ public class TestMcpFactory
     }
 
     /// <summary>
-    /// 核心方法：创建一个完全自定义的 HTTP 传输 MCP 测试包。
+    /// 核心方法：创建一个完全自定义的 HTTP 传输 MCP 测试包，支持同时配置服务端和客户端。
     /// </summary>
     public async ValueTask<McpTestingPackage> CreateHttpCoreAsync(
         HttpTransportType httpTransportType,
-        Action<McpServerBuilder> configureBuilder)
+        Action<McpServerBuilder> configureBuilder,
+        Action<McpClientBuilder>? configureClient = null)
     {
         var port = Interlocked.Increment(ref _port);
         var mcpServerBuilder = new McpServerBuilder("TestMcpServer", "1.0.0")
@@ -176,10 +177,11 @@ public class TestMcpFactory
 
         var mcpClient = new McpClientBuilder()
             .WithLogger(DefaultLogger)
-            .WithHttp($"http://127.0.0.1:{port}/mcp")
-            .Build();
+            .WithHttp($"http://127.0.0.1:{port}/mcp");
+        configureClient?.Invoke(mcpClient);
+        var builtClient = mcpClient.Build();
 
-        return new McpTestingPackage(mcpServer, mcpClient);
+        return new McpTestingPackage(mcpServer, builtClient);
     }
 
     private static IServiceProvider CreateDefaultServices()

@@ -77,6 +77,16 @@ public interface IServerTransportManager
     ValueTask<JsonRpcRequest?> ReadRequestAsync(ReadOnlyMemory<byte> requestMemory);
 
     /// <summary>
+    /// 提供给传输层调用。当传输层收到 JSON-RPC 响应（无 method 字段、有 result 或 error 字段）后，
+    /// 调用此方法可以将响应字节解析为 <see cref="JsonRpcResponse"/> 对象。<br/>
+    /// Available for transport implementations. Parses a raw JSON-RPC response from memory
+    /// into a <see cref="JsonRpcResponse"/> object.
+    /// </summary>
+    /// <param name="responseMemory">JSON-RPC 响应的原始字节。Raw bytes of the JSON-RPC response.</param>
+    /// <returns>解析出来的 JSON-RPC 响应对象，如果无法解析则返回 <see langword="null"/>。</returns>
+    ValueTask<JsonRpcResponse?> ReadResponseAsync(ReadOnlyMemory<byte> responseMemory);
+
+    /// <summary>
     /// 提供给传输层调用，用于发送消息给 MCP 客户端。
     /// <list type="bullet">
     /// <item>当传输层调用 <see cref="HandleRequestAsync"/> 处理完请求并返回了响应后，调用此方法可以将响应 JSON-RPC 对象写入到流中。</item>
