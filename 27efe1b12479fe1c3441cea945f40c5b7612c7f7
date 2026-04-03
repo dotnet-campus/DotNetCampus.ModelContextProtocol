@@ -1,0 +1,34 @@
+src/DotNetCampus.ModelContextProtocol/Servers/IMcpServerPrimitiveContext.cs
+  3128c79d19d57f07 66-68,70,103-105
+src/DotNetCampus.ModelContextProtocol/Servers/McpServerSampling.cs
+  3128c79d19d57f07 20,22,34,54,108-118,131-151
+src/DotNetCampus.ModelContextProtocol/Exceptions/McpSamplingRejectedException.cs
+  3128c79d19d57f07 1-35
+tests/DotNetCampus.ModelContextProtocol.Tests/McpTools/SamplingTool.cs
+  3128c79d19d57f07 18-21,23,33
+samples/DotNetCampus.SampleMcpServer/McpTools/SamplingTool.cs
+  3128c79d19d57f07 2,25,32,34-40,42-55
+src/DotNetCampus.ModelContextProtocol/Protocol/Messages/Role.cs
+  3128c79d19d57f07 16,23
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.23",
+  "base_commit_sha": "27efe1b12479fe1c3441cea945f40c5b7612c7f7",
+  "prompts": {
+    "3128c79d19d57f07": {
+      "agent_id": {
+        "tool": "github-copilot",
+        "id": "05481282-531f-4990-b8d8-fc0b0a3a046f",
+        "model": "copilot/claude-sonnet-4.6"
+      },
+      "human_author": "walterlv <xblero@gmail.com>",
+      "messages": [],
+      "total_additions": 9115,
+      "total_deletions": 13656,
+      "accepted_lines": 9092,
+      "overriden_lines": 0,
+      "messages_url": "https://gitai.gz.cvte.cn/cas/dff574a97be267282d7c23f8013829f234684960e99c0b6b558b3ae8bd0703fa"
+    }
+  }
+}
