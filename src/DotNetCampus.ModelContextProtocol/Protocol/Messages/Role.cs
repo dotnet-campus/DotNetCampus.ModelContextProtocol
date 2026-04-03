@@ -1,4 +1,3 @@
-using System.Runtime.Serialization;
 using System.Text.Json.Serialization;
 
 namespace DotNetCampus.ModelContextProtocol.Protocol.Messages;
@@ -14,13 +13,13 @@ public enum Role
     /// 用户角色<br/>
     /// User role
     /// </summary>
-    [EnumMember(Value = "user")]
+    [JsonStringEnumMemberName("user")]
     User,
 
     /// <summary>
     /// 助手角色<br/>
     /// Assistant role
     /// </summary>
-    [EnumMember(Value = "assistant")]
+    [JsonStringEnumMemberName("assistant")]
     Assistant,
 }

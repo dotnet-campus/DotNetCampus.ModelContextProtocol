@@ -15,10 +15,12 @@ public class SamplingTool
     [McpServerTool]
     public async Task<string> AskLlm(string message, IMcpServerCallToolContext context)
     {
-        var sampling = context.Sampling
-            ?? throw new InvalidOperationException("Sampling service not available in this context.");
+        if (!context.Sampling.HasSamplingCapability)
+        {
+            throw new InvalidOperationException("Sampling service not available in this context.");
+        }
 
-        var result = await sampling.CreateMessageAsync(message);
+        var result = await context.Sampling.CreateMessageAsync(message);
         return result.Content is TextContentBlock textBlock ? textBlock.Text : string.Empty;
     }
 
@@ -28,6 +30,6 @@ public class SamplingTool
     [McpServerTool]
     public string CheckSamplingCapability(IMcpServerCallToolContext context)
     {
-        return $"has_capability={context.Sampling?.HasSamplingCapability ?? false}";
+        return $"has_capability={context.Sampling.HasSamplingCapability}";
     }
 }

@@ -63,11 +63,11 @@ public interface IMcpServerCallToolContext : IMcpServerPrimitiveContext
     CancellationToken CancellationToken { get; }
 
     /// <summary>
-    /// 提供服务器向客户端发起 Sampling 请求的能力。当传输层或客户端不支持 Sampling 时返回 <see langword="null"/>。<br/>
-    /// Provides the ability to send Sampling requests from the server to the client.
-    /// Returns <see langword="null"/> when the transport or client does not support Sampling.
+    /// 提供服务器向客户端发起 Sampling 请求的能力。始终非空；当传输层或客户端不支持 Sampling 时，<see cref="IMcpServerSampling.HasSamplingCapability"/> 为 <see langword="false"/>。<br/>
+    /// Provides the ability to send Sampling requests from the server to the client. Always non-null;
+    /// when the transport or client does not support Sampling, <see cref="IMcpServerSampling.HasSamplingCapability"/> will be <see langword="false"/>.
     /// </summary>
-    IMcpServerSampling? Sampling { get; }
+    IMcpServerSampling Sampling { get; }
 }
 
 /// <summary>
@@ -100,7 +100,9 @@ internal sealed class McpServerCallToolContext : IMcpServerCallToolContext
     public required string Name { get; init; }
     public required JsonElement InputJsonArguments { get; init; }
     public required CancellationToken CancellationToken { get; init; }
-    public IMcpServerSampling? Sampling => (IMcpServerSampling?)Services.GetService(typeof(IMcpServerSampling));
+    public IMcpServerSampling Sampling =>
+        (IMcpServerSampling?)Services.GetService(typeof(IMcpServerSampling))
+        ?? McpServerSamplingNull.Instance;
 }
 
 internal sealed class McpServerReadResourceContext : IMcpServerReadResourceContext

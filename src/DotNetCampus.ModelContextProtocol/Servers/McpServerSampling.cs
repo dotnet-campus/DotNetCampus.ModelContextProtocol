@@ -17,7 +17,9 @@ public interface IMcpServerSampling
 {
     /// <summary>
     /// 指示连接的客户端是否声明了对 Sampling 的支持。<br/>
+    /// 在调用 <see cref="CreateMessageAsync"/> 前应检查此属性；若为 <see langword="false"/>，调用将抛出异常。<br/>
     /// Indicates whether the connected client has declared support for Sampling.
+    /// Check this property before calling <see cref="CreateMessageAsync"/>; if false, the call will throw.
     /// </summary>
     bool HasSamplingCapability { get; }
 
@@ -29,6 +31,7 @@ public interface IMcpServerSampling
     /// <param name="cancellationToken">取消令牌。Cancellation token.</param>
     /// <returns>LLM 生成的采样结果。The LLM-generated sampling result.</returns>
     /// <exception cref="InvalidOperationException">当客户端未声明 Sampling 能力时抛出。Thrown when the client has not declared Sampling capability.</exception>
+    /// <exception cref="McpSamplingRejectedException">当采样请求被用户（人工审批）拒绝时抛出。Thrown when the sampling request was rejected by the user (human-in-the-loop).</exception>
     Task<CreateMessageResult> CreateMessageAsync(CreateMessageRequestParams requestParams, CancellationToken cancellationToken = default);
 }
 
@@ -48,6 +51,7 @@ public static class McpServerSamplingExtensions
     /// <param name="systemPrompt">可选的系统提示词。Optional system prompt.</param>
     /// <param name="cancellationToken">取消令牌。Cancellation token.</param>
     /// <returns>LLM 生成的采样结果。The LLM-generated sampling result.</returns>
+    /// <exception cref="McpSamplingRejectedException">当采样请求被用户拒绝时抛出。Thrown when the sampling request was rejected by the user.</exception>
     public static Task<CreateMessageResult> CreateMessageAsync(
         this IMcpServerSampling sampling,
         string userMessage,
@@ -101,6 +105,17 @@ internal sealed class McpServerSampling(IServerTransportSession session) : IMcpS
 
         if (response.Error is { } error)
         {
+            // 根据 MCP 规范，用户拒绝审批时客户端应返回错误响应。
+            // JSON-RPC 保留错误码范围为 -32768 到 -32000；任何高于 -32000 的错误码（如 -1）
+            // 表示用户自定义错误，通常意味着用户主动拒绝了采样请求。
+            // Per the MCP spec, when a user denies a sampling request, the client returns an error response.
+            // JSON-RPC reserved error codes are in range -32768 to -32000; any code above -32000 (e.g., -1)
+            // is user-defined and typically indicates an explicit rejection by the human-in-the-loop.
+            if (error.Code > -32000)
+            {
+                throw new McpSamplingRejectedException(error.Code, error.Message);
+            }
+
             throw new McpClientException($"Sampling request failed: [{error.Code}] {error.Message}");
         }
 
@@ -112,4 +127,25 @@ internal sealed class McpServerSampling(IServerTransportSession session) : IMcpS
         return resultElement.Deserialize(McpInternalJsonContext.Default.CreateMessageResult)
                ?? throw new McpClientException("Failed to deserialize sampling result.");
     }
+}
+
+/// <summary>
+/// 当传输层或客户端不支持 Sampling 时，用于占位的空对象实现。<br/>
+/// Null-object implementation of <see cref="IMcpServerSampling"/> used when the transport or client does not support Sampling.
+/// </summary>
+internal sealed class McpServerSamplingNull : IMcpServerSampling
+{
+    /// <summary>
+    /// 获取全局单例实例。
+    /// </summary>
+    public static readonly McpServerSamplingNull Instance = new();
+
+    private McpServerSamplingNull() { }
+
+    /// <inheritdoc />
+    public bool HasSamplingCapability => false;
+
+    /// <inheritdoc />
+    public Task<CreateMessageResult> CreateMessageAsync(CreateMessageRequestParams requestParams, CancellationToken cancellationToken = default)
+        => throw new InvalidOperationException("当前传输层未提供 Sampling 服务，或客户端未声明 Sampling 能力。The current transport has not provided Sampling, or the client has not declared Sampling capability.");
 }

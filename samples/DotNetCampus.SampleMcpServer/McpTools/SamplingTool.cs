@@ -1,4 +1,5 @@
 using DotNetCampus.ModelContextProtocol.CompilerServices;
+using DotNetCampus.ModelContextProtocol.Exceptions;
 using DotNetCampus.ModelContextProtocol.Protocol.Messages;
 using DotNetCampus.ModelContextProtocol.Servers;
 
@@ -21,28 +22,36 @@ public class SamplingTool
         string? systemPrompt = null,
         IMcpServerCallToolContext context = null!)
     {
-        var sampling = context.Sampling;
-        if (sampling is null || !sampling.HasSamplingCapability)
+        if (!context.Sampling.HasSamplingCapability)
         {
             return CallToolResult.FromError(
                 "当前客户端未声明 Sampling 能力。请确保客户端支持 sampling/createMessage 请求。\n" +
                 "The connected client has not declared Sampling capability.");
         }
 
-        var result = await sampling.CreateMessageAsync(prompt, maxTokens, systemPrompt, context.CancellationToken);
-
-        var responseText = result.Content switch
+        try
         {
-            TextContentBlock text => text.Text,
-            _ => $"[Non-text content: {result.Content?.GetType().Name}]",
-        };
+            var result = await context.Sampling.CreateMessageAsync(prompt, maxTokens, systemPrompt, context.CancellationToken);
 
-        return $"""
-            Model: {result.Model}
-            StopReason: {result.StopReason ?? "unknown"}
-            Role: {result.Role}
-            ---
-            {responseText}
-            """;
+            var responseText = result.Content switch
+            {
+                TextContentBlock text => text.Text,
+                _ => $"[Non-text content: {result.Content?.GetType().Name}]",
+            };
+
+            return $"""
+                Model: {result.Model}
+                StopReason: {result.StopReason ?? "unknown"}
+                Role: {result.Role}
+                ---
+                {responseText}
+                """;
+        }
+        catch (McpSamplingRejectedException ex)
+        {
+            return CallToolResult.FromError(
+                $"采样请求被用户拒绝。Sampling request was rejected by the user.\n" +
+                $"Code: {ex.ErrorCode}, Message: {ex.RejectionMessage}");
+        }
     }
 }
