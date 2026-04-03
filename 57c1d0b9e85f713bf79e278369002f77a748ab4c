@@ -1,0 +1,54 @@
+src/DotNetCampus.ModelContextProtocol.TouchSocket.Http/Transports/TouchSocket/TouchSocketHttpServerTransport.cs
+  3128c79d19d57f07 9,261-265,268-269,278,280,282-284,286-314,316-317,319,321,323-324,327-328,330-331,335-338,340-372,375,377-383,385-396
+tests/DotNetCampus.ModelContextProtocol.Tests/TestMcpFactory.cs
+  3128c79d19d57f07 147,151-152,180-182,184
+src/DotNetCampus.ModelContextProtocol/Transports/Http/HttpClientTransport.cs
+  3128c79d19d57f07 1
+src/DotNetCampus.ModelContextProtocol/Transports/IServerTransportManager.cs
+  3128c79d19d57f07 80-89
+src/DotNetCampus.ModelContextProtocol/Transports/Http/LocalHostHttpServerTransport.cs
+  3128c79d19d57f07 1,7,189-190,193-198,206,208,210-212,214,216,218-241,245,248,252,256,258-259,262-263,265,267-281,285-289,291-295,298-301,303,305-308,310-315,318-322
+src/DotNetCampus.ModelContextProtocol/Servers/IMcpServerPrimitiveContext.cs
+  3128c79d19d57f07 66,68,70,103
+tests/DotNetCampus.ModelContextProtocol.Tests/Servers/SamplingTests.cs
+  3128c79d19d57f07 1-81
+src/DotNetCampus.ModelContextProtocol/Clients/McpClient.cs
+  3128c79d19d57f07 1
+src/DotNetCampus.ModelContextProtocol/Transports/Stdio/StdioClientTransport.cs
+  3128c79d19d57f07 1
+src/DotNetCampus.ModelContextProtocol/Transports/Stdio/StdioServerTransportSession.cs
+  3128c79d19d57f07 1
+src/DotNetCampus.ModelContextProtocol/Hosting/Services/McpServiceCollectionTransportExtensions.cs
+  3128c79d19d57f07 1-27
+tests/DotNetCampus.ModelContextProtocol.Tests/McpTools/SamplingTool.cs
+  3128c79d19d57f07 1-33
+src/DotNetCampus.ModelContextProtocol/Servers/McpProtocolBridge.cs
+  3128c79d19d57f07 1
+src/DotNetCampus.ModelContextProtocol/Transports/ServerTransportManager.cs
+  3128c79d19d57f07 1,169-174
+src/DotNetCampus.ModelContextProtocol/Transports/Stdio/StdioServerTransport.cs
+  3128c79d19d57f07 1
+src/DotNetCampus.ModelContextProtocol/CompilerServices/McpJsonContext.cs
+  3128c79d19d57f07 115,120,124,128,131,134,137,139,141,143,145,147-150,155,158,164
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.23",
+  "base_commit_sha": "57c1d0b9e85f713bf79e278369002f77a748ab4c",
+  "prompts": {
+    "3128c79d19d57f07": {
+      "agent_id": {
+        "tool": "github-copilot",
+        "id": "05481282-531f-4990-b8d8-fc0b0a3a046f",
+        "model": "copilot/claude-sonnet-4.6"
+      },
+      "human_author": "walterlv <xblero@gmail.com>",
+      "messages": [],
+      "total_additions": 9019,
+      "total_deletions": 13090,
+      "accepted_lines": 8679,
+      "overriden_lines": 47,
+      "messages_url": "https://gitai.gz.cvte.cn/cas/eac843c29e5625e053f477efa1a218504c45df6c09726ade059a7400431f5c8c"
+    }
+  }
+}
