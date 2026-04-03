@@ -1,0 +1,28 @@
+samples/DotNetCampus.SampleMcpServer/McpTools/SamplingTool.cs
+  3128c79d19d57f07 1-48
+samples/DotNetCampus.SampleMcpServer/McpTools/EchoDelayTool.cs
+  3128c79d19d57f07 6
+samples/DotNetCampus.SampleMcpServer/Program.cs
+  3128c79d19d57f07 35,40
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.23",
+  "base_commit_sha": "c1f4f2f46949ccdb1fcb258b1a4bcef7cb97b448",
+  "prompts": {
+    "3128c79d19d57f07": {
+      "agent_id": {
+        "tool": "github-copilot",
+        "id": "05481282-531f-4990-b8d8-fc0b0a3a046f",
+        "model": "copilot/claude-sonnet-4.6"
+      },
+      "human_author": "walterlv <xblero@gmail.com>",
+      "messages": [],
+      "total_additions": 8881,
+      "total_deletions": 13456,
+      "accepted_lines": 8882,
+      "overriden_lines": 0,
+      "messages_url": "https://gitai.gz.cvte.cn/cas/ac000fcfbb4d5cfff989f7d78b2d368a2211293f2bf52fc7b0f2d58e4c2bb3fb"
+    }
+  }
+}
