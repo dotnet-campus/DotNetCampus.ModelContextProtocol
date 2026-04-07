@@ -99,6 +99,7 @@ internal class ClientTransportManager(IClientTransportContext context) : IClient
 
         return ValueTask.CompletedTask;
     }
+
     /// <inheritdoc />
     public async ValueTask HandleServerRequestAsync(JsonRpcRequest request, CancellationToken cancellationToken = default)
     {

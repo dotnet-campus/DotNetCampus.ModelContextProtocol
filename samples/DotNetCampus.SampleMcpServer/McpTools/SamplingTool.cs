@@ -16,7 +16,7 @@ public class SamplingTool
     /// <param name="systemPrompt">可选的系统提示词</param>
     /// <param name="context">MCP 工具上下文</param>
     [McpServerTool]
-    public async Task<CallToolResult> AskLlm(
+    public async Task<string> AskLlm(
         string prompt,
         int maxTokens = 1024,
         string? systemPrompt = null,
@@ -24,9 +24,7 @@ public class SamplingTool
     {
         if (!context.Sampling.IsSupported)
         {
-            return CallToolResult.FromError(
-                "当前客户端未声明 Sampling 能力。请确保客户端支持 sampling/createMessage 请求。\n" +
-                "The connected client has not declared Sampling capability.");
+            throw new McpToolException("当前客户端未声明 Sampling 能力。请确保客户端支持 sampling/createMessage 请求。");
         }
 
         try
@@ -49,9 +47,7 @@ public class SamplingTool
         }
         catch (McpSamplingRejectedException ex)
         {
-            return CallToolResult.FromError(
-                $"采样请求被用户拒绝。Sampling request was rejected by the user.\n" +
-                $"Code: {ex.ErrorCode}, Message: {ex.RejectionMessage}");
+            throw new McpToolException($"采样请求被用户拒绝。Sampling request was rejected by the user. Code: {ex.ErrorCode}, Message: {ex.RejectionMessage}");
         }
     }
 }
