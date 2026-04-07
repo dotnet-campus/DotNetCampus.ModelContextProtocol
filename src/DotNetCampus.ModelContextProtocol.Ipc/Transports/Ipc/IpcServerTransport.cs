@@ -134,7 +134,6 @@ public class IpcServerTransport : IServerTransport
         {
             case JsonRpcResponse response:
                 // 将响应路由到等待的请求（如 sampling/createMessage 回调）。
-                // Route the response to the pending request (e.g. sampling/createMessage callback).
                 if (_sessions.TryGetValue(peer.PeerName, out var responseSession))
                 {
                     responseSession.HandleResponseAsync(response);

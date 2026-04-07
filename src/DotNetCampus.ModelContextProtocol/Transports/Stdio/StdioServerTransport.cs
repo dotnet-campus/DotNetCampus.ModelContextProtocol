@@ -105,13 +105,11 @@ public class StdioServerTransport : IServerTransport
             {
                 case JsonRpcResponse response:
                     // 将响应路由到等待的请求。
-                    // Route the response to the waiting request.
                     _session.HandleResponseAsync(response);
                     continue;
 
                 case JsonRpcNotification notification:
                     // 通知，路由到处理器，无需回复。
-                    // Notification: route to handler, no reply expected.
                     await _manager.HandleRequestAsync(
                         new JsonRpcRequest { Method = notification.Method, Params = notification.Params },
                         s =>

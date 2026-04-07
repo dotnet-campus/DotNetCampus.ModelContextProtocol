@@ -155,9 +155,7 @@ internal class ServerTransportManager(McpServer server, McpServerContext context
     }
 
     /// <summary>
-    /// 根据 JSON-RPC 2.0 字段特征将 <paramref name="element"/> 分类并反序列化为具体消息类型。<br/>
-    /// Classifies and deserializes a <paramref name="element"/> into a concrete JSON-RPC message type
-    /// based on the field characteristics defined by JSON-RPC 2.0.
+    /// 根据 JSON-RPC 2.0 字段特征将 <paramref name="element"/> 分类并反序列化为具体消息类型。
     /// </summary>
     private JsonRpcMessage? ClassifyAndDeserialize(JsonElement element)
     {
@@ -166,7 +164,6 @@ internal class ServerTransportManager(McpServer server, McpServerContext context
         if (hasMethod)
         {
             // 有 id 且非 null → 请求；无 id 或 id 为 null → 通知。
-            // Has id and not null → request; no id or id is null → notification.
             var hasId = element.TryGetProperty("id", out var idElement)
                 && idElement.ValueKind != JsonValueKind.Null;
 

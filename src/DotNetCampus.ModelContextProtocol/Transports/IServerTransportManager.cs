@@ -47,44 +47,32 @@ public interface IServerTransportManager
     bool TryGetSession<T>(string sessionId, [NotNullWhen(true)] out T? session) where T : class, IServerTransportSession;
 
     /// <summary>
-    /// 提供给传输层调用。当传输层收到一行文本消息后，调用此方法将其解析为具体的 JSON-RPC 消息类型。<br/>
-    /// Available for transport implementations. Parses a single line of text into a concrete JSON-RPC message type.
+    /// 提供给传输层调用。当传输层收到一行文本消息后，调用此方法将其解析为具体的 JSON-RPC 消息类型。
     /// </summary>
-    /// <param name="messageLine">消息文本行。A single line of text representing a JSON-RPC message.</param>
+    /// <param name="messageLine">消息文本行。</param>
     /// <returns>
     /// 解析出的消息对象，实际类型为 <see cref="JsonRpcRequest"/>（有 id）、<see cref="JsonRpcNotification"/>（无 id）
-    /// 或 <see cref="JsonRpcResponse"/>（无 method）之一；无法解析时返回 <see langword="null"/>。<br/>
-    /// The parsed message, whose runtime type is one of <see cref="JsonRpcRequest"/> (has id),
-    /// <see cref="JsonRpcNotification"/> (no id), or <see cref="JsonRpcResponse"/> (no method);
-    /// <see langword="null"/> if the input cannot be parsed.
+    /// 或 <see cref="JsonRpcResponse"/>（无 method）之一；无法解析时返回 <see langword="null"/>。
     /// </returns>
     ValueTask<JsonRpcMessage?> ReadMessageAsync(string messageLine);
 
     /// <summary>
-    /// 提供给传输层调用。当传输层收到字节流消息后，调用此方法将其解析为具体的 JSON-RPC 消息类型。<br/>
-    /// Available for transport implementations. Parses a stream into a concrete JSON-RPC message type.
+    /// 提供给传输层调用。当传输层收到字节流消息后，调用此方法将其解析为具体的 JSON-RPC 消息类型。
     /// </summary>
-    /// <param name="messageStream">消息流。A stream containing a JSON-RPC message.</param>
+    /// <param name="messageStream">消息流。</param>
     /// <returns>
     /// 解析出的消息对象，实际类型为 <see cref="JsonRpcRequest"/>（有 id）、<see cref="JsonRpcNotification"/>（无 id）
-    /// 或 <see cref="JsonRpcResponse"/>（无 method）之一；无法解析时返回 <see langword="null"/>。<br/>
-    /// The parsed message, whose runtime type is one of <see cref="JsonRpcRequest"/> (has id),
-    /// <see cref="JsonRpcNotification"/> (no id), or <see cref="JsonRpcResponse"/> (no method);
-    /// <see langword="null"/> if the input cannot be parsed.
+    /// 或 <see cref="JsonRpcResponse"/>（无 method）之一；无法解析时返回 <see langword="null"/>。
     /// </returns>
     ValueTask<JsonRpcMessage?> ReadMessageAsync(Stream messageStream);
 
     /// <summary>
-    /// 提供给传输层调用。当传输层收到字节内存消息后，调用此方法将其解析为具体的 JSON-RPC 消息类型。<br/>
-    /// Available for transport implementations. Parses a memory buffer into a concrete JSON-RPC message type.
+    /// 提供给传输层调用。当传输层收到字节内存消息后，调用此方法将其解析为具体的 JSON-RPC 消息类型。
     /// </summary>
-    /// <param name="messageMemory">消息字节内存。A memory buffer containing a JSON-RPC message.</param>
+    /// <param name="messageMemory">消息字节内存。</param>
     /// <returns>
     /// 解析出的消息对象，实际类型为 <see cref="JsonRpcRequest"/>（有 id）、<see cref="JsonRpcNotification"/>（无 id）
-    /// 或 <see cref="JsonRpcResponse"/>（无 method）之一；无法解析时返回 <see langword="null"/>。<br/>
-    /// The parsed message, whose runtime type is one of <see cref="JsonRpcRequest"/> (has id),
-    /// <see cref="JsonRpcNotification"/> (no id), or <see cref="JsonRpcResponse"/> (no method);
-    /// <see langword="null"/> if the input cannot be parsed.
+    /// 或 <see cref="JsonRpcResponse"/>（无 method）之一；无法解析时返回 <see langword="null"/>。
     /// </returns>
     ValueTask<JsonRpcMessage?> ReadMessageAsync(ReadOnlyMemory<byte> messageMemory);
 
