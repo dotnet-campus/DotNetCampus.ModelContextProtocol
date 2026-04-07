@@ -103,6 +103,12 @@ internal class ClientTransportManager(IClientTransportContext context) : IClient
     /// <inheritdoc />
     public async ValueTask HandleServerRequestAsync(JsonRpcRequest request, CancellationToken cancellationToken = default)
     {
+        if (request.Id is null)
+        {
+            // JSON-RPC 2.0 规定：通知（notification）没有 id，不应发送响应。
+            return;
+        }
+
         JsonRpcResponse response;
 
         if (request.Method == RequestMethods.SamplingCreateMessage && _samplingHandler is { } handler)
