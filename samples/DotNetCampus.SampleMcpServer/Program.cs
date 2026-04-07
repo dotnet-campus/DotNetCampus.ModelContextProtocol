@@ -32,7 +32,7 @@ internal class Program
             .WithRequestHandlers(s => new CustomRequestHandlers(s))
             .WithJsonSerializer(McpToolJsonContext.Default)
             .WithTools(t => t
-                .WithTool(() => new EchoDelayTool())
+                .WithTool(() => new SimpleTool())
                 .WithTool(() => new InputTool())
                 .WithTool(() => new OutputTool())
                 .WithTool(() => new PolymorphicTool())
