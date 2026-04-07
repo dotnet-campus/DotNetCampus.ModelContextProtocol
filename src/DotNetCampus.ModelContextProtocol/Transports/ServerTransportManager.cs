@@ -135,41 +135,63 @@ internal class ServerTransportManager(McpServer server, McpServerContext context
         return false;
     }
 
-    public ValueTask<JsonRpcRequest?> ReadRequestAsync(string requestLine)
+    public ValueTask<JsonRpcMessage?> ReadMessageAsync(string messageLine)
     {
-        var message = JsonSerializer.Deserialize(requestLine, McpInternalJsonContext.Default.JsonRpcRequest);
-        if (message is { Method: RequestMethods.Initialize, Id: null })
-        {
-            return ValueTask.FromResult<JsonRpcRequest?>(message with { Id = MakeNewSessionId().ToJsonElement() });
-        }
-        return ValueTask.FromResult<JsonRpcRequest?>(message);
+        using var doc = JsonDocument.Parse(messageLine);
+        return ValueTask.FromResult(ClassifyAndDeserialize(doc.RootElement));
     }
 
-    public async ValueTask<JsonRpcRequest?> ReadRequestAsync(Stream requestStream)
+    public async ValueTask<JsonRpcMessage?> ReadMessageAsync(Stream messageStream)
     {
-        var message = await JsonSerializer.DeserializeAsync(requestStream, McpInternalJsonContext.Default.JsonRpcRequest);
-        if (message is { Method: RequestMethods.Initialize, Id: null })
-        {
-            return message with { Id = MakeNewSessionId().ToJsonElement() };
-        }
-        return message;
+        using var doc = await JsonDocument.ParseAsync(messageStream);
+        return ClassifyAndDeserialize(doc.RootElement);
     }
 
-    public async ValueTask<JsonRpcRequest?> ReadRequestAsync(ReadOnlyMemory<byte> requestMemory)
+    public async ValueTask<JsonRpcMessage?> ReadMessageAsync(ReadOnlyMemory<byte> messageMemory)
     {
-        var pipeReader = PipeReader.Create(new ReadOnlySequence<byte>(requestMemory));
-        var message = await JsonSerializer.DeserializeAsync(pipeReader, McpInternalJsonContext.Default.JsonRpcRequest);
-        if (message is { Method: RequestMethods.Initialize, Id: null })
-        {
-            return message with { Id = MakeNewSessionId().ToJsonElement() };
-        }
-        return message;
+        var pipeReader = PipeReader.Create(new ReadOnlySequence<byte>(messageMemory));
+        using var doc = await JsonDocument.ParseAsync(pipeReader.AsStream());
+        return ClassifyAndDeserialize(doc.RootElement);
     }
 
-    public async ValueTask<JsonRpcResponse?> ReadResponseAsync(ReadOnlyMemory<byte> responseMemory)
+    /// <summary>
+    /// 根据 JSON-RPC 2.0 字段特征将 <paramref name="element"/> 分类并反序列化为具体消息类型。<br/>
+    /// Classifies and deserializes a <paramref name="element"/> into a concrete JSON-RPC message type
+    /// based on the field characteristics defined by JSON-RPC 2.0.
+    /// </summary>
+    private JsonRpcMessage? ClassifyAndDeserialize(JsonElement element)
     {
-        var pipeReader = PipeReader.Create(new ReadOnlySequence<byte>(responseMemory));
-        return await JsonSerializer.DeserializeAsync(pipeReader, McpInternalJsonContext.Default.JsonRpcResponse);
+        var hasMethod = element.TryGetProperty("method", out _);
+
+        if (hasMethod)
+        {
+            // 有 id 且非 null → 请求；无 id 或 id 为 null → 通知。
+            // Has id and not null → request; no id or id is null → notification.
+            var hasId = element.TryGetProperty("id", out var idElement)
+                && idElement.ValueKind != JsonValueKind.Null;
+
+            if (hasId)
+            {
+                var request = element.Deserialize(McpInternalJsonContext.Default.JsonRpcRequest);
+                if (request is { Method: RequestMethods.Initialize, Id: null })
+                {
+                    return request with { Id = MakeNewSessionId().ToJsonElement() };
+                }
+                return request;
+            }
+            else
+            {
+                return element.Deserialize(McpInternalJsonContext.Default.JsonRpcNotification);
+            }
+        }
+
+        var hasResultOrError = element.TryGetProperty("result", out _) || element.TryGetProperty("error", out _);
+        if (hasResultOrError)
+        {
+            return element.Deserialize(McpInternalJsonContext.Default.JsonRpcResponse);
+        }
+
+        return null;
     }
 
     public Task WriteMessageAsync(Stream stream, JsonRpcMessage message, CancellationToken cancellationToken) => message switch

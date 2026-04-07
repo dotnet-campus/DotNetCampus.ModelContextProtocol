@@ -120,29 +120,58 @@ public class IpcServerTransport : IServerTransport
             return;
         }
 
-        var request = await _manager.ParseAndCatchRequestAsync(payload.Body.ToMemoryStream());
-        if (request is null)
+        JsonRpcMessage? parsed;
+        try
         {
-            await _manager.RespondJsonRpcAsync(peer, new JsonRpcResponse
-            {
-                Error = new JsonRpcError
+            parsed = await _manager.ReadMessageAsync(payload.Body.ToMemoryStream());
+        }
+        catch
+        {
+            parsed = null;
+        }
+
+        switch (parsed)
+        {
+            case JsonRpcResponse response:
+                // 将响应路由到等待的请求（如 sampling/createMessage 回调）。
+                // Route the response to the pending request (e.g. sampling/createMessage callback).
+                if (_sessions.TryGetValue(peer.PeerName, out var responseSession))
                 {
-                    Code = (int)JsonRpcErrorCode.InvalidRequest,
-                    Message = "Invalid request message.",
-                },
-            }, CancellationToken.None);
-            return;
-        }
+                    responseSession.HandleResponseAsync(response);
+                }
+                return;
 
-        var response = await _manager.HandleRequestAsync(request, null, CancellationToken.None);
-        if (response is null)
-        {
-            // 按照 MCP 协议规范，本次请求仅需响应而无需回复。
-            // 而 IPC 不需要响应。
-            return;
-        }
+            case JsonRpcNotification notification:
+                // 通知，路由到处理器，无需回复。
+                await _manager.HandleRequestAsync(
+                    new JsonRpcRequest { Method = notification.Method, Params = notification.Params },
+                    null, CancellationToken.None);
+                return;
 
-        await _manager.RespondJsonRpcAsync(peer, response, CancellationToken.None);
+            case JsonRpcRequest request:
+            {
+                var response2 = await _manager.HandleRequestAsync(request, null, CancellationToken.None);
+                if (response2 is null)
+                {
+                    // 按照 MCP 协议规范，本次请求仅需响应而无需回复。
+                    // 而 IPC 不需要响应。
+                    return;
+                }
+                await _manager.RespondJsonRpcAsync(peer, response2, CancellationToken.None);
+                return;
+            }
+
+            default:
+                await _manager.RespondJsonRpcAsync(peer, new JsonRpcResponse
+                {
+                    Error = new JsonRpcError
+                    {
+                        Code = (int)JsonRpcErrorCode.InvalidRequest,
+                        Message = "Invalid request message.",
+                    },
+                }, CancellationToken.None);
+                return;
+        }
     }
 }
 
@@ -150,19 +179,6 @@ file static class Extensions
 {
     extension(IServerTransportManager manager)
     {
-        public async ValueTask<JsonRpcRequest?> ParseAndCatchRequestAsync(Stream data)
-        {
-            try
-            {
-                return await manager.ReadRequestAsync(data);
-            }
-            catch
-            {
-                // 请求消息格式不正确，返回 null 后，原样给 MCP 客户端报告错误。
-                return null;
-            }
-        }
-
         public async ValueTask RespondJsonRpcAsync(PeerProxy peer, JsonRpcResponse response, CancellationToken cancellationToken)
         {
             try

@@ -2,7 +2,6 @@ using System.Collections.Concurrent;
 using System.Net;
 using System.Text;
 using System.Text.Json;
-using DotNetCampus.ModelContextProtocol.CompilerServices;
 using DotNetCampus.ModelContextProtocol.Hosting.Logging;
 using DotNetCampus.ModelContextProtocol.Hosting.Services;
 using DotNetCampus.ModelContextProtocol.Protocol;
@@ -186,11 +185,11 @@ public class LocalHostHttpServerTransport : IServerTransport
             }
         }
 
-        // 将 body 解析为 JsonDocument，一次解析后通过 JsonElement 检测消息类型，再按需反序列化。
-        JsonDocument bodyDoc;
+        // 将 body 直接传给 ReadMessageAsync，统一解析并分类消息类型。
+        JsonRpcMessage? message;
         try
         {
-            bodyDoc = await JsonDocument.ParseAsync(request.InputStream, cancellationToken: cancellationToken);
+            message = await _manager.ReadMessageAsync(request.InputStream);
         }
         catch (JsonException)
         {
@@ -203,17 +202,11 @@ public class LocalHostHttpServerTransport : IServerTransport
             return;
         }
 
-        using (bodyDoc)
+        var sessionIdStr = request.Headers[SessionIdHeader];
+
+        switch (message)
         {
-            var bodyElement = bodyDoc.RootElement;
-
-            // 检测是 JSON-RPC 请求（有 method）还是响应（无 method，有 result 或 error）。
-            var isResponse = !bodyElement.TryGetProperty("method", out _)
-                && (bodyElement.TryGetProperty("result", out _) || bodyElement.TryGetProperty("error", out _));
-
-            var sessionIdStr = request.Headers[SessionIdHeader];
-
-            if (isResponse)
+            case JsonRpcResponse jsonRpcResponse:
             {
                 // 客户端响应服务器发起的请求（如 sampling/createMessage）。
                 if (string.IsNullOrEmpty(sessionIdStr) || !_sessions.TryGetValue(sessionIdStr, out var responseSession))
@@ -221,105 +214,97 @@ public class LocalHostHttpServerTransport : IServerTransport
                     await context.RespondHttpError(HttpStatusCode.NotFound, "Session not found");
                     return;
                 }
-
-                JsonRpcResponse? jsonRpcResponse;
-                try
-                {
-                    jsonRpcResponse = bodyElement.Deserialize(McpInternalJsonContext.Default.JsonRpcResponse);
-                }
-                catch (JsonException)
-                {
-                    await context.RespondHttpError(HttpStatusCode.BadRequest, "Invalid JSON response");
-                    return;
-                }
-
-                if (jsonRpcResponse is not null)
-                {
-                    responseSession.HandleResponseAsync(jsonRpcResponse);
-                }
-
+                responseSession.HandleResponseAsync(jsonRpcResponse);
                 context.RespondHttpSuccess(HttpStatusCode.Accepted);
                 return;
             }
 
-            JsonRpcRequest? jsonRpcRequest;
-            try
+            case JsonRpcNotification notification:
             {
-                jsonRpcRequest = bodyElement.Deserialize(McpInternalJsonContext.Default.JsonRpcRequest);
-            }
-            catch (JsonException)
-            {
-                await context.RespondHttpError(HttpStatusCode.BadRequest, "Invalid JSON");
-                return;
-            }
-
-            if (jsonRpcRequest == null)
-            {
-                await context.RespondHttpError(HttpStatusCode.BadRequest, "Empty body");
-                return;
-            }
-
-            var isInitialize = jsonRpcRequest.Method == RequestMethods.Initialize;
-            LocalHostHttpServerTransportSession? session;
-
-            if (isInitialize)
-            {
-                // 初始化请求，创建新 Session
-                var newSessionId = _manager.MakeNewSessionId();
-                var newSession = new LocalHostHttpServerTransportSession(_manager, newSessionId.Id);
-
-                if (_sessions.TryAdd(newSessionId.Id, newSession))
-                {
-                    session = newSession;
-                    _manager.Add(session);
-                    context.Response.AppendHeader(SessionIdHeader, newSessionId.Id);
-                }
-                else
-                {
-                    await context.RespondHttpError(HttpStatusCode.InternalServerError, "Session ID collision");
-                    return;
-                }
-            }
-            else
-            {
-                if (string.IsNullOrEmpty(sessionIdStr))
-                {
-                    await context.RespondHttpError(HttpStatusCode.BadRequest, "Missing Mcp-Session-Id header");
-                    return;
-                }
-
-                if (!_sessions.TryGetValue(sessionIdStr, out session))
+                // 通知，无需响应。
+                if (string.IsNullOrEmpty(sessionIdStr) || !_sessions.TryGetValue(sessionIdStr, out var notificationSession))
                 {
                     await context.RespondHttpError(HttpStatusCode.NotFound, "Session not found");
                     return;
                 }
-            }
-
-            var capturedSession = session;
-            var jsonRpcResponse2 = await _manager.HandleRequestAsync(jsonRpcRequest,
-                s => s.AddTransportSession(capturedSession),
-                cancellationToken);
-
-            if (jsonRpcResponse2 != null)
-            {
-                // Request: Success or Failed.
-                context.Response.ContentType = "application/json";
-                context.Response.StatusCode = (int)HttpStatusCode.OK;
-                try
-                {
-                    await _manager.WriteMessageAsync(context.Response.OutputStream, jsonRpcResponse2, cancellationToken);
-                    context.Response.SafeClose();
-                }
-                catch
-                {
-                    // Ignore write errors
-                }
-            }
-            else
-            {
-                // Notification: No need to respond.
+                var capturedNotificationSession = notificationSession;
+                await _manager.HandleRequestAsync(
+                    new JsonRpcRequest { Method = notification.Method, Params = notification.Params },
+                    s => s.AddTransportSession(capturedNotificationSession),
+                    cancellationToken);
                 context.RespondHttpSuccess(HttpStatusCode.Accepted);
+                return;
             }
+
+            case JsonRpcRequest jsonRpcRequest:
+            {
+                var isInitialize = jsonRpcRequest.Method == RequestMethods.Initialize;
+                LocalHostHttpServerTransportSession? session;
+
+                if (isInitialize)
+                {
+                    // 初始化请求，创建新 Session
+                    var newSessionId = _manager.MakeNewSessionId();
+                    var newSession = new LocalHostHttpServerTransportSession(_manager, newSessionId.Id);
+
+                    if (_sessions.TryAdd(newSessionId.Id, newSession))
+                    {
+                        session = newSession;
+                        _manager.Add(session);
+                        context.Response.AppendHeader(SessionIdHeader, newSessionId.Id);
+                    }
+                    else
+                    {
+                        await context.RespondHttpError(HttpStatusCode.InternalServerError, "Session ID collision");
+                        return;
+                    }
+                }
+                else
+                {
+                    if (string.IsNullOrEmpty(sessionIdStr))
+                    {
+                        await context.RespondHttpError(HttpStatusCode.BadRequest, "Missing Mcp-Session-Id header");
+                        return;
+                    }
+
+                    if (!_sessions.TryGetValue(sessionIdStr, out session))
+                    {
+                        await context.RespondHttpError(HttpStatusCode.NotFound, "Session not found");
+                        return;
+                    }
+                }
+
+                var capturedSession = session;
+                var jsonRpcResponse2 = await _manager.HandleRequestAsync(jsonRpcRequest,
+                    s => s.AddTransportSession(capturedSession),
+                    cancellationToken);
+
+                if (jsonRpcResponse2 != null)
+                {
+                    // Request: Success or Failed.
+                    context.Response.ContentType = "application/json";
+                    context.Response.StatusCode = (int)HttpStatusCode.OK;
+                    try
+                    {
+                        await _manager.WriteMessageAsync(context.Response.OutputStream, jsonRpcResponse2, cancellationToken);
+                        context.Response.SafeClose();
+                    }
+                    catch
+                    {
+                        // Ignore write errors
+                    }
+                }
+                else
+                {
+                    // Notification: No need to respond.
+                    context.RespondHttpSuccess(HttpStatusCode.Accepted);
+                }
+                return;
+            }
+
+            default:
+                await context.RespondHttpError(HttpStatusCode.BadRequest, "Invalid or unrecognized JSON-RPC message");
+                return;
         }
     }
 
