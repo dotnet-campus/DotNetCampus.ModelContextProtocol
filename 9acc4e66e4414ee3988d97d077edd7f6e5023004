@@ -1,0 +1,80 @@
+src/DotNetCampus.ModelContextProtocol/Servers/McpServerSampling.cs
+  05ba06c55c8dcb9f 20,25,27-31,36,41,43-50,109-120,143
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "9acc4e66e4414ee3988d97d077edd7f6e5023004",
+  "prompts": {
+    "05ba06c55c8dcb9f": {
+      "agent_id": {
+        "tool": "github-copilot",
+        "id": "86377b30-fe45-43ad-b56d-91688ec011a6",
+        "model": "copilot/claude-sonnet-4.6"
+      },
+      "human_author": "walterlv",
+      "messages": [],
+      "total_additions": 189,
+      "total_deletions": 188,
+      "accepted_lines": 130,
+      "overriden_lines": 0,
+      "messages_url": "https://gitai.gz.cvte.cn/cas/09003f688694c29c6f60cb70bcf0d8662cf9f36cea3b0897b0a08e8957141644"
+    },
+    "3128c79d19d57f07": {
+      "agent_id": {
+        "tool": "github-copilot",
+        "id": "05481282-531f-4990-b8d8-fc0b0a3a046f",
+        "model": "copilot/claude-sonnet-4.6"
+      },
+      "human_author": "walterlv <xblero@gmail.com>",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 1,
+      "overriden_lines": 0,
+      "messages_url": "https://gitai.gz.cvte.cn/cas/de72e0ce1c49213ad25d0809806fe8686b21f58e034bc23e9321a6b5d64b5b4f"
+    },
+    "3a927951e3fe577e": {
+      "agent_id": {
+        "tool": "github-copilot",
+        "id": "0683232b-41df-44f9-9f53-df8b5d3b1c40",
+        "model": "copilot/claude-sonnet-4.6"
+      },
+      "human_author": "walterlv",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 1,
+      "overriden_lines": 0,
+      "messages_url": "https://gitai.gz.cvte.cn/cas/18256336e3e0b0dc87286eabc4a4349bf4a54502a5fd1870eb96afbf83435fc6"
+    },
+    "a9277c915d0a944c": {
+      "agent_id": {
+        "tool": "github-copilot",
+        "id": "fc995ae8-dc3d-4641-b122-7c0d2530a44f",
+        "model": "copilot/claude-sonnet-4.6"
+      },
+      "human_author": "walterlv",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 194,
+      "overriden_lines": 0,
+      "messages_url": "https://gitai.gz.cvte.cn/cas/446f7ad6904d0bef42d77ae3ed6968a8d27229a872ae41a20238feaf6766579f"
+    },
+    "dcbbee552ad80c8c": {
+      "agent_id": {
+        "tool": "github-copilot",
+        "id": "e10cd481-0fba-47b6-b42b-973b65a53bb5",
+        "model": "copilot/claude-sonnet-4.6"
+      },
+      "human_author": "walterlv",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 268,
+      "overriden_lines": 0,
+      "messages_url": "https://gitai.gz.cvte.cn/cas/afbeda8ba0e74f91a853a79a136a29f24b8fac6dea6c9694d0bcf7db2fa4a715"
+    }
+  }
+}
