@@ -133,14 +133,11 @@ public class McpClientBuilder
     }
 
     /// <summary>
-    /// 配置 Sampling 处理器，使客户端支持服务器发起的 sampling/createMessage 请求。<br/>
-    /// 调用此方法会自动在客户端能力中声明 Sampling 支持。<br/>
-    /// Configures a handler for server-initiated sampling/createMessage requests.
-    /// Calling this method automatically declares Sampling capability in client capabilities.
+    /// 配置 Sampling 处理器，使客户端支持服务器发起的 sampling/createMessage 请求。
+    /// 调用此方法会自动在客户端能力中声明 Sampling 支持。
     /// </summary>
     /// <param name="handler">
-    /// 当服务器请求采样时的处理函数。接收 <see cref="CreateMessageRequestParams"/> 并返回 <see cref="CreateMessageResult"/>。<br/>
-    /// Handler invoked when the server requests sampling. Receives <see cref="CreateMessageRequestParams"/> and returns <see cref="CreateMessageResult"/>.
+    /// 当服务器请求采样时的处理函数。接收 <see cref="CreateMessageRequestParams"/> 并返回 <see cref="CreateMessageResult"/>。
     /// </param>
     /// <returns>用于链式调用的 MCP 客户端生成器。</returns>
     public McpClientBuilder WithSamplingHandler(
@@ -155,14 +152,11 @@ public class McpClientBuilder
     }
 
     /// <summary>
-    /// 配置 Sampling 处理器，使客户端支持服务器发起的 sampling/createMessage 请求。<br/>
-    /// 调用此方法会自动在客户端能力中声明 Sampling 支持。<br/>
-    /// Configures a handler for server-initiated sampling/createMessage requests.
-    /// Calling this method automatically declares Sampling capability in client capabilities.
+    /// 配置 Sampling 处理器，使客户端支持服务器发起的 sampling/createMessage 请求。
+    /// 调用此方法会自动在客户端能力中声明 Sampling 支持。
     /// </summary>
     /// <param name="handlerFactory">
-    /// 处理函数工厂，接收 <see cref="IServiceProvider"/> 以便从中获取所需服务。<br/>
-    /// Handler factory that receives an <see cref="IServiceProvider"/> for resolving dependencies.
+    /// 处理函数工厂，接收 <see cref="IServiceProvider"/> 以便从中获取所需服务。
     /// </param>
     /// <returns>用于链式调用的 MCP 客户端生成器。</returns>
     public McpClientBuilder WithSamplingHandler(

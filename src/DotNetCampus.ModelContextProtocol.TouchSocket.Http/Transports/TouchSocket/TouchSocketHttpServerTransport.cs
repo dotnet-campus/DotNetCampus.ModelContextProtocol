@@ -40,6 +40,7 @@ public class TouchSocketHttpServerTransport : PluginBase, IHttpPlugin, IServerTr
     private readonly IServerTransportManager _manager;
     private readonly ITouchSocketHttpServerTransportOptions _options;
     private readonly ConcurrentDictionary<string, HttpServerTransportSession> _sessions = new();
+    private CancellationToken _runningCancellationToken;
 
     private readonly TouchSocketConfig? _config;
     private readonly HttpService? _httpService;
@@ -94,6 +95,7 @@ public class TouchSocketHttpServerTransport : PluginBase, IHttpPlugin, IServerTr
                 $"[McpServer][TouchSocket] Transport started with external HttpServer, endpoint: {_options.EndPoint}");
         }
 
+        _runningCancellationToken = runningCancellationToken;
         return Task.Delay(Timeout.Infinite, runningCancellationToken);
     }
 
@@ -165,14 +167,14 @@ public class TouchSocketHttpServerTransport : PluginBase, IHttpPlugin, IServerTr
         // Streamable HTTP: 客户端建立连接。
         if (method == "GET" && endpoint.Equals(_options.EndPoint, StringComparison.OrdinalIgnoreCase))
         {
-            await HandleStreamableHttpConnectionAsync(context, CancellationToken.None);
+            await HandleStreamableHttpConnectionAsync(context, _runningCancellationToken);
             return;
         }
 
         // Streamable HTTP: 客户端发送消息。
         if (method == "POST" && endpoint.Equals(_options.EndPoint, StringComparison.OrdinalIgnoreCase))
         {
-            await HandleStreamableHttpMessageAsync(context, CancellationToken.None);
+            await HandleStreamableHttpMessageAsync(context, _runningCancellationToken);
             return;
         }
 
@@ -434,7 +436,7 @@ public class TouchSocketHttpServerTransport : PluginBase, IHttpPlugin, IServerTr
         if (initResponse != null)
         {
             Log.Debug($"[McpServer][TouchSocket] Sending initialize response. SessionId={session.SessionId}, MessageId={jsonRpcRequest.Id}");
-            await context.RespondJsonRpcAsync(_manager, HttpStatusCode.OK, initResponse);
+            await context.RespondJsonRpcAsync(_manager, HttpStatusCode.OK, initResponse, cancellationToken);
         }
         else
         {
@@ -585,7 +587,8 @@ file static class Extensions
         /// <param name="manager">服务端传输管理器。</param>
         /// <param name="statusCode">HTTP 状态码。</param>
         /// <param name="response">JSON-RPC 响应对象。</param>
-        internal async ValueTask RespondJsonRpcAsync(IServerTransportManager manager, int statusCode, JsonRpcResponse response)
+        /// <param name="cancellationToken">取消令牌。</param>
+        internal async ValueTask RespondJsonRpcAsync(IServerTransportManager manager, int statusCode, JsonRpcResponse response, CancellationToken cancellationToken)
         {
             context.Response.ContentType = "application/json";
             context.Response.SetStatus(statusCode, "");
@@ -593,7 +596,7 @@ file static class Extensions
             context.Response.IsChunk = true;
             await using (var stream = context.Response.CreateWriteStream())
             {
-                await manager.WriteMessageAsync(stream, response, CancellationToken.None);
+                await manager.WriteMessageAsync(stream, response, cancellationToken);
             }
             await context.Response.CompleteChunkAsync();
         }

@@ -15,13 +15,14 @@ public class IpcServerTransport : IServerTransport
 {
     // System.Runtime.InteropServices.MemoryMarshal.Read<ulong>("Dncp.Mcp"u8).ToString("X")
     // 小端写入时，可在 IPC 传输序列中看到 Dncp.Mcp = DotNetCampus.ModelContextProtocol 的 ASCII 字符串。
-    private const ulong McpIpcHeader = 0x70634D2E70636E44;
+    private const ulong McpIpcHeader = IpcServerTransportSession.McpIpcHeader;
 
     private readonly IServerTransportManager _manager;
     private readonly TaskCompletionSource _taskCompletionSource = new();
     private readonly IpcProvider _server;
     private readonly bool _isExternalIpcProvider;
     private readonly ConcurrentDictionary<string, IpcServerTransportSession> _sessions = [];
+    private CancellationToken _runningCancellationToken;
 
     /// <summary>
     /// 初始化 <see cref="IpcServerTransport"/> 类的新实例。
@@ -58,6 +59,7 @@ public class IpcServerTransport : IServerTransport
         _server.StartServer();
         _server.PeerConnected += OnPeerConnected;
 
+        _runningCancellationToken = runningCancellationToken;
         runningCancellationToken.Register(() => _taskCompletionSource.TrySetResult());
         return Task.FromResult<Task>(_taskCompletionSource.Task);
     }
@@ -77,7 +79,9 @@ public class IpcServerTransport : IServerTransport
 
     private void OnPeerConnected(object? sender, PeerConnectedArgs e)
     {
-        _sessions[e.Peer.PeerName] = new IpcServerTransportSession(e.Peer.PeerName);
+        var session = new IpcServerTransportSession(_manager, e.Peer.PeerName);
+        session.SetPeer(e.Peer);
+        _sessions[e.Peer.PeerName] = session;
         e.Peer.PeerConnectionBroken += OnPeerConnectionBroken;
         e.Peer.PeerReconnected += OnPeerReconnected;
         e.Peer.MessageReceived += OnMessageReceived;
@@ -92,7 +96,9 @@ public class IpcServerTransport : IServerTransport
     private void OnPeerReconnected(object? sender, IPeerReconnectedArgs e)
     {
         var peer = (PeerProxy)sender!;
-        _sessions[peer.PeerName] = new IpcServerTransportSession(peer.PeerName);
+        var session = new IpcServerTransportSession(_manager, peer.PeerName);
+        session.SetPeer(peer);
+        _sessions[peer.PeerName] = session;
     }
 
     private void OnMessageReceived(object? sender, IPeerMessageArgs e)
@@ -144,19 +150,19 @@ public class IpcServerTransport : IServerTransport
                 // 通知，路由到处理器，无需回复。
                 await _manager.HandleRequestAsync(
                     new JsonRpcRequest { Method = notification.Method, Params = notification.Params },
-                    null, CancellationToken.None);
+                    null, _runningCancellationToken);
                 return;
 
             case JsonRpcRequest request:
             {
-                var response2 = await _manager.HandleRequestAsync(request, null, CancellationToken.None);
+                var response2 = await _manager.HandleRequestAsync(request, null, _runningCancellationToken);
                 if (response2 is null)
                 {
                     // 按照 MCP 协议规范，本次请求仅需响应而无需回复。
                     // 而 IPC 不需要响应。
                     return;
                 }
-                await _manager.RespondJsonRpcAsync(peer, response2, CancellationToken.None);
+                await _manager.RespondJsonRpcAsync(peer, response2, _runningCancellationToken);
                 return;
             }
 
@@ -168,7 +174,7 @@ public class IpcServerTransport : IServerTransport
                         Code = (int)JsonRpcErrorCode.InvalidRequest,
                         Message = "Invalid request message.",
                     },
-                }, CancellationToken.None);
+                }, _runningCancellationToken);
                 return;
         }
     }
@@ -184,7 +190,7 @@ file static class Extensions
             {
                 using var ms = new MemoryStream();
                 await manager.WriteMessageAsync(ms, response, cancellationToken);
-                await peer.NotifyAsync(new IpcMessage("", new IpcMessageBody(ms.GetBuffer(), 0, (int)ms.Length)));
+                await peer.NotifyAsync(new IpcMessage("", new IpcMessageBody(ms.GetBuffer(), 0, (int)ms.Length), IpcServerTransportSession.McpIpcHeader));
             }
             catch
             {

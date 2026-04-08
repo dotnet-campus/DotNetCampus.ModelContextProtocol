@@ -189,6 +189,14 @@ internal class ClientTransportManager(IClientTransportContext context) : IClient
         var tcs = new TaskCompletionSource<JsonRpcResponse>(TaskCreationOptions.RunContinuationsAsynchronously);
         _pendingRequests[id] = tcs;
 
+        using var registration = cancellationToken.Register(() =>
+        {
+            if (_pendingRequests.TryRemove(id, out var removed))
+            {
+                removed.TrySetCanceled(cancellationToken);
+            }
+        });
+
         try
         {
             await SendMessageAsync(request, cancellationToken).ConfigureAwait(false);

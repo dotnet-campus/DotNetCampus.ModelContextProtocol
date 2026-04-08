@@ -1,4 +1,5 @@
-﻿using dotnetCampus.Ipc.Pipes;
+﻿using dotnetCampus.Ipc.Messages;
+using dotnetCampus.Ipc.Pipes;
 using DotNetCampus.ModelContextProtocol.Protocol.Messages.JsonRpc;
 
 namespace DotNetCampus.ModelContextProtocol.Transports.Ipc;
@@ -8,14 +9,21 @@ namespace DotNetCampus.ModelContextProtocol.Transports.Ipc;
 /// </summary>
 public class IpcServerTransportSession : ServerTransportSession
 {
+    // System.Runtime.InteropServices.MemoryMarshal.Read<ulong>("Dncp.Mcp"u8).ToString("X")
+    // 小端写入时，可在 IPC 传输序列中看到 Dncp.Mcp = DotNetCampus.ModelContextProtocol 的 ASCII 字符串。
+    internal const ulong McpIpcHeader = 0x70634D2E70636E44;
+
+    private readonly IServerTransportManager _manager;
     private PeerProxy? _peer;
 
     /// <summary>
     /// 创建 DotNetCampus.Ipc 传输层的一个会话。
     /// </summary>
+    /// <param name="manager"></param>
     /// <param name="sessionId">会话 Id。</param>
-    public IpcServerTransportSession(string sessionId)
+    public IpcServerTransportSession(IServerTransportManager manager, string sessionId)
     {
+        _manager = manager;
         SessionId = sessionId;
     }
 
@@ -25,7 +33,7 @@ public class IpcServerTransportSession : ServerTransportSession
     public override string SessionId { get; }
 
     /// <summary>
-    /// 设置与此会话关联的 IPC 对端代理，用于 SendRequestAsync 发送消息。
+    /// 设置与此会话关联的 IPC 对端代理，供服务端主动请求发送时使用。
     /// </summary>
     internal void SetPeer(PeerProxy peer)
     {
@@ -33,10 +41,16 @@ public class IpcServerTransportSession : ServerTransportSession
     }
 
     /// <inheritdoc />
-    protected override Task SendRequestMessageAsync(JsonRpcRequest request, CancellationToken cancellationToken)
+    protected override async Task SendRequestMessageAsync(JsonRpcRequest request, CancellationToken cancellationToken)
     {
-        // IPC 传输层的服务端主动请求尚未实现。
-        throw new NotImplementedException("IPC 传输层尚不支持服务端主动发起请求（如 sampling/createMessage）。");
+        if (_peer is not { } peer)
+        {
+            throw new InvalidOperationException("IPC 对端代理尚未设置，无法发送服务端主动请求。请确认 SetPeer 已在连接建立时被调用。");
+        }
+
+        using var ms = new MemoryStream();
+        await _manager.WriteMessageAsync(ms, request, cancellationToken);
+        await peer.NotifyAsync(new IpcMessage("McpServer.SendMessage", new IpcMessageBody(ms.GetBuffer(), 0, (int)ms.Length), McpIpcHeader));
     }
 
     /// <inheritdoc />
