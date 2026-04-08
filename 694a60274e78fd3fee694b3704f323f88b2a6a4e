@@ -1,0 +1,81 @@
+src/DotNetCampus.ModelContextProtocol/Transports/Http/LocalHostHttpServerTransport.cs
+  a9277c915d0a944c 8,208-209,211,213,241,287
+src/DotNetCampus.ModelContextProtocol/Transports/Stdio/StdioServerTransportSession.cs
+  a9277c915d0a944c 5,23-29,58-67,69,87,121,124-126
+  dcbbee552ad80c8c 22,68,127
+src/DotNetCampus.ModelContextProtocol/Servers/McpServerSampling.cs
+  a9277c915d0a944c 4,84,120,124
+src/DotNetCampus.ModelContextProtocol/Transports/Stdio/StdioServerTransport.cs
+  a9277c915d0a944c 32,86,95,111,122,134,149
+src/DotNetCampus.ModelContextProtocol/Hosting/Services/McpServiceCollectionTransportExtensions.cs
+  a9277c915d0a944c 1,21,23,26
+src/DotNetCampus.ModelContextProtocol/Transports/Stdio/StdioClientTransport.cs
+  a9277c915d0a944c 73,109
+src/DotNetCampus.ModelContextProtocol/Transports/ClientTransportManager.cs
+  a9277c915d0a944c 6,98,101-103,118,134,143,157
+src/DotNetCampus.ModelContextProtocol.TouchSocket.Http/Transports/TouchSocket/TouchSocketHttpServerTransport.cs
+  a9277c915d0a944c 308,363
+src/DotNetCampus.ModelContextProtocol/Transports/Http/LocalHostHttpServerTransportSession.cs
+  a9277c915d0a944c 59,94,97-99,143-146,148-152,154
+src/DotNetCampus.ModelContextProtocol/Transports/Http/HttpClientTransport.cs
+  a9277c915d0a944c 154,381
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "694a60274e78fd3fee694b3704f323f88b2a6a4e",
+  "prompts": {
+    "3128c79d19d57f07": {
+      "agent_id": {
+        "tool": "github-copilot",
+        "id": "05481282-531f-4990-b8d8-fc0b0a3a046f",
+        "model": "copilot/claude-sonnet-4.6"
+      },
+      "human_author": "walterlv <xblero@gmail.com>",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 1,
+      "overriden_lines": 0
+    },
+    "3a927951e3fe577e": {
+      "agent_id": {
+        "tool": "github-copilot",
+        "id": "0683232b-41df-44f9-9f53-df8b5d3b1c40",
+        "model": "copilot/claude-sonnet-4.6"
+      },
+      "human_author": "walterlv",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 0,
+      "overriden_lines": 1
+    },
+    "a9277c915d0a944c": {
+      "agent_id": {
+        "tool": "github-copilot",
+        "id": "fc995ae8-dc3d-4641-b122-7c0d2530a44f",
+        "model": "copilot/claude-sonnet-4.6"
+      },
+      "human_author": "walterlv",
+      "messages": [],
+      "total_additions": 2798,
+      "total_deletions": 2519,
+      "accepted_lines": 1812,
+      "overriden_lines": 18
+    },
+    "dcbbee552ad80c8c": {
+      "agent_id": {
+        "tool": "github-copilot",
+        "id": "e10cd481-0fba-47b6-b42b-973b65a53bb5",
+        "model": "copilot/claude-sonnet-4.6"
+      },
+      "human_author": "walterlv",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 373,
+      "overriden_lines": 0
+    }
+  }
+}
