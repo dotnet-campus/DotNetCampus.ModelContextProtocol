@@ -35,7 +35,7 @@ public class TouchSocketHttpServerTransport : PluginBase, IHttpPlugin, IServerTr
 {
     private const string ProtocolVersionHeader = "MCP-Protocol-Version";
     private const string SessionIdHeader = "Mcp-Session-Id";
-    private const int SseKeepAliveIntervalMs = 15000;
+    private const int SseKeepAliveIntervalMs = 60000;
     private static readonly ReadOnlyMemory<byte> PrimeEventBytes = ": \n\n"u8.ToArray();
     private static readonly ReadOnlyMemory<byte> SseKeepAliveBytes = ": keep-alive\n\n"u8.ToArray();
 
