@@ -2,7 +2,6 @@ using System.Collections.Concurrent;
 using System.Net;
 using System.Text;
 using System.Text.Json;
-using System.Threading.Channels;
 using DotNetCampus.ModelContextProtocol.Hosting.Logging;
 using DotNetCampus.ModelContextProtocol.Hosting.Services;
 using DotNetCampus.ModelContextProtocol.Protocol;
@@ -316,43 +315,25 @@ public class LocalHostHttpServerTransport : IServerTransport
                     // 非 initialize 请求：以 text/event-stream 响应，允许服务端在处理期间发起 sampling 等请求。
                     // 规范 §2.1 规则 6："The server MAY send JSON-RPC requests and notifications before sending
                     // the JSON-RPC response. These messages SHOULD relate to the originating client request."
-                    var requestChannel = Channel.CreateUnbounded<JsonRpcMessage>(new UnboundedChannelOptions
-                    {
-                        SingleReader = true,
-                        SingleWriter = false,
-                    });
-
                     context.Response.StatusCode = (int)HttpStatusCode.OK;
                     context.Response.ContentType = "text/event-stream";
                     context.Response.Headers["Cache-Control"] = "no-cache";
-
-                    using var channelRegistration = capturedSession.AttachRequestSseChannel(requestChannel.Writer);
-
-                    // 并发：(a) 处理请求，完成后把响应写入 Channel；(b) 消费 Channel，写入 SSE 流。
-                    var handleTask = Task.Run(async () =>
-                    {
-                        try
-                        {
-                            var resp = await _manager.HandleRequestAsync(jsonRpcRequest,
-                                s => s.AddTransportSession(capturedSession, Log),
-                                cancellationToken);
-                            if (resp != null)
-                            {
-                                await requestChannel.Writer.WriteAsync(resp, cancellationToken);
-                            }
-                        }
-                        finally
-                        {
-                            requestChannel.Writer.TryComplete();
-                        }
-                    }, cancellationToken);
 
                     var output = context.Response.OutputStream;
                     await output.WriteAsync(PrimeEventBytes, cancellationToken);
                     await output.FlushAsync(cancellationToken);
 
-                    await capturedSession.RunRequestSseAsync(requestChannel, output, cancellationToken);
-                    await handleTask; // 确保处理完成，传播异常
+                    // 绑定 SSE 流：HandleRequestAsync 执行期间，SendRequestAsync 直接向 output 写采样请求。
+                    using var _ = capturedSession.SetRequestSseStream(output);
+
+                    var response = await _manager.HandleRequestAsync(jsonRpcRequest,
+                        s => s.AddTransportSession(capturedSession, Log),
+                        cancellationToken);
+
+                    if (response != null)
+                    {
+                        await capturedSession.WriteSseMessageAsync(output, response, cancellationToken);
+                    }
                     context.Response.SafeClose();
                 }
                 return;
@@ -400,7 +381,12 @@ public class LocalHostHttpServerTransport : IServerTransport
             await output.WriteAsync(PrimeEventBytes, cancellationToken);
             await output.FlushAsync(cancellationToken);
 
-            await session.RunSseConnectionAsync(output, cancellationToken);
+            // 保持连接，暂不主动推送；未来实现全局推送时在此扩展。
+            await Task.Delay(Timeout.Infinite, cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+            // 正常关闭
         }
         catch (Exception ex)
         {

@@ -1,6 +1,5 @@
 ﻿using System.Collections.Concurrent;
 using System.Text;
-using System.Threading.Channels;
 using DotNetCampus.ModelContextProtocol.Hosting.Logging;
 using DotNetCampus.ModelContextProtocol.Protocol.Messages;
 using DotNetCampus.ModelContextProtocol.Protocol.Messages.JsonRpc;
@@ -17,16 +16,14 @@ internal class LocalHostHttpServerTransportSession : IServerTransportSession
     private static readonly ReadOnlyMemory<byte> NewLineBytes = "\n"u8.ToArray();
 
     private readonly IServerTransportManager _manager;
-    private readonly Channel<JsonRpcMessage> _outgoingMessages;
     private readonly CancellationTokenSource _disposeCts = new();
     private readonly ConcurrentDictionary<string, TaskCompletionSource<JsonRpcResponse>> _pendingRequests = [];
 
     /// <summary>
-    /// 当前 POST 请求绑定的 per-request SSE 写入通道。
-    /// 非 null 时，SendMessageAsync/SendRequestAsync 优先写入此通道（走 POST 响应 SSE 流）。
-    /// null 时回退到 _outgoingMessages（走 GET SSE 流）。
+    /// 当前 POST 请求绑定的 SSE 输出流。
+    /// 非 null 时，SendRequestAsync 直接向此流写入采样请求。
     /// </summary>
-    private volatile ChannelWriter<JsonRpcMessage>? _requestSseWriter;
+    private volatile Stream? _currentRequestSseStream;
 
     private IMcpLogger Log => _manager.Context.Logger;
 
@@ -39,38 +36,21 @@ internal class LocalHostHttpServerTransportSession : IServerTransportSession
     {
         _manager = manager;
         SessionId = sessionId;
-        _outgoingMessages = Channel.CreateUnbounded<JsonRpcMessage>(new UnboundedChannelOptions
-        {
-            SingleReader = true,
-            SingleWriter = false,
-        });
     }
 
-    /// <inheritdoc />
-    public IDisposable AttachRequestSseChannel(ChannelWriter<JsonRpcMessage> writer)
+    /// <summary>
+    /// 将当前 POST 请求的 SSE 输出流绑定到此会话。
+    /// 返回的 <see cref="IDisposable"/> Dispose 后自动清除绑定（在 POST 请求处理完成后由 Transport 调用）。
+    /// </summary>
+    internal IDisposable SetRequestSseStream(Stream stream)
     {
-        _requestSseWriter = writer;
-        return new RequestSseChannelRegistration(this);
+        _currentRequestSseStream = stream;
+        return new SseStreamScope(this);
     }
 
-    private void DetachRequestSseChannel()
+    private void ClearRequestSseStream()
     {
-        _requestSseWriter = null;
-    }
-
-    public Task SendMessageAsync(JsonRpcMessage message, CancellationToken cancellationToken = default)
-    {
-        if (_disposeCts.IsCancellationRequested)
-        {
-            return Task.CompletedTask;
-        }
-        // 优先写入 per-request 通道（POST 响应 SSE 流）；否则走全局 GET SSE 通道。
-        var writer = _requestSseWriter;
-        if (writer is not null)
-        {
-            return writer.WriteAsync(message, cancellationToken).AsTask();
-        }
-        return _outgoingMessages.Writer.WriteAsync(message, cancellationToken).AsTask();
+        _currentRequestSseStream = null;
     }
 
     /// <inheritdoc />
@@ -80,6 +60,9 @@ internal class LocalHostHttpServerTransportSession : IServerTransportSession
         {
             throw new InvalidOperationException("请求 ID 不能为 null。Request ID must not be null.");
         }
+
+        var stream = _currentRequestSseStream
+            ?? throw new InvalidOperationException("当前没有绑定的 SSE 流，无法发送服务端主动请求。");
 
         Log.Debug($"[McpServer][StreamableHttp] Sending server-initiated request. Method={request.Method}, Id={id}, SessionId={SessionId}");
 
@@ -96,8 +79,8 @@ internal class LocalHostHttpServerTransportSession : IServerTransportSession
 
         try
         {
-            // 通过 SSE 通道将请求发送给客户端（优先 per-request，否则 GET SSE）。
-            await SendMessageAsync(request, cancellationToken).ConfigureAwait(false);
+            // 直接写入当前 POST 请求的 SSE 流，不经过 Channel。
+            await WriteSseMessageAsync(stream, request, cancellationToken).ConfigureAwait(false);
             return await tcs.Task.ConfigureAwait(false);
         }
         finally
@@ -122,58 +105,6 @@ internal class LocalHostHttpServerTransportSession : IServerTransportSession
         else
         {
             Log.Warn($"[McpServer][StreamableHttp] Received unmatched client response. Id={id}, SessionId={SessionId}");
-        }
-    }
-
-    public async Task RunSseConnectionAsync(Stream outputStream, CancellationToken cancellationToken)
-    {
-        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _disposeCts.Token);
-        var ct = linkedCts.Token;
-
-        try
-        {
-            Log.Debug($"[McpServer][StreamableHttp] SSE connection started. SessionId={SessionId}");
-
-            // Wait for messages and write them
-            await foreach (var message in _outgoingMessages.Reader.ReadAllAsync(ct))
-            {
-                await WriteSseMessageAsync(outputStream, message, ct);
-            }
-        }
-        catch (OperationCanceledException)
-        {
-            // Expected on shutdown
-        }
-        catch (Exception ex)
-        {
-            Log.Warn($"[McpServer][StreamableHttp] SSE connection error. SessionId={SessionId}, Error={ex.Message}");
-        }
-        finally
-        {
-            Log.Debug($"[McpServer][StreamableHttp] SSE connection ended. SessionId={SessionId}");
-        }
-    }
-
-    /// <summary>
-    /// 运行 per-request SSE 流：持续消费 <paramref name="channel"/> 中的消息并写入 <paramref name="outputStream"/>，
-    /// 直到 channel 完成（Complete）或取消。
-    /// </summary>
-    public async Task RunRequestSseAsync(Channel<JsonRpcMessage> channel, Stream outputStream, CancellationToken cancellationToken)
-    {
-        try
-        {
-            await foreach (var message in channel.Reader.ReadAllAsync(cancellationToken))
-            {
-                await WriteSseMessageAsync(outputStream, message, cancellationToken);
-            }
-        }
-        catch (OperationCanceledException)
-        {
-            // 正常取消
-        }
-        catch (Exception ex)
-        {
-            Log.Warn($"[McpServer][StreamableHttp] Per-request SSE error. SessionId={SessionId}, Error={ex.Message}");
         }
     }
 
@@ -227,7 +158,6 @@ internal class LocalHostHttpServerTransportSession : IServerTransportSession
         await Task.Yield();
         _disposeCts.Cancel();
 #endif
-        _outgoingMessages.Writer.TryComplete();
         foreach (var (_, tcs) in _pendingRequests)
         {
             tcs.TrySetCanceled();
@@ -236,8 +166,8 @@ internal class LocalHostHttpServerTransportSession : IServerTransportSession
         _disposeCts.Dispose();
     }
 
-    private sealed class RequestSseChannelRegistration(LocalHostHttpServerTransportSession session) : IDisposable
+    private sealed class SseStreamScope(LocalHostHttpServerTransportSession session) : IDisposable
     {
-        public void Dispose() => session.DetachRequestSseChannel();
+        public void Dispose() => session.ClearRequestSseStream();
     }
 }

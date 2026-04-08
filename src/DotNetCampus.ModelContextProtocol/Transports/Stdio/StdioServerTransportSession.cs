@@ -1,7 +1,6 @@
 using System.Collections.Concurrent;
 using System.Text;
 using System.Text.Json;
-using System.Threading.Channels;
 using DotNetCampus.ModelContextProtocol.CompilerServices;
 using DotNetCampus.ModelContextProtocol.Hosting.Logging;
 using DotNetCampus.ModelContextProtocol.Protocol.Messages;
@@ -129,13 +128,6 @@ public class StdioServerTransportSession : IServerTransportSession
     }
 
     /// <inheritdoc />
-    public IDisposable AttachRequestSseChannel(ChannelWriter<JsonRpcMessage> writer)
-    {
-        // STDIO 传输层是全双工管道，不需要 per-request SSE 通道，此方法为空实现。
-        return NopDisposable.Instance;
-    }
-
-    /// <inheritdoc />
     public ValueTask DisposeAsync()
     {
         _writeLock.Dispose();
@@ -155,9 +147,4 @@ public class StdioServerTransportSession : IServerTransportSession
         _ => throw new ArgumentException($"不支持的消息类型：{message.GetType().FullName}."),
     };
 
-    private sealed class NopDisposable : IDisposable
-    {
-        public static readonly NopDisposable Instance = new();
-        public void Dispose() { }
-    }
 }

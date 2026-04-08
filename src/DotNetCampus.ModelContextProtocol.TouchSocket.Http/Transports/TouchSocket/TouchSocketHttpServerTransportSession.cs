@@ -1,5 +1,4 @@
 using System.Collections.Concurrent;
-using System.Threading.Channels;
 using DotNetCampus.ModelContextProtocol.Protocol.Messages;
 using DotNetCampus.ModelContextProtocol.Protocol.Messages.JsonRpc;
 using DotNetCampus.ModelContextProtocol.Hosting.Logging;
@@ -16,16 +15,14 @@ public class TouchSocketHttpServerTransportSession : IServerTransportSession
     private static readonly ReadOnlyMemory<byte> NewLineBytes = "\n"u8.ToArray();
 
     private readonly IServerTransportManager _manager;
-    private readonly Channel<JsonRpcMessage> _outgoingMessages;
     private readonly CancellationTokenSource _disposeCts = new();
     private readonly ConcurrentDictionary<string, TaskCompletionSource<JsonRpcResponse>> _pendingRequests = [];
 
     /// <summary>
-    /// 当前 POST 请求绑定的 per-request SSE 写入通道。
-    /// 非 null 时，SendMessageAsync/SendRequestAsync 优先写入此通道（走 POST 响应 SSE 流）。
-    /// null 时回退到 _outgoingMessages（走 GET SSE 流）。
+    /// 当前 POST 请求绑定的 SSE 输出流。
+    /// 非 null 时，SendRequestAsync 直接向此流写入采样请求。
     /// </summary>
-    private volatile ChannelWriter<JsonRpcMessage>? _requestSseWriter;
+    private volatile Stream? _currentRequestSseStream;
 
     private IMcpLogger Log => _manager.Context.Logger;
 
@@ -44,39 +41,21 @@ public class TouchSocketHttpServerTransportSession : IServerTransportSession
     {
         _manager = manager;
         SessionId = sessionId;
-        _outgoingMessages = Channel.CreateUnbounded<JsonRpcMessage>(new UnboundedChannelOptions
-        {
-            SingleReader = true,
-            SingleWriter = false,
-        });
     }
 
-    /// <inheritdoc />
-    public IDisposable AttachRequestSseChannel(ChannelWriter<JsonRpcMessage> writer)
+    /// <summary>
+    /// 将当前 POST 请求的 SSE 输出流绑定到此会话。
+    /// 返回的 <see cref="IDisposable"/> Dispose 后自动清除绑定。
+    /// </summary>
+    internal IDisposable SetRequestSseStream(Stream stream)
     {
-        _requestSseWriter = writer;
-        return new RequestSseChannelRegistration(this);
+        _currentRequestSseStream = stream;
+        return new SseStreamScope(this);
     }
 
-    private void DetachRequestSseChannel()
+    private void ClearRequestSseStream()
     {
-        _requestSseWriter = null;
-    }
-
-    /// <inheritdoc />
-    public Task SendMessageAsync(JsonRpcMessage message, CancellationToken cancellationToken = default)
-    {
-        if (_disposeCts.IsCancellationRequested)
-        {
-            return Task.CompletedTask;
-        }
-        // 优先写入 per-request 通道（POST 响应 SSE 流）；否则走全局 GET SSE 通道。
-        var writer = _requestSseWriter;
-        if (writer is not null)
-        {
-            return writer.WriteAsync(message, cancellationToken).AsTask();
-        }
-        return _outgoingMessages.Writer.WriteAsync(message, cancellationToken).AsTask();
+        _currentRequestSseStream = null;
     }
 
     /// <inheritdoc />
@@ -86,6 +65,9 @@ public class TouchSocketHttpServerTransportSession : IServerTransportSession
         {
             throw new InvalidOperationException("请求 ID 不能为 null。Request ID must not be null.");
         }
+
+        var stream = _currentRequestSseStream
+            ?? throw new InvalidOperationException("当前没有绑定的 SSE 流，无法发送服务端主动请求。");
 
         var tcs = new TaskCompletionSource<JsonRpcResponse>(TaskCreationOptions.RunContinuationsAsynchronously);
         _pendingRequests[id] = tcs;
@@ -100,8 +82,8 @@ public class TouchSocketHttpServerTransportSession : IServerTransportSession
 
         try
         {
-            // 通过 SSE 通道将请求发送给客户端（优先 per-request，否则 GET SSE）。
-            await SendMessageAsync(request, cancellationToken).ConfigureAwait(false);
+            // 直接写入当前 POST 请求的 SSE 流，不经过 Channel。
+            await WriteSseMessageAsync(stream, request, cancellationToken).ConfigureAwait(false);
             return await tcs.Task.ConfigureAwait(false);
         }
         finally
@@ -121,63 +103,6 @@ public class TouchSocketHttpServerTransportSession : IServerTransportSession
         if (_pendingRequests.TryRemove(id, out var tcs))
         {
             tcs.TrySetResult(response);
-        }
-    }
-
-    /// <summary>
-    /// 运行 SSE 长连接，持续向客户端推送消息，直到连接断开或取消。
-    /// </summary>
-    /// <param name="outputStream">用于向客户端写入 SSE 数据的输出流。</param>
-    /// <param name="cancellationToken">用于取消操作的令牌。</param>
-    public async Task RunSseConnectionAsync(Stream outputStream, CancellationToken cancellationToken)
-    {
-        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _disposeCts.Token);
-        var ct = linkedCts.Token;
-
-        try
-        {
-            Log.Debug($"[McpServer][TouchSocket] SSE connection started. SessionId={SessionId}");
-
-            // Wait for messages and write them
-            await foreach (var message in _outgoingMessages.Reader.ReadAllAsync(ct))
-            {
-                await WriteSseMessageAsync(outputStream, message, ct);
-            }
-        }
-        catch (OperationCanceledException)
-        {
-            // Expected on shutdown
-        }
-        catch (Exception ex)
-        {
-            Log.Warn($"[McpServer][TouchSocket] SSE connection error. SessionId={SessionId}, Error={ex.Message}");
-        }
-        finally
-        {
-            Log.Debug($"[McpServer][TouchSocket] SSE connection ended. SessionId={SessionId}");
-        }
-    }
-
-    /// <summary>
-    /// 运行 per-request SSE 流：持续消费 <paramref name="channel"/> 中的消息并写入 <paramref name="outputStream"/>，
-    /// 直到 channel 完成（Complete）或取消。
-    /// </summary>
-    public async Task RunRequestSseAsync(Channel<JsonRpcMessage> channel, Stream outputStream, CancellationToken cancellationToken)
-    {
-        try
-        {
-            await foreach (var message in channel.Reader.ReadAllAsync(cancellationToken))
-            {
-                await WriteSseMessageAsync(outputStream, message, cancellationToken);
-            }
-        }
-        catch (OperationCanceledException)
-        {
-            // 正常取消
-        }
-        catch (Exception ex)
-        {
-            Log.Warn($"[McpServer][TouchSocket] Per-request SSE error. SessionId={SessionId}, Error={ex.Message}");
         }
     }
 
@@ -221,7 +146,6 @@ public class TouchSocketHttpServerTransportSession : IServerTransportSession
         await Task.Yield();
         _disposeCts.Cancel();
 #endif
-        _outgoingMessages.Writer.TryComplete();
         foreach (var (_, tcs) in _pendingRequests)
         {
             tcs.TrySetCanceled();
@@ -230,8 +154,8 @@ public class TouchSocketHttpServerTransportSession : IServerTransportSession
         _disposeCts.Dispose();
     }
 
-    private sealed class RequestSseChannelRegistration(TouchSocketHttpServerTransportSession session) : IDisposable
+    private sealed class SseStreamScope(TouchSocketHttpServerTransportSession session) : IDisposable
     {
-        public void Dispose() => session.DetachRequestSseChannel();
+        public void Dispose() => session.ClearRequestSseStream();
     }
 }
