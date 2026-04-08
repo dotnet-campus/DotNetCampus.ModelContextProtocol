@@ -1,4 +1,3 @@
-using System.Collections.Concurrent;
 using System.Text;
 using System.Text.Json;
 using DotNetCampus.ModelContextProtocol.CompilerServices;
@@ -11,10 +10,9 @@ namespace DotNetCampus.ModelContextProtocol.Transports.Stdio;
 /// <summary>
 /// STDIO 传输层的一个会话。
 /// </summary>
-public class StdioServerTransportSession : IServerTransportSession
+public class StdioServerTransportSession : ServerTransportSession
 {
     private static readonly ReadOnlyMemory<byte> NewLineBytes = "\n"u8.ToArray();
-    private readonly ConcurrentDictionary<string, TaskCompletionSource<JsonRpcResponse>> _pendingRequests = [];
     private readonly SemaphoreSlim _writeLock = new(1, 1);
     private readonly IMcpLogger _logger;
     private StreamWriter? _output;
@@ -31,10 +29,7 @@ public class StdioServerTransportSession : IServerTransportSession
     /// <summary>
     /// STDIO 传输层是专用的，不需要会话 ID。
     /// </summary>
-    public string? SessionId => null;
-
-    /// <inheritdoc />
-    public ClientCapabilities? ConnectedClientCapabilities { get; set; }
+    public override string? SessionId => null;
 
     /// <summary>
     /// 由 <see cref="StdioServerTransport"/> 在启动后设置输出流。
@@ -45,7 +40,13 @@ public class StdioServerTransportSession : IServerTransportSession
     }
 
     /// <inheritdoc />
-    public async Task SendMessageAsync(JsonRpcMessage message, CancellationToken cancellationToken = default)
+    protected override async Task SendRequestMessageAsync(JsonRpcRequest request, CancellationToken cancellationToken)
+    {
+        _logger.Debug($"[McpServer][Stdio] Sending server-initiated request. Method={request.Method}, Id={request.Id}, SessionId={SessionId}");
+        await SendMessageAsync(request, cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task SendMessageAsync(JsonRpcMessage message, CancellationToken cancellationToken = default)
     {
         if (_output is not { } output)
         {
@@ -77,65 +78,18 @@ public class StdioServerTransportSession : IServerTransportSession
     }
 
     /// <inheritdoc />
-    public async Task<JsonRpcResponse> SendRequestAsync(JsonRpcRequest request, CancellationToken cancellationToken = default)
-    {
-        if (request.Id?.ToString() is not { } id)
-        {
-            throw new InvalidOperationException("请求 ID 不能为 null。Request ID must not be null.");
-        }
-
-        _logger.Debug($"[McpServer][Stdio] Sending server-initiated request. Method={request.Method}, Id={id}");
-
-        var tcs = new TaskCompletionSource<JsonRpcResponse>(TaskCreationOptions.RunContinuationsAsynchronously);
-        _pendingRequests[id] = tcs;
-
-        using var registration = cancellationToken.Register(() =>
-        {
-            if (_pendingRequests.TryRemove(id, out var removed))
-            {
-                removed.TrySetCanceled(cancellationToken);
-            }
-        });
-
-        try
-        {
-            await SendMessageAsync(request, cancellationToken).ConfigureAwait(false);
-            return await tcs.Task.ConfigureAwait(false);
-        }
-        finally
-        {
-            _pendingRequests.TryRemove(id, out _);
-        }
-    }
+    protected override void OnResponseReceived(string id, JsonRpcResponse response)
+        => _logger.Debug($"[McpServer][Stdio] Received client response for pending request. Id={id}");
 
     /// <inheritdoc />
-    public void HandleResponseAsync(JsonRpcResponse response)
-    {
-        if (response.Id?.ToString() is not { } id)
-        {
-            return;
-        }
-
-        if (_pendingRequests.TryRemove(id, out var tcs))
-        {
-            _logger.Debug($"[McpServer][Stdio] Received client response for pending request. Id={id}");
-            tcs.TrySetResult(response);
-        }
-        else
-        {
-            _logger.Warn($"[McpServer][Stdio] Received unmatched client response. Id={id}");
-        }
-    }
+    protected override void OnUnmatchedResponse(string id, JsonRpcResponse response)
+        => _logger.Warn($"[McpServer][Stdio] Received unmatched client response. Id={id}");
 
     /// <inheritdoc />
-    public ValueTask DisposeAsync()
+    public override ValueTask DisposeAsync()
     {
         _writeLock.Dispose();
-        foreach (var (_, tcs) in _pendingRequests)
-        {
-            tcs.TrySetCanceled();
-        }
-        _pendingRequests.Clear();
+        CancelAllPendingRequests();
         return ValueTask.CompletedTask;
     }
 
@@ -146,5 +100,4 @@ public class StdioServerTransportSession : IServerTransportSession
         JsonRpcNotification notification => McpInternalJsonContext.Default.JsonRpcNotification,
         _ => throw new ArgumentException($"不支持的消息类型：{message.GetType().FullName}."),
     };
-
 }

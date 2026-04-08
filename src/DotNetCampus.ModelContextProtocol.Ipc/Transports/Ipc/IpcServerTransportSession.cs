@@ -1,6 +1,4 @@
-﻿using System.Collections.Concurrent;
-using dotnetCampus.Ipc.Pipes;
-using DotNetCampus.ModelContextProtocol.Protocol.Messages;
+﻿using dotnetCampus.Ipc.Pipes;
 using DotNetCampus.ModelContextProtocol.Protocol.Messages.JsonRpc;
 
 namespace DotNetCampus.ModelContextProtocol.Transports.Ipc;
@@ -8,9 +6,8 @@ namespace DotNetCampus.ModelContextProtocol.Transports.Ipc;
 /// <summary>
 /// DotNetCampus.Ipc 传输层的一个会话。
 /// </summary>
-public class IpcServerTransportSession : IServerTransportSession
+public class IpcServerTransportSession : ServerTransportSession
 {
-    private readonly ConcurrentDictionary<string, TaskCompletionSource<JsonRpcResponse>> _pendingRequests = [];
     private PeerProxy? _peer;
 
     /// <summary>
@@ -25,10 +22,7 @@ public class IpcServerTransportSession : IServerTransportSession
     /// <summary>
     /// DotNetCampus.Ipc 传输层其实是严格一对一对应一个 <see cref="PeerProxy"/> 的，所以其实不需要设置此属性。不过我们还是设了，调试稍微方便一点点。
     /// </summary>
-    public string SessionId { get; }
-
-    /// <inheritdoc />
-    public ClientCapabilities? ConnectedClientCapabilities { get; set; }
+    public override string SessionId { get; }
 
     /// <summary>
     /// 设置与此会话关联的 IPC 对端代理，用于 SendRequestAsync 发送消息。
@@ -39,57 +33,16 @@ public class IpcServerTransportSession : IServerTransportSession
     }
 
     /// <inheritdoc />
-    public async Task<JsonRpcResponse> SendRequestAsync(JsonRpcRequest request, CancellationToken cancellationToken = default)
+    protected override Task SendRequestMessageAsync(JsonRpcRequest request, CancellationToken cancellationToken)
     {
-        if (request.Id?.ToString() is not { } id)
-        {
-            throw new InvalidOperationException("请求 ID 不能为 null。Request ID must not be null.");
-        }
-
-        var tcs = new TaskCompletionSource<JsonRpcResponse>(TaskCreationOptions.RunContinuationsAsynchronously);
-        _pendingRequests[id] = tcs;
-
-        using var registration = cancellationToken.Register(() =>
-        {
-            if (_pendingRequests.TryRemove(id, out var removed))
-            {
-                removed.TrySetCanceled(cancellationToken);
-            }
-        });
-
-        try
-        {
-            // IPC 传输层的服务端主动请求尚未实现。
-            throw new NotImplementedException("IPC 传输层尚不支持服务端主动发起请求（如 sampling/createMessage）。");
-        }
-        finally
-        {
-            _pendingRequests.TryRemove(id, out _);
-        }
+        // IPC 传输层的服务端主动请求尚未实现。
+        throw new NotImplementedException("IPC 传输层尚不支持服务端主动发起请求（如 sampling/createMessage）。");
     }
 
     /// <inheritdoc />
-    public void HandleResponseAsync(JsonRpcResponse response)
+    public override ValueTask DisposeAsync()
     {
-        if (response.Id?.ToString() is not { } id)
-        {
-            return;
-        }
-
-        if (_pendingRequests.TryRemove(id, out var tcs))
-        {
-            tcs.TrySetResult(response);
-        }
-    }
-
-    /// <inheritdoc />
-    public ValueTask DisposeAsync()
-    {
-        foreach (var (_, tcs) in _pendingRequests)
-        {
-            tcs.TrySetCanceled();
-        }
-        _pendingRequests.Clear();
+        CancelAllPendingRequests();
         return ValueTask.CompletedTask;
     }
 }

@@ -1,4 +1,3 @@
-﻿using System.Collections.Concurrent;
 using System.Text;
 using DotNetCampus.ModelContextProtocol.Hosting.Logging;
 using DotNetCampus.ModelContextProtocol.Protocol.Messages;
@@ -8,16 +7,17 @@ namespace DotNetCampus.ModelContextProtocol.Transports.Http;
 
 /// <summary>
 /// Streamable HTTP 传输层的一个会话。
+/// 同时被 <see cref="LocalHostHttpServerTransport"/> 和 TouchSocket HTTP 传输层使用。
 /// </summary>
-internal class LocalHostHttpServerTransportSession : IServerTransportSession
+public class HttpServerTransportSession : ServerTransportSession
 {
     private static readonly ReadOnlyMemory<byte> EventMessageBytes = "event: message\n"u8.ToArray();
     private static readonly ReadOnlyMemory<byte> DataPrefixBytes = "data: "u8.ToArray();
     private static readonly ReadOnlyMemory<byte> NewLineBytes = "\n"u8.ToArray();
 
     private readonly IServerTransportManager _manager;
+    private readonly string _logPrefix;
     private readonly CancellationTokenSource _disposeCts = new();
-    private readonly ConcurrentDictionary<string, TaskCompletionSource<JsonRpcResponse>> _pendingRequests = [];
 
     /// <summary>
     /// 当前 POST 请求绑定的 SSE 输出流。
@@ -27,22 +27,27 @@ internal class LocalHostHttpServerTransportSession : IServerTransportSession
 
     private IMcpLogger Log => _manager.Context.Logger;
 
-    public string SessionId { get; }
-
     /// <inheritdoc />
-    public ClientCapabilities? ConnectedClientCapabilities { get; set; }
+    public override string SessionId { get; }
 
-    public LocalHostHttpServerTransportSession(IServerTransportManager manager, string sessionId)
+    /// <summary>
+    /// 初始化 <see cref="HttpServerTransportSession"/> 类的新实例。
+    /// </summary>
+    /// <param name="manager">辅助管理 MCP 传输层的管理器。</param>
+    /// <param name="sessionId">唯一标识此会话的 ID。</param>
+    /// <param name="logPrefix">日志前缀，用于区分不同传输层实现（如 "[McpServer][StreamableHttp]"）。</param>
+    public HttpServerTransportSession(IServerTransportManager manager, string sessionId, string logPrefix)
     {
         _manager = manager;
         SessionId = sessionId;
+        _logPrefix = logPrefix;
     }
 
     /// <summary>
     /// 将当前 POST 请求的 SSE 输出流绑定到此会话。
     /// 返回的 <see cref="IDisposable"/> Dispose 后自动清除绑定（在 POST 请求处理完成后由 Transport 调用）。
     /// </summary>
-    internal IDisposable SetRequestSseStream(Stream stream)
+    public IDisposable SetRequestSseStream(Stream stream)
     {
         _currentRequestSseStream = stream;
         return new SseStreamScope(this);
@@ -54,61 +59,33 @@ internal class LocalHostHttpServerTransportSession : IServerTransportSession
     }
 
     /// <inheritdoc />
-    public async Task<JsonRpcResponse> SendRequestAsync(JsonRpcRequest request, CancellationToken cancellationToken = default)
+    protected override async Task SendRequestMessageAsync(JsonRpcRequest request, CancellationToken cancellationToken)
     {
-        if (request.Id?.ToString() is not { } id)
-        {
-            throw new InvalidOperationException("请求 ID 不能为 null。Request ID must not be null.");
-        }
-
         var stream = _currentRequestSseStream
             ?? throw new InvalidOperationException("当前没有绑定的 SSE 流，无法发送服务端主动请求。");
 
-        Log.Debug($"[McpServer][StreamableHttp] Sending server-initiated request. Method={request.Method}, Id={id}, SessionId={SessionId}");
+        Log.Debug($"{_logPrefix} Sending server-initiated request. Method={request.Method}, Id={request.Id}, SessionId={SessionId}");
 
-        var tcs = new TaskCompletionSource<JsonRpcResponse>(TaskCreationOptions.RunContinuationsAsynchronously);
-        _pendingRequests[id] = tcs;
-
-        using var registration = cancellationToken.Register(() =>
-        {
-            if (_pendingRequests.TryRemove(id, out var removed))
-            {
-                removed.TrySetCanceled(cancellationToken);
-            }
-        });
-
-        try
-        {
-            // 直接写入当前 POST 请求的 SSE 流，不经过 Channel。
-            await WriteSseMessageAsync(stream, request, cancellationToken).ConfigureAwait(false);
-            return await tcs.Task.ConfigureAwait(false);
-        }
-        finally
-        {
-            _pendingRequests.TryRemove(id, out _);
-        }
+        // 直接写入当前 POST 请求的 SSE 流，不经过 Channel。
+        await WriteSseMessageAsync(stream, request, cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
-    public void HandleResponseAsync(JsonRpcResponse response)
+    protected override void OnResponseReceived(string id, JsonRpcResponse response)
     {
-        if (response.Id?.ToString() is not { } id)
-        {
-            return;
-        }
-
-        if (_pendingRequests.TryRemove(id, out var tcs))
-        {
-            Log.Debug($"[McpServer][StreamableHttp] Received client response for pending request. Id={id}, SessionId={SessionId}");
-            tcs.TrySetResult(response);
-        }
-        else
-        {
-            Log.Warn($"[McpServer][StreamableHttp] Received unmatched client response. Id={id}, SessionId={SessionId}");
-        }
+        Log.Debug($"{_logPrefix} Received client response for pending request. Id={id}, SessionId={SessionId}");
     }
 
-    internal async Task WriteSseMessageAsync(Stream stream, JsonRpcMessage message, CancellationToken ct)
+    /// <inheritdoc />
+    protected override void OnUnmatchedResponse(string id, JsonRpcResponse response)
+    {
+        Log.Warn($"{_logPrefix} Received unmatched client response. Id={id}, SessionId={SessionId}");
+    }
+
+    /// <summary>
+    /// 将一条 JSON-RPC 消息写入 SSE 流。
+    /// </summary>
+    public async Task WriteSseMessageAsync(Stream stream, JsonRpcMessage message, CancellationToken ct)
     {
         try
         {
@@ -124,7 +101,7 @@ internal class LocalHostHttpServerTransportSession : IServerTransportSession
                 using var ms = new MemoryStream();
                 await _manager.WriteMessageAsync(ms, message, ct);
                 var json = Encoding.UTF8.GetString(ms.ToArray());
-                Log.Debug($"[McpServer][StreamableHttp] → {json}");
+                Log.Debug($"{_logPrefix} → {json}");
                 await stream.WriteAsync(ms.ToArray(), ct);
             }
             else
@@ -140,12 +117,13 @@ internal class LocalHostHttpServerTransportSession : IServerTransportSession
         }
         catch (Exception ex)
         {
-            Log.Error($"[McpServer][StreamableHttp] Failed to write SSE message. SessionId={SessionId}", ex);
-            throw; // Re-throw to close connection if write fails
+            Log.Error($"{_logPrefix} Failed to write SSE message. SessionId={SessionId}", ex);
+            throw;
         }
     }
 
-    public async ValueTask DisposeAsync()
+    /// <inheritdoc />
+    public override async ValueTask DisposeAsync()
     {
         if (_disposeCts.IsCancellationRequested)
         {
@@ -158,15 +136,11 @@ internal class LocalHostHttpServerTransportSession : IServerTransportSession
         await Task.Yield();
         _disposeCts.Cancel();
 #endif
-        foreach (var (_, tcs) in _pendingRequests)
-        {
-            tcs.TrySetCanceled();
-        }
-        _pendingRequests.Clear();
+        CancelAllPendingRequests();
         _disposeCts.Dispose();
     }
 
-    private sealed class SseStreamScope(LocalHostHttpServerTransportSession session) : IDisposable
+    private sealed class SseStreamScope(HttpServerTransportSession session) : IDisposable
     {
         public void Dispose() => session.ClearRequestSseStream();
     }
