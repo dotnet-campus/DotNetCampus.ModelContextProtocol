@@ -11,16 +11,16 @@ public class SamplingTool
     /// 通过客户端的 LLM 进行采样，将 prompt 发送给客户端，获取 LLM 响应并返回。
     /// 用于人工验证 sampling/createMessage 协议流程是否正常。
     /// </summary>
+    /// <param name="context">MCP 工具上下文</param>
     /// <param name="prompt">发送给 LLM 的提示词</param>
     /// <param name="maxTokens">最大生成令牌数</param>
     /// <param name="systemPrompt">可选的系统提示词</param>
-    /// <param name="context">MCP 工具上下文</param>
     [McpServerTool]
     public async Task<string> AskLlm(
+        IMcpServerCallToolContext context,
         string prompt,
         int maxTokens = 1024,
-        string? systemPrompt = null,
-        IMcpServerCallToolContext context = null!)
+        string? systemPrompt = null)
     {
         if (!context.Sampling.IsSupported)
         {

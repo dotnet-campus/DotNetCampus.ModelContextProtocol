@@ -27,7 +27,7 @@ public interface IMcpServerSampling
     /// <param name="requestParams">采样请求参数。</param>
     /// <param name="cancellationToken">取消令牌。</param>
     /// <returns>LLM 生成的采样结果。</returns>
-    /// <exception cref="McpSamplingNotSupportedException">当客户端未声明 Sampling 能力时抛出。</exception>
+    /// <exception cref="McpSamplingNotSupportedException">当客户端未声明 Sampling 能力时抛出。可通过提前判断 <see cref="IsSupported"/> 来避免此异常。</exception>
     /// <exception cref="McpSamplingRejectedException">当采样请求被用户（人工审批）拒绝时抛出。</exception>
     Task<CreateMessageResult> CreateMessageAsync(CreateMessageRequestParams requestParams, CancellationToken cancellationToken = default);
 }
