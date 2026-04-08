@@ -1,4 +1,5 @@
 ﻿using System.Collections.Concurrent;
+using System.Threading.Channels;
 using dotnetCampus.Ipc.Pipes;
 using DotNetCampus.ModelContextProtocol.Protocol.Messages;
 using DotNetCampus.ModelContextProtocol.Protocol.Messages.JsonRpc;
@@ -89,6 +90,13 @@ public class IpcServerTransportSession : IServerTransportSession
     }
 
     /// <inheritdoc />
+    public IDisposable AttachRequestSseChannel(ChannelWriter<JsonRpcMessage> writer)
+    {
+        // IPC 传输层是全双工管道，不需要 per-request SSE 通道，此方法为空实现。
+        return NopDisposable.Instance;
+    }
+
+    /// <inheritdoc />
     public ValueTask DisposeAsync()
     {
         foreach (var (_, tcs) in _pendingRequests)
@@ -97,5 +105,11 @@ public class IpcServerTransportSession : IServerTransportSession
         }
         _pendingRequests.Clear();
         return ValueTask.CompletedTask;
+    }
+
+    private sealed class NopDisposable : IDisposable
+    {
+        public static readonly NopDisposable Instance = new();
+        public void Dispose() { }
     }
 }

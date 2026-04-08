@@ -1,6 +1,7 @@
 ﻿using System.Collections.Concurrent;
 using System.Collections.Specialized;
 using System.Text.Json;
+using System.Threading.Channels;
 using DotNetCampus.ModelContextProtocol.Hosting.Logging;
 using DotNetCampus.ModelContextProtocol.Hosting.Services;
 using DotNetCampus.ModelContextProtocol.Protocol;
@@ -356,25 +357,77 @@ public class TouchSocketHttpServerTransport : PluginBase, IHttpPlugin, IServerTr
 
                 Log.Debug($"[McpServer][TouchSocket] Handling JSON-RPC request. SessionId={session.SessionId}, Method={jsonRpcRequest.Method}, MessageId={jsonRpcRequest.Id}");
 
-                var jsonRpcResponse2 = await _manager.HandleRequestAsync(jsonRpcRequest,
-                    s =>
-                    {
-                        s.AddHttpTransportServices(session.SessionId, request);
-                        s.AddTransportSession(session, Log);
-                    },
-                    cancellationToken: cancellationToken);
-
-                if (jsonRpcResponse2 != null)
+                if (isInitialize)
                 {
-                    // Request: Success or Failed.
-                    Log.Debug($"[McpServer][TouchSocket] Sending JSON-RPC response. SessionId={session.SessionId}, Method={jsonRpcRequest.Method}, MessageId={jsonRpcRequest.Id}");
-                    await context.RespondJsonRpcAsync(_manager, HttpStatusCode.OK, jsonRpcResponse2);
+                    // initialize 请求：直接返回 application/json，不需要 SSE 流。
+                    var initResponse = await _manager.HandleRequestAsync(jsonRpcRequest,
+                        s =>
+                        {
+                            s.AddHttpTransportServices(session.SessionId, request);
+                            s.AddTransportSession(session, Log);
+                        },
+                        cancellationToken: cancellationToken);
+
+                    if (initResponse != null)
+                    {
+                        Log.Debug($"[McpServer][TouchSocket] Sending initialize response. SessionId={session.SessionId}, MessageId={jsonRpcRequest.Id}");
+                        await context.RespondJsonRpcAsync(_manager, HttpStatusCode.OK, initResponse);
+                    }
+                    else
+                    {
+                        Log.Debug($"[McpServer][TouchSocket] No response for initialize notification. SessionId={session.SessionId}");
+                        await context.RespondHttpSuccess(HttpStatusCode.Accepted);
+                    }
                 }
                 else
                 {
-                    // Notification: No need to respond.
-                    Log.Debug($"[McpServer][TouchSocket] No response for notification. SessionId={session.SessionId}, Method={jsonRpcRequest.Method}, MessageId={jsonRpcRequest.Id}");
-                    await context.RespondHttpSuccess(HttpStatusCode.Accepted);
+                    // 非 initialize 请求：以 text/event-stream 响应，允许服务端在处理期间发起 sampling 等请求。
+                    // 规范 §2.1 规则 6："The server MAY send JSON-RPC requests and notifications before sending
+                    // the JSON-RPC response. These messages SHOULD relate to the originating client request."
+                    var requestChannel = Channel.CreateUnbounded<JsonRpcMessage>(new UnboundedChannelOptions
+                    {
+                        SingleReader = true,
+                        SingleWriter = false,
+                    });
+
+                    context.Response.SetStatus(HttpStatusCode.OK, "");
+                    context.Response.ContentType = "text/event-stream";
+                    context.Response.Headers.Add("Cache-Control", "no-cache");
+
+                    using var channelRegistration = session.AttachRequestSseChannel(requestChannel.Writer);
+
+                    // 并发：(a) 处理请求，完成后把响应写入 Channel；(b) 消费 Channel，写入 SSE 流。
+                    var handleTask = Task.Run(async () =>
+                    {
+                        try
+                        {
+                            var resp = await _manager.HandleRequestAsync(jsonRpcRequest,
+                                s =>
+                                {
+                                    s.AddHttpTransportServices(session.SessionId, request);
+                                    s.AddTransportSession(session, Log);
+                                },
+                                cancellationToken: cancellationToken);
+                            if (resp != null)
+                            {
+                                Log.Debug($"[McpServer][TouchSocket] Sending JSON-RPC response via SSE. SessionId={session.SessionId}, Method={jsonRpcRequest.Method}, MessageId={jsonRpcRequest.Id}");
+                                await requestChannel.Writer.WriteAsync(resp, cancellationToken);
+                            }
+                        }
+                        finally
+                        {
+                            requestChannel.Writer.TryComplete();
+                        }
+                    }, cancellationToken);
+
+                    context.Response.IsChunk = true;
+                    await using var output = context.Response.CreateWriteStream();
+                    await output.WriteAsync(PrimeEventBytes, cancellationToken);
+                    await output.FlushAsync(cancellationToken);
+
+                    await session.RunRequestSseAsync(requestChannel, output, cancellationToken);
+                    await handleTask; // 确保处理完成，传播异常
+                    await context.Response.CompleteChunkAsync(cancellationToken);
                 }
                 return;
             }

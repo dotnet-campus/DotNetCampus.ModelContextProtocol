@@ -1,4 +1,5 @@
-﻿using DotNetCampus.ModelContextProtocol.Protocol.Messages;
+﻿using System.Threading.Channels;
+using DotNetCampus.ModelContextProtocol.Protocol.Messages;
 using DotNetCampus.ModelContextProtocol.Protocol.Messages.JsonRpc;
 
 namespace DotNetCampus.ModelContextProtocol.Transports;
@@ -38,4 +39,12 @@ public interface IServerTransportSession : IAsyncDisposable
     /// Handles a JSON-RPC response received from the client (a reply to a server-initiated request).
     /// </summary>
     void HandleResponseAsync(JsonRpcResponse response);
+
+    /// <summary>
+    /// 为当前正在处理的 POST 请求注册一个专属的 SSE 写入通道。
+    /// 注册后，<see cref="SendMessageAsync"/> 和 <see cref="SendRequestAsync"/> 会优先将消息写入此通道，
+    /// 而非全局的 GET SSE 通道，从而让服务端主动请求（如采样）与触发它的工具调用使用同一条 SSE 流。
+    /// Dispose 返回的对象可注销通道（恢复到全局 GET SSE）。
+    /// </summary>
+    IDisposable AttachRequestSseChannel(ChannelWriter<JsonRpcMessage> writer);
 }
