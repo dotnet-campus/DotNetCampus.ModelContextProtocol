@@ -62,10 +62,12 @@ public class McpServerRequestHandlers
         CancellationToken cancellationToken)
     {
         var clientInfo = request.Params?.ClientInfo;
-        Logger.Info($"[McpServer][Mcp] Client initializing. ClientName={clientInfo?.Name}, ClientVersion={clientInfo?.Version}, ProtocolVersion={request.Params?.ProtocolVersion}");
+        Logger.Info(
+            $"[McpServer][Mcp] Client initializing. ClientName={clientInfo?.Name}, ClientVersion={clientInfo?.Version}, ProtocolVersion={request.Params?.ProtocolVersion}");
 
         // 将客户端能力保存到当前传输层会话，以便后续服务器发起请求（如 sampling）时判断能力。
-        var session = (DotNetCampus.ModelContextProtocol.Transports.IServerTransportSession?)request.Services.GetService(typeof(DotNetCampus.ModelContextProtocol.Transports.IServerTransportSession));
+        var session = (DotNetCampus.ModelContextProtocol.Transports.IServerTransportSession?)request.Services.GetService(
+            typeof(DotNetCampus.ModelContextProtocol.Transports.IServerTransportSession));
         if (session is not null && request.Params?.Capabilities is { } capabilities)
         {
             session.ConnectedClientCapabilities = capabilities;
@@ -96,7 +98,8 @@ public class McpServerRequestHandlers
             },
         };
 
-        Logger.Info($"[McpServer][Mcp] Server initialized. ServerName={_server.ServerName}, ServerVersion={_server.ServerVersion}, ToolCount={_server.Tools.Count}, ResourceCount={_server.Resources.Count}");
+        Logger.Info(
+            $"[McpServer][Mcp] Server initialized. ServerName={_server.ServerName}, ServerVersion={_server.ServerVersion}, ToolCount={_server.Tools.Count}, ResourceCount={_server.Resources.Count}");
 
         return ValueTask.FromResult(result);
     }
@@ -339,6 +342,12 @@ public class McpServerRequestHandlers
         {
             // 通用的工具执行失败。
             Logger.Warn($"[McpServer][Mcp] Tool call failed. ToolName={toolName}, Arguments={rawRequest.Params}, Error={ex.Message}");
+            return CallToolResult.FromException(ex);
+        }
+        catch (McpClientException ex)
+        {
+            // 此错误来自 MCP 客户端（例如工具调用过程中，服务端反向发起了请求，但客户端未能正确响应请求）。
+            Logger.Warn($"[McpServer][Mcp] Tool call failed: Client error. ToolName={toolName}, Arguments={rawRequest.Params}, Error={ex.Message}");
             return CallToolResult.FromException(ex);
         }
         catch (Exception ex)
