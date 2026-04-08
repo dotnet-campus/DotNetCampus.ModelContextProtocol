@@ -1,0 +1,30 @@
+src/DotNetCampus.ModelContextProtocol/Transports/Http/HttpClientTransport.cs
+  677899a91981528a 185,187,334,375,385-386,389,393-394,397-398,400,403,405-408,410-413
+src/DotNetCampus.ModelContextProtocol/Transports/ClientTransportManager.cs
+  677899a91981528a 49-53,55-63,65-68,70-71
+src/DotNetCampus.ModelContextProtocol/Transports/Stdio/StdioClientTransport.cs
+  677899a91981528a 109-111,113,115,121-123,125-126,128-131
+src/DotNetCampus.ModelContextProtocol/Transports/IClientTransportManager.cs
+  677899a91981528a 23-37
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "11e92fb39a50ff39f8a25cf6dd41fb1a90af4f2e",
+  "prompts": {
+    "677899a91981528a": {
+      "agent_id": {
+        "tool": "github-copilot",
+        "id": "b3c2bea4-c97f-42ad-a0bf-a5058243f18a",
+        "model": "copilot/claude-sonnet-4.6"
+      },
+      "human_author": "walterlv",
+      "messages": [],
+      "total_additions": 1162,
+      "total_deletions": 1171,
+      "accepted_lines": 437,
+      "overriden_lines": 0,
+      "messages_url": "https://gitai.gz.cvte.cn/cas/a8e07f070078215f5b0ed68476b1dd7b19f56c039a343b5ec103292922ca6305"
+    }
+  }
+}
