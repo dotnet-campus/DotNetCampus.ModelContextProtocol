@@ -75,8 +75,9 @@ src/DotNetCampus.ModelContextProtocol/
 
 ## 参考资源
 
-- [MCP 官方规范 (2025-06-18)](https://modelcontextprotocol.io/specification/2025-06-18/basic/transports) - **当前使用版本**
-- [MCP Schema (2025-06-18)](https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/schema/2025-06-18/schema.ts) - **官方消息类型定义**
+- [MCP 官方规范 (2025-11-25)](https://modelcontextprotocol.io/specification/2025-11-25/basic/transports) - **当前使用版本**
+- [MCP Schema (2025-11-25)](https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/schema/2025-11-25/schema.ts) - **官方消息类型定义**
+- [MCP 官方规范 (2025-06-18)](https://modelcontextprotocol.io/specification/2025-06-18/basic/transports) - 旧版本（兼容支持）
 - [MCP 官方规范 (2024-11-05)](https://modelcontextprotocol.io/specification/2024-11-05/basic/transports) - 旧版本（兼容支持）
 - [JSON-RPC 2.0 规范](https://www.jsonrpc.org/specification)
 - [SSE 标准](https://html.spec.whatwg.org/multipage/server-sent-events.html)
