@@ -1,0 +1,64 @@
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "c6292f621cbbae7c03c5b9396f3f73690bea881e",
+  "prompts": {
+    "3128c79d19d57f07": {
+      "agent_id": {
+        "tool": "github-copilot",
+        "id": "05481282-531f-4990-b8d8-fc0b0a3a046f",
+        "model": "copilot/claude-sonnet-4.6"
+      },
+      "human_author": "walterlv <xblero@gmail.com>",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 1,
+      "overriden_lines": 0,
+      "messages_url": "https://gitai.gz.cvte.cn/cas/de72e0ce1c49213ad25d0809806fe8686b21f58e034bc23e9321a6b5d64b5b4f"
+    },
+    "3a927951e3fe577e": {
+      "agent_id": {
+        "tool": "github-copilot",
+        "id": "0683232b-41df-44f9-9f53-df8b5d3b1c40",
+        "model": "copilot/claude-sonnet-4.6"
+      },
+      "human_author": "walterlv",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 1,
+      "overriden_lines": 0,
+      "messages_url": "https://gitai.gz.cvte.cn/cas/18256336e3e0b0dc87286eabc4a4349bf4a54502a5fd1870eb96afbf83435fc6"
+    },
+    "dcbbee552ad80c8c": {
+      "agent_id": {
+        "tool": "github-copilot",
+        "id": "e10cd481-0fba-47b6-b42b-973b65a53bb5",
+        "model": "copilot/claude-sonnet-4.6"
+      },
+      "human_author": "walterlv",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 249,
+      "overriden_lines": 0,
+      "messages_url": "https://gitai.gz.cvte.cn/cas/afbeda8ba0e74f91a853a79a136a29f24b8fac6dea6c9694d0bcf7db2fa4a715"
+    },
+    "ebe05c921fa16c53": {
+      "agent_id": {
+        "tool": "github-copilot",
+        "id": "4aef73ae-a32d-45c0-b48f-b9210cf37803",
+        "model": "copilot/claude-sonnet-4.6"
+      },
+      "human_author": "walterlv",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 416,
+      "overriden_lines": 0,
+      "messages_url": "https://gitai.gz.cvte.cn/cas/bc4a9e75d7ccb9a8775948ac8e345fcc8b5e09b8583a41baf00955bdf9bae15a"
+    }
+  }
+}
