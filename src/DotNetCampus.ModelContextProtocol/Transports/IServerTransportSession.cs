@@ -16,20 +16,17 @@ public interface IServerTransportSession : IAsyncDisposable
     string? SessionId { get; }
 
     /// <summary>
-    /// 连接的客户端所声明的客户端能力。在 Initialize 握手完成后设置。<br/>
-    /// The client capabilities declared by the connected client. Set after the Initialize handshake completes.
+    /// 连接的客户端所声明的客户端能力。在 Initialize 握手完成后设置。
     /// </summary>
     ClientCapabilities? ConnectedClientCapabilities { get; set; }
 
     /// <summary>
-    /// 向客户端发送 JSON-RPC 请求并等待响应。用于服务器主动发起的请求（如 sampling/createMessage）。<br/>
-    /// Sends a JSON-RPC request to the client and waits for the response. Used for server-initiated requests (e.g. sampling/createMessage).
+    /// 向客户端发送 JSON-RPC 请求并等待响应。用于服务器主动发起的请求（如 sampling/createMessage）。
     /// </summary>
     Task<JsonRpcResponse> SendRequestAsync(JsonRpcRequest request, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// 处理从客户端收到的 JSON-RPC 响应（对服务器发起的请求的回复）。<br/>
-    /// Handles a JSON-RPC response received from the client (a reply to a server-initiated request).
+    /// 处理从客户端收到的 JSON-RPC 响应（对服务器发起的请求的回复）。
     /// </summary>
     void HandleResponseAsync(JsonRpcResponse response);
 }

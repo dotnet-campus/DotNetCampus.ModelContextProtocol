@@ -106,7 +106,7 @@
 
 ---
 
-## 4. 官方兑容性测试 (Compliance)
+## 4. 官方兼容性测试 (Compliance)
 
 **文件路径**: `tests/DotNetCampus.ModelContextProtocol.Tests/Compliance/OfficialServerTests.cs`
 **目标**: 启动真正的 Node.js MCP Server 验证本库 Client。
@@ -181,5 +181,5 @@
 | 核心功能测试 | 28 | 2 | 2 |
 | 传输层测试 | 6 | 2 | 2 |
 | 采样功能测试 | 4 | 0 | 0 |
-| 官方兑容性测试 | 0 | 3 | 0 |
+| 官方兼容性测试 | 0 | 3 | 0 |
 | **总计** | **38** | **7** | **4** |
