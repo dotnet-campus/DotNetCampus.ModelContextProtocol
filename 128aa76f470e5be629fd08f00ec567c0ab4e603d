@@ -1,0 +1,87 @@
+docs/zh-hans/QuickStart.md
+  0a05d9ea947c6503 21
+docs/knowledge/http-server-transport-implementation-guide.md
+  0a05d9ea947c6503 62,66-75,90-94,125,127,129-131,138,140-145
+docs/knowledge/test-cases.md
+  0a05d9ea947c6503 92-93,97,99-100,102-105,109,124,126,136-138,140,147,155-157,159,166,177,182-185
+src/DotNetCampus.ModelContextProtocol/Servers/McpServerBuilder.cs
+  0a05d9ea947c6503 45
+docs/knowledge/http-transport-guide.md
+  0a05d9ea947c6503 12,14,73,76-83,85-88,92-96
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "128aa76f470e5be629fd08f00ec567c0ab4e603d",
+  "prompts": {
+    "0a05d9ea947c6503": {
+      "agent_id": {
+        "tool": "github-copilot",
+        "id": "d1c24558-d759-4463-8c6c-d39e5ccd2dd0",
+        "model": "copilot/claude-sonnet-4.6"
+      },
+      "human_author": "walterlv",
+      "messages": [],
+      "total_additions": 1166,
+      "total_deletions": 1147,
+      "accepted_lines": 714,
+      "overriden_lines": 20,
+      "messages_url": "https://gitai.gz.cvte.cn/cas/ef5148e675d195e34f73328c3581235f92c460364b260cca6f3cf591a6a1bcfd"
+    },
+    "3128c79d19d57f07": {
+      "agent_id": {
+        "tool": "github-copilot",
+        "id": "05481282-531f-4990-b8d8-fc0b0a3a046f",
+        "model": "copilot/claude-sonnet-4.6"
+      },
+      "human_author": "walterlv <xblero@gmail.com>",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 1,
+      "overriden_lines": 0,
+      "messages_url": "https://gitai.gz.cvte.cn/cas/de72e0ce1c49213ad25d0809806fe8686b21f58e034bc23e9321a6b5d64b5b4f"
+    },
+    "3a927951e3fe577e": {
+      "agent_id": {
+        "tool": "github-copilot",
+        "id": "0683232b-41df-44f9-9f53-df8b5d3b1c40",
+        "model": "copilot/claude-sonnet-4.6"
+      },
+      "human_author": "walterlv",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 1,
+      "overriden_lines": 0,
+      "messages_url": "https://gitai.gz.cvte.cn/cas/18256336e3e0b0dc87286eabc4a4349bf4a54502a5fd1870eb96afbf83435fc6"
+    },
+    "dcbbee552ad80c8c": {
+      "agent_id": {
+        "tool": "github-copilot",
+        "id": "e10cd481-0fba-47b6-b42b-973b65a53bb5",
+        "model": "copilot/claude-sonnet-4.6"
+      },
+      "human_author": "walterlv",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 249,
+      "overriden_lines": 0,
+      "messages_url": "https://gitai.gz.cvte.cn/cas/afbeda8ba0e74f91a853a79a136a29f24b8fac6dea6c9694d0bcf7db2fa4a715"
+    },
+    "ebe05c921fa16c53": {
+      "agent_id": {
+        "tool": "github-copilot",
+        "id": "4aef73ae-a32d-45c0-b48f-b9210cf37803",
+        "model": "copilot/claude-sonnet-4.6"
+      },
+      "human_author": "walterlv",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 529,
+      "overriden_lines": 0
+    }
+  }
+}
