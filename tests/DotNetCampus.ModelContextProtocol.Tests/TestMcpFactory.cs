@@ -175,11 +175,11 @@ public class TestMcpFactory
         mcpServer.EnableDebugMode();
         await mcpServer.StartAsync(CancellationToken.None);
 
-        var mcpClient = new McpClientBuilder()
+        var mcpClientBuilder = new McpClientBuilder()
             .WithLogger(DefaultLogger)
             .WithHttp($"http://127.0.0.1:{port}/mcp");
-        configureClient?.Invoke(mcpClient);
-        var builtClient = mcpClient.Build();
+        configureClient?.Invoke(mcpClientBuilder);
+        var builtClient = mcpClientBuilder.Build();
 
         return new McpTestingPackage(mcpServer, builtClient);
     }

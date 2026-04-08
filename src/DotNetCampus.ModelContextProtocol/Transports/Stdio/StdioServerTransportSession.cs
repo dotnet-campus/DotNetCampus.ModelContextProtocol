@@ -50,7 +50,7 @@ public class StdioServerTransportSession : ServerTransportSession
     {
         if (_output is not { } output)
         {
-            return;
+            throw new InvalidOperationException("STDIO 传输层尚未初始化输出流，无法发送服务端主动请求。");
         }
 
         await _writeLock.WaitAsync(cancellationToken).ConfigureAwait(false);
