@@ -63,9 +63,7 @@ public interface IMcpServerCallToolContext : IMcpServerPrimitiveContext
     CancellationToken CancellationToken { get; }
 
     /// <summary>
-    /// 提供服务器向客户端发起 Sampling 请求的能力。始终非空；当传输层或客户端不支持 Sampling 时，<see cref="IMcpServerSampling.IsSupported"/> 为 <see langword="false"/>。<br/>
-    /// Provides the ability to send Sampling requests from the server to the client. Always non-null;
-    /// when the transport or client does not support Sampling, <see cref="IMcpServerSampling.IsSupported"/> will be <see langword="false"/>.
+    /// 提供服务器向客户端发起 Sampling 请求的能力。始终非空；当传输层或客户端不支持 Sampling 时，<see cref="IMcpServerSampling.IsSupported"/> 为 <see langword="false"/>。
     /// </summary>
     IMcpServerSampling Sampling { get; }
 }

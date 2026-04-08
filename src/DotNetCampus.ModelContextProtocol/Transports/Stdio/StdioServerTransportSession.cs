@@ -60,9 +60,10 @@ public class StdioServerTransportSession : ServerTransportSession
             {
                 using var ms = new MemoryStream();
                 await JsonSerializer.SerializeAsync(ms, message, GetTypeInfo(message), cancellationToken).ConfigureAwait(false);
-                var json = Encoding.UTF8.GetString(ms.ToArray());
+                var bytes = ms.ToArray();
+                var json = Encoding.UTF8.GetString(bytes);
                 _logger.Debug($"[McpServer][Stdio] → {json}");
-                await output.BaseStream.WriteAsync(ms.ToArray(), cancellationToken).ConfigureAwait(false);
+                await output.BaseStream.WriteAsync(bytes, cancellationToken).ConfigureAwait(false);
             }
             else
             {

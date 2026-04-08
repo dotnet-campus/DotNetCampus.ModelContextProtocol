@@ -272,7 +272,7 @@ public class TouchSocketHttpServerTransport : PluginBase, IHttpPlugin, IServerTr
 
         // 协议版本检查
         var protocolVersion = request.Headers.Get(ProtocolVersionHeader).First;
-        if (!string.IsNullOrEmpty(protocolVersion) && string.CompareOrdinal(protocolVersion, ProtocolVersion.Minimum) < 0)
+        if (!string.IsNullOrEmpty(protocolVersion) && (ProtocolVersion)protocolVersion < ProtocolVersion.Minimum)
         {
             Log.Warn($"[McpServer][TouchSocket] POST request rejected: Unsupported protocol version. Version={protocolVersion}");
             await context.RespondHttpError(HttpStatusCode.BadRequest, $"Unsupported protocol version. Minimum required: {ProtocolVersion.Minimum}");

@@ -187,7 +187,10 @@ internal class ClientTransportManager(IClientTransportContext context) : IClient
         }
 
         var tcs = new TaskCompletionSource<JsonRpcResponse>(TaskCreationOptions.RunContinuationsAsynchronously);
-        _pendingRequests[id] = tcs;
+        if (!_pendingRequests.TryAdd(id, tcs))
+        {
+            throw new InvalidOperationException($"已存在相同 ID 的挂起请求：{id}。");
+        }
 
         using var registration = cancellationToken.Register(() =>
         {

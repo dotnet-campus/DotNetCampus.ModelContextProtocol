@@ -18,6 +18,7 @@ public class HttpServerTransportSession : ServerTransportSession
     private readonly IServerTransportManager _manager;
     private readonly string _logPrefix;
     private readonly CancellationTokenSource _disposeCts = new();
+    private readonly SemaphoreSlim _writeLock = new(1, 1);
 
     /// <summary>
     /// 当前 POST 请求绑定的 SSE 输出流。
@@ -88,6 +89,7 @@ public class HttpServerTransportSession : ServerTransportSession
     /// </summary>
     public async Task WriteSseMessageAsync(Stream stream, JsonRpcMessage message, CancellationToken ct)
     {
+        await _writeLock.WaitAsync(ct).ConfigureAwait(false);
         try
         {
             // event: message
@@ -101,9 +103,10 @@ public class HttpServerTransportSession : ServerTransportSession
             {
                 using var ms = new MemoryStream();
                 await _manager.WriteMessageAsync(ms, message, ct);
-                var json = Encoding.UTF8.GetString(ms.ToArray());
+                var bytes = ms.ToArray();
+                var json = Encoding.UTF8.GetString(bytes);
                 Log.Debug($"{_logPrefix} → {json}");
-                await stream.WriteAsync(ms.ToArray(), ct);
+                await stream.WriteAsync(bytes, ct);
             }
             else
             {
@@ -120,6 +123,10 @@ public class HttpServerTransportSession : ServerTransportSession
         {
             Log.Error($"{_logPrefix} Failed to write SSE message. SessionId={SessionId}", ex);
             throw;
+        }
+        finally
+        {
+            _writeLock.Release();
         }
     }
 
@@ -139,6 +146,7 @@ public class HttpServerTransportSession : ServerTransportSession
 #endif
         CancelAllPendingRequests();
         _disposeCts.Dispose();
+        _writeLock.Dispose();
     }
 
     private sealed class SseStreamScope(HttpServerTransportSession session, Stream stream) : IDisposable
