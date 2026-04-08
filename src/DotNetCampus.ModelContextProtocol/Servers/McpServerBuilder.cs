@@ -42,7 +42,7 @@ public class McpServerBuilder(string serverName, string serverVersion)
     /// <param name="port">MCP 服务器将监听 http://localhost:{port} 上的请求。</param>
     /// <param name="endPoint">
     /// MCP 服务器将监听的路由端点，例如指定为 mcp 时，完整的 URL 为 http://localhost:{port}/mcp。<br/>
-    /// 所有的 MCP 请求都将发送到该端点；除非客户端使用旧版本（2024-11-05）的 SSE 协议传输时，会自动改为使用 /mcp/sse 端点。<br/>
+    /// 所有的 MCP 请求都将发送到该端点。<br/>
     /// 如果不指定，会使用默认的 /mcp 端点；如果希望监听根路径，请指定为空字符串 ""。
     /// </param>
     /// <returns>用于链式调用的 MCP 服务器生成器。</returns>

@@ -59,17 +59,20 @@
     *   反序列化 Body 为 `JsonRpcMessage`。
     *   将消息通过 `OnMessageReceived` 传递给上层 MCP Server 处理。
 6.  **响应写入**：
-    *   **情况 1：上层有直接同步返回 (Response)**：
+    *   **`initialize` 请求**：
         *   设置 `Content-Type: application/json`。
         *   写入响应 JSON。
         *   返回 `200 OK`。
-    *   **情况 2：上层无直接返回 (Notification) 或 异步处理**：
-        *   返回 `202 Accepted`。
-        *   无 Body。
-    *   *高级情况：SSE 升级*（如果 POST 请求 accept SSE 且 Server 决定用 SSE 回复）：
-        *   设置 `Content-Type: text/event-stream`。
-        *   保持连接并在稍后推送 SSE Event。
-        *   *建议：简单起见，POST 尽量使用 application/json 回复，推送信道留给 GET SSE。*
+    *   **`JsonRpcResponse`（客户端回弹采样结果）**：
+        *   返回 `202 Accepted`，无 Body。
+    *   **`JsonRpcNotification`（客户端发送的通知）**：
+        *   返回 `202 Accepted`，无 Body。
+    *   **所有其他 `JsonRpcRequest`（工具调用等）**：
+        *   设置 `Content-Type: text/event-stream`，建立本次请求的专属 SSE 流。
+        *   先发送一个空注释事件（prime event）保活。
+        *   将此 SSE 流绑定到当前 Session（供采样等服务端主动请求使用）。
+        *   调用 `HandleRequestAsync` 处理请求（期间采样请求将写入此 SSE 流）。
+        *   将最终响应写入 SSE 流，关闭流。
 
 ### C. 处理 GET 请求 (SSE Subscription)
 
@@ -84,17 +87,11 @@
     *   设置响应 Header `Content-Type: text/event-stream`。
     *   设置 `Cache-Control: no-cache`。
     *   返回 `200 OK`（此时不要关闭 Response 流）。
-4.  **注册发送通道**：
-    *   将当前 HTTP Response 流包装为一个 `IAsyncWriter` 或类似接口。
-    *   注册到 Session 对象中，作为服务端向客户端推送消息的通道（Server-to-Client Messenger）。
-    *   **多连接共存策略**：MCP 协议规范 §2.3.1 明确指出 *“The client MAY remain connected to multiple SSE streams simultaneously.”*。因此，服务端**应支持**每个 Session 维护一个活跃连接列表，并将消息广播到所有连接（或仅主连接）。
-    *   *实现简化建议*：遵循协议精神，服务端应允许新连接加入而不强制断开旧连接。
-5.  **发送 Prime Event**：
-    *   立即发送一个空事件 `event: message\ndata: \n\n` 或仅 `:\n\n` (Comment) 以保活。
-    *   根据 SSE 规范，发送 `id` 字段以支持重连。
-6.  **保持循环**：
-    *   进入 `await Task.Delay(-1)` 或等待 Session 关闭信号。
-    *   在循环中捕获异常，如果连接断开，从 Session 中注销此通道。
+4.  **发送 Prime Event**：
+    *   立即发送一个空注释 `:\n\n` 以保活连接。
+5.  **保持循环**：
+    *   进入 `await Task.Delay(-1)` 等待，保持 SSE 连接存活（此水路用于未来扩展服务端主动推送，当前晨2不发送任何业务消息）。
+    *   在循环中捕获异常，如果连接断开则正常退出。
 
 ### D. 处理 DELETE 请求 (Session Termination)
 
@@ -125,22 +122,25 @@
 
 ## 4. 关键数据结构：Session Store
 
-需要一个线程安全的 `ConcurrentDictionary<string, HttpServerSession>`。
+需要一个线程安全的 `ConcurrentDictionary<string, HttpServerTransportSession>`。
 
-**`HttpServerSession` 类职责**：
+**`HttpServerTransportSession` 类职责**：
 *   存储 Session ID。
-*   管理 SSE 发送通道（也就是当前挂着的那个 GET Response 流）。
-*   提供 `SendMessageAsync(JsonRpcMessage)` 方法：将消息序列化为 SSE 格式 (`event: message\ndata: {...}\n\n`) 并写入流。
+*   和待决服务端请求的 TCS 字典（继承自 `ServerTransportSession` 基类）。
+*   管理当前 POST 请求的专属 SSE 输出流（`_currentRequestSseStream`），这是采样等服务端主动请求的通道。
+*   提供 `WriteSseMessageAsync(Stream, JsonRpcMessage)` 方法：将消息序列化为 SSE 格式 (`event: message\ndata: {...}\n\n`) 并写入流。
 
 ## 5. 错误处理
 
 *   **JSON 序列化错误**：返回 400。
 *   **内部异常**：返回 500，并在 Body 中包含（或不包含）JSON-RPC Error。
 
-## 6. 待办事项 (Checklist)
+## 6. 实现状态 (Checklist)
 
-*   [ ] 移除旧版兼容代码 (`/mcp/sse`, `/mcp/messages` 路径处理)。
-*   [ ] 确保 POST/GET/DELETE 共用同一个 Endpoint URL。
-*   [ ] 实现 Session ID 的生成（初始化时）和校验（后续请求）。
-*   [ ] 实现 SSE 的心跳或 Keep-Alive（如果底层不自动处理）。
+*   [x] POST/GET/DELETE 共用同一个 Endpoint URL `/mcp`。
+*   [x] Session ID 的生成（initialize 时）和校验（后续请求）。
+*   [x] 非 initialize 的 POST 请求返回 `text/event-stream`，套接 sampling 等服务端主动请求通道。
+*   [x] 初始化请求返回 `application/json`。
+*   [x] SSE prime event 保活连接。
+*   [ ] 旧版协议兼容 (`/mcp/sse`, `/mcp/messages`)（目前未实现）。
 

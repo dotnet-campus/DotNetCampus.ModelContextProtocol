@@ -19,7 +19,6 @@ internal class Program
                 .WithTool(() => new SampleTools2())
             )
             // Use Streamable HTTP transport, listening on http://localhost:5943/mcp
-            // Also compatible with SSE, listening on http://localhost:5943/mcp/sse
             .WithLocalHostHttp(5943, "mcp")
             // You can also use stdio (standard input/output) transport, which is recommended by the MCP protocol for all MCP servers
             // However, it's generally not recommended to enable both http and stdio simultaneously,

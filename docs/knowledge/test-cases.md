@@ -89,12 +89,24 @@
 | 状态 | 方法名 | 场景描述 | 预期行为 |
 | :---: | :--- | :--- | :--- |
 | ✅ | `Delete_TerminateSession` | `LocalHost`, `TouchSocket` | DELETE 请求成功终止会话，IsConnected 为 false |
-| ⏳ | `Post_NoSessionId` | 不带 `sessionId` query 发送消息 | 返回 400 Bad Request 或相应错误 |
-| ⏳ | `Sse_EndpointEvent` | 建立旧协议 SSE 连接 | 首先收到 `event: endpoint` 消息 |
+| ⏳ | `Post_NoSessionId` | 不带 `Mcp-Session-Id` header 发送消息 | 返回 400/404 错误 |
+| ⏳ | `Sse_EndpointEvent` | GET SSE 连接 | SSE 流成功建立并保活 |
 
 ---
 
-## 3. 官方兼容性测试 (Compliance)
+## 3.5 采样功能测试 (Sampling)
+
+**文件路径**: `tests/DotNetCampus.ModelContextProtocol.Tests/Servers/SamplingTests.cs`
+**目标**: 验证服务器向客户端发起 `sampling/createMessage` 请求的完整流程。
+
+| 状态 | 方法名 | DataRow / 参数 | 预期行为 |
+| :---: | :--- | :--- | :--- |
+| ✅ | `ServerToolCanRequestSampling` | `LocalHost`, `TouchSocket` | 工具内调用 Sampling，客户端处理器被执行，返回结果正确 |
+| ✅ | `IsSupportedIsFalseWhenClientHasNoCapability` | `LocalHost`, `TouchSocket` | 客户端未声明 Sampling 能力时 IsSupported 为 false |
+
+---
+
+## 4. 官方兑容性测试 (Compliance)
 
 **文件路径**: `tests/DotNetCampus.ModelContextProtocol.Tests/Compliance/OfficialServerTests.cs`
 **目标**: 启动真正的 Node.js MCP Server 验证本库 Client。
@@ -109,9 +121,9 @@
 
 ---
 
-## 4. 已实现的辅助工具
+## 5. 已实现的辅助工具
 
-### 4.1 测试工具 (Test Tools)
+### 5.1 测试工具 (Test Tools)
 **文件路径**: `tests/DotNetCampus.ModelContextProtocol.Tests/McpTools/`
 
 | 文件 | 类名 | 工具方法 | 用途 |
@@ -121,15 +133,18 @@
 | `ExceptionTool.cs` | `ExceptionTool` | `ThrowError(string? message)`, `ThrowNested()` | 异常处理测试 |
 | `LongTextTool.cs` | `LongTextTool` | `Generate(int length)` | 大数据量测试 |
 | `SimpleTool.cs` | `SimpleTool` | `SayHello()` | 最简单的工具 |
+| `StatefulCounterTool.cs` | `StatefulCounterTool` | `Increment()`, `GetCount()` | 有状态工具实例语义测试 |
+| `InjectedConstructorTool.cs` | `InjectedConstructorTool` | 注入构造函数工具 | 依赖注入测试 |
+| `SamplingTool.cs` | `SamplingTool` | `AskLlm(string message, ...)`, `CheckSamplingCapability(...)` | 服务端发起采样请求测试 |
 
-### 4.2 测试资源 (Test Resources)
+### 5.2 测试资源 (Test Resources)
 **文件路径**: `tests/DotNetCampus.ModelContextProtocol.Tests/McpResources/`
 
 | 文件 | 类名 | 资源方法 | 用途 |
 | :--- | :--- | :--- | :--- |
 | `SimpleResource.cs` | `SimpleResource` | `TextFile()`, `BinaryImage()`, `UserProfile(int userId)` | 基本资源访问测试 |
 
-### 4.3 测试工厂 (Integration Factory)
+### 5.3 测试工厂 (Integration Factory)
 **文件路径**: `tests/DotNetCampus.ModelContextProtocol.Tests/TestMcpFactory.cs`
 
 | 方法 | 用途 |
@@ -137,16 +152,18 @@
 | `CreateSimpleHttpAsync(HttpTransportType)` | 创建仅包含 SimpleTool 的测试包 |
 | `CreateFullHttpAsync(HttpTransportType)` | 创建包含所有测试工具的测试包 |
 | `CreateFullHttpWithResourcesAsync(HttpTransportType)` | 创建包含工具和资源的完整测试包 |
-| `CreateHttpCoreAsync(HttpTransportType, Action<McpServerBuilder>)` | 完全自定义的测试包创建 |
+| `CreateTransientCounterHttpAsync(HttpTransportType)` | 创建仅包含 Transient 计数工具的测试包 |
+| `CreateHttpAsync(HttpTransportType, Action<...>)` | 自定义工具的测试包 |
+| `CreateHttpCoreAsync(HttpTransportType, Action<McpServerBuilder>, Action<McpClientBuilder>?)` | 完全自定义，支持同时配置服务端和客户端（如配置 Sampling Handler） |
 
-### 4.4 JSON 序列化上下文
+### 5.4 JSON 序列化上下文
 **文件路径**: `tests/DotNetCampus.ModelContextProtocol.Tests/McpTools/TestToolJsonContext.cs`
 
 用于 AOT 兼容的复杂对象序列化，包含 `EchoUserInfo` 等类型的注册。
 
 ---
 
-## 5. 待开发的辅助工具
+## 6. 待开发的辅助工具
 
 1.  **Mock Transport**
     *   `InProcessServerTransport` / `InProcessClientTransport`
@@ -157,11 +174,12 @@
 
 ---
 
-## 6. 测试统计
+## 7. 测试统计
 
 | 类别 | 通过 | 跳过 | 规划 |
 | :--- | :---: | :---: | :---: |
 | 核心功能测试 | 28 | 2 | 2 |
-| 传输层测试 | 6 | 3 | 4 |
-| 官方兼容性测试 | 0 | 3 | 0 |
-| **总计** | **34** | **8** | **6** |
+| 传输层测试 | 6 | 2 | 2 |
+| 采样功能测试 | 4 | 0 | 0 |
+| 官方兑容性测试 | 0 | 3 | 0 |
+| **总计** | **38** | **7** | **4** |
