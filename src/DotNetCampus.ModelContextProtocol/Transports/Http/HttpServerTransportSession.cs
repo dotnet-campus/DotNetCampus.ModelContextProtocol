@@ -23,7 +23,7 @@ public class HttpServerTransportSession : ServerTransportSession
     /// 当前 POST 请求绑定的 SSE 输出流。
     /// 非 null 时，SendRequestAsync 直接向此流写入采样请求。
     /// </summary>
-    private volatile Stream? _currentRequestSseStream;
+    private Stream? _currentRequestSseStream;
 
     private IMcpLogger Log => _manager.Context.Logger;
 
@@ -50,12 +50,13 @@ public class HttpServerTransportSession : ServerTransportSession
     public IDisposable SetRequestSseStream(Stream stream)
     {
         _currentRequestSseStream = stream;
-        return new SseStreamScope(this);
+        return new SseStreamScope(this, stream);
     }
 
-    private void ClearRequestSseStream()
+    private void ClearRequestSseStream(Stream stream)
     {
-        _currentRequestSseStream = null;
+        // 仅在字段仍指向本次绑定的 stream 时才清除，避免并发请求相互覆盖。
+        Interlocked.CompareExchange(ref _currentRequestSseStream, null, stream);
     }
 
     /// <inheritdoc />
@@ -140,8 +141,8 @@ public class HttpServerTransportSession : ServerTransportSession
         _disposeCts.Dispose();
     }
 
-    private sealed class SseStreamScope(HttpServerTransportSession session) : IDisposable
+    private sealed class SseStreamScope(HttpServerTransportSession session, Stream stream) : IDisposable
     {
-        public void Dispose() => session.ClearRequestSseStream();
+        public void Dispose() => session.ClearRequestSseStream(stream);
     }
 }

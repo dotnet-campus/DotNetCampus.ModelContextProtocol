@@ -63,7 +63,6 @@ public class SamplingTests
             configureBuilder: builder => builder.WithTools(t => t.WithTool(() => new SamplingTool())));
 
         // Act
-        var toolArgs = JsonSerializer.SerializeToElement(new { });
         var callResult = await package.Client.CallToolAsync("check_sampling_capability");
 
         // Assert

@@ -159,7 +159,7 @@ internal class ServerTransportManager(McpServer server, McpServerContext context
     /// </summary>
     private JsonRpcMessage? ClassifyAndDeserialize(JsonElement element)
     {
-        var hasMethod = element.TryGetProperty("method", out _);
+        var hasMethod = element.TryGetProperty("method", out var methodElement);
 
         if (hasMethod)
         {
@@ -167,7 +167,10 @@ internal class ServerTransportManager(McpServer server, McpServerContext context
             var hasId = element.TryGetProperty("id", out var idElement)
                 && idElement.ValueKind != JsonValueKind.Null;
 
-            if (hasId)
+            // initialize 请求即使 id 缺失或为 null 也应被视为请求（兼容旧客户端）。
+            var isInitialize = methodElement.GetString() == RequestMethods.Initialize;
+
+            if (hasId || isInitialize)
             {
                 var request = element.Deserialize(McpInternalJsonContext.Default.JsonRpcRequest);
                 if (request is { Method: RequestMethods.Initialize, Id: null })

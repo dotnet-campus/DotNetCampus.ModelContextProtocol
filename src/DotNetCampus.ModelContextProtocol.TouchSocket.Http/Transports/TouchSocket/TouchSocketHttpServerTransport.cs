@@ -35,7 +35,9 @@ public class TouchSocketHttpServerTransport : PluginBase, IHttpPlugin, IServerTr
 {
     private const string ProtocolVersionHeader = "MCP-Protocol-Version";
     private const string SessionIdHeader = "Mcp-Session-Id";
+    private const int SseKeepAliveIntervalMs = 15000;
     private static readonly ReadOnlyMemory<byte> PrimeEventBytes = ": \n\n"u8.ToArray();
+    private static readonly ReadOnlyMemory<byte> SseKeepAliveBytes = ": keep-alive\n\n"u8.ToArray();
 
     private readonly IServerTransportManager _manager;
     private readonly ITouchSocketHttpServerTransportOptions _options;
@@ -238,8 +240,14 @@ public class TouchSocketHttpServerTransport : PluginBase, IHttpPlugin, IServerTr
             await output.WriteAsync(PrimeEventBytes, cancellationToken);
             await output.FlushAsync(cancellationToken);
 
-            // 保持连接，暂不主动推送；未来实现全局推送时在此扩展。
-            await Task.Delay(Timeout.Infinite, cancellationToken);
+            // 定期发送 SSE 心跳，以便在客户端断开时通过写入/刷新失败尽快退出，
+            // 避免仅依赖外部 cancellationToken 导致连接长期悬挂。
+            while (!cancellationToken.IsCancellationRequested)
+            {
+                await Task.Delay(SseKeepAliveIntervalMs, cancellationToken);
+                await output.WriteAsync(SseKeepAliveBytes, cancellationToken);
+                await output.FlushAsync(cancellationToken);
+            }
         }
         catch (OperationCanceledException)
         {
