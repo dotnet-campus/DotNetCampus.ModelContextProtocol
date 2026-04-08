@@ -1,0 +1,104 @@
+src/DotNetCampus.ModelContextProtocol.TouchSocket.Http/Transports/TouchSocket/TouchSocketHttpServerTransport.cs
+  ebe05c921fa16c53 16-25,42,265,267-269,274,278,291,294,297,306-322,324-349,351-362,364,366-374,376-399,401-414,416-432,434-444,446-447,450-460,462-465,467,469-475,477-483
+src/DotNetCampus.ModelContextProtocol/Transports/Http/HttpServerTransportSession.cs
+  ebe05c921fa16c53 1-147
+src/DotNetCampus.ModelContextProtocol/Transports/ServerTransportSession.cs
+  ebe05c921fa16c53 1-3,5,7-16,18-19,21-22,24-30,32-33,35-41,43-52,54-58,60-66,68-77,79-82,84-87,89-99,101-103
+src/DotNetCampus.ModelContextProtocol/Transports/Http/LocalHostHttpServerTransport.cs
+  ebe05c921fa16c53 25,179,181-182,185,209,214,217,220-226,234-243,252-264,273-276,278-286,295-309,311-322,331-335,337-355,366-370,372-374,376,378-380,382-384,386
+src/DotNetCampus.ModelContextProtocol/Transports/Stdio/StdioServerTransportSession.cs
+  ebe05c921fa16c53 13,32,43-46,49,81-82,85-86,89,92
+src/DotNetCampus.ModelContextProtocol.Ipc/Transports/Ipc/IpcServerTransportSession.cs
+  ebe05c921fa16c53 9,25,36,43,45
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "10002e62e732b3dd78337519cb856437cad36f9d",
+  "prompts": {
+    "1d720ae84d22d729": {
+      "agent_id": {
+        "tool": "github-copilot",
+        "id": "d06a2ead-002c-4aa9-b2b2-79233bcd1e85",
+        "model": "copilot/claude-sonnet-4.6"
+      },
+      "human_author": "walterlv",
+      "messages": [],
+      "total_additions": 799,
+      "total_deletions": 817,
+      "accepted_lines": 18,
+      "overriden_lines": 0,
+      "messages_url": "https://gitai.gz.cvte.cn/cas/0191d9cca98bbd52ba8617d2aaeb9a78c1bd63273f41a7900738d29879db8664"
+    },
+    "3128c79d19d57f07": {
+      "agent_id": {
+        "tool": "github-copilot",
+        "id": "05481282-531f-4990-b8d8-fc0b0a3a046f",
+        "model": "copilot/claude-sonnet-4.6"
+      },
+      "human_author": "walterlv <xblero@gmail.com>",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 86,
+      "overriden_lines": 0,
+      "messages_url": "https://gitai.gz.cvte.cn/cas/de72e0ce1c49213ad25d0809806fe8686b21f58e034bc23e9321a6b5d64b5b4f"
+    },
+    "3a927951e3fe577e": {
+      "agent_id": {
+        "tool": "github-copilot",
+        "id": "0683232b-41df-44f9-9f53-df8b5d3b1c40",
+        "model": "copilot/claude-sonnet-4.6"
+      },
+      "human_author": "walterlv",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 1,
+      "overriden_lines": 0,
+      "messages_url": "https://gitai.gz.cvte.cn/cas/18256336e3e0b0dc87286eabc4a4349bf4a54502a5fd1870eb96afbf83435fc6"
+    },
+    "a9277c915d0a944c": {
+      "agent_id": {
+        "tool": "github-copilot",
+        "id": "fc995ae8-dc3d-4641-b122-7c0d2530a44f",
+        "model": "copilot/claude-sonnet-4.6"
+      },
+      "human_author": "walterlv",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 24,
+      "overriden_lines": 0,
+      "messages_url": "https://gitai.gz.cvte.cn/cas/446f7ad6904d0bef42d77ae3ed6968a8d27229a872ae41a20238feaf6766579f"
+    },
+    "dcbbee552ad80c8c": {
+      "agent_id": {
+        "tool": "github-copilot",
+        "id": "e10cd481-0fba-47b6-b42b-973b65a53bb5",
+        "model": "copilot/claude-sonnet-4.6"
+      },
+      "human_author": "walterlv",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 251,
+      "overriden_lines": 0,
+      "messages_url": "https://gitai.gz.cvte.cn/cas/afbeda8ba0e74f91a853a79a136a29f24b8fac6dea6c9694d0bcf7db2fa4a715"
+    },
+    "ebe05c921fa16c53": {
+      "agent_id": {
+        "tool": "github-copilot",
+        "id": "4aef73ae-a32d-45c0-b48f-b9210cf37803",
+        "model": "copilot/claude-sonnet-4.6"
+      },
+      "human_author": "walterlv",
+      "messages": [],
+      "total_additions": 2767,
+      "total_deletions": 2329,
+      "accepted_lines": 948,
+      "overriden_lines": 0,
+      "messages_url": "https://gitai.gz.cvte.cn/cas/2ba7e72128f9da178eb7239b1163113d8a14ddcb183ae3482d329b73afe2847e"
+    }
+  }
+}
