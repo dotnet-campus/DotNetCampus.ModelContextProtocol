@@ -1,0 +1,63 @@
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "52670d8dde1a9ca365a6bc90dd6e1f4edd2f1c1d",
+  "prompts": {
+    "0a05d9ea947c6503": {
+      "agent_id": {
+        "tool": "github-copilot",
+        "id": "d1c24558-d759-4463-8c6c-d39e5ccd2dd0",
+        "model": "copilot/claude-sonnet-4.6"
+      },
+      "human_author": "walterlv",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 126,
+      "overriden_lines": 0,
+      "messages_url": "https://gitai.gz.cvte.cn/cas/eee5d5e8232001c14c0c9fbf65e04faabaa60dfee041069bcb53c0f3913cc070"
+    },
+    "3128c79d19d57f07": {
+      "agent_id": {
+        "tool": "github-copilot",
+        "id": "05481282-531f-4990-b8d8-fc0b0a3a046f",
+        "model": "copilot/claude-sonnet-4.6"
+      },
+      "human_author": "walterlv <xblero@gmail.com>",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 1,
+      "overriden_lines": 0,
+      "messages_url": "https://gitai.gz.cvte.cn/cas/de72e0ce1c49213ad25d0809806fe8686b21f58e034bc23e9321a6b5d64b5b4f"
+    },
+    "3a927951e3fe577e": {
+      "agent_id": {
+        "tool": "github-copilot",
+        "id": "0683232b-41df-44f9-9f53-df8b5d3b1c40",
+        "model": "copilot/claude-sonnet-4.6"
+      },
+      "human_author": "walterlv",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 1,
+      "overriden_lines": 0,
+      "messages_url": "https://gitai.gz.cvte.cn/cas/18256336e3e0b0dc87286eabc4a4349bf4a54502a5fd1870eb96afbf83435fc6"
+    },
+    "ebe05c921fa16c53": {
+      "agent_id": {
+        "tool": "github-copilot",
+        "id": "4aef73ae-a32d-45c0-b48f-b9210cf37803",
+        "model": "copilot/claude-sonnet-4.6"
+      },
+      "human_author": "walterlv",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 147,
+      "overriden_lines": 0
+    }
+  }
+}
