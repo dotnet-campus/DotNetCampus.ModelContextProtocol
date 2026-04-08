@@ -29,7 +29,7 @@ public class StdioServerTransport : IServerTransport
     public StdioServerTransport(IServerTransportManager manager)
     {
         _manager = manager;
-        _session = new StdioServerTransportSession();
+        _session = new StdioServerTransportSession(manager.Context.Logger);
     }
 
     private IMcpLogger Log => _manager.Context.Logger;
@@ -83,6 +83,7 @@ public class StdioServerTransport : IServerTransport
             var line = await input.ReadLineAsync(cancellationToken);
             if (line is null)
             {
+                Log.Info($"[McpServer][Stdio] Client disconnected (end of input stream).");
                 break;
             }
 
@@ -90,6 +91,8 @@ public class StdioServerTransport : IServerTransport
             {
                 continue;
             }
+
+            Log.Debug($"[McpServer][Stdio] ← {line}");
 
             JsonRpcMessage? message;
             try
@@ -105,6 +108,7 @@ public class StdioServerTransport : IServerTransport
             {
                 case JsonRpcResponse response:
                     // 将响应路由到等待的请求。
+                    Log.Debug($"[McpServer][Stdio] Routing client response to session.");
                     _session.HandleResponseAsync(response);
                     continue;
 
@@ -115,7 +119,7 @@ public class StdioServerTransport : IServerTransport
                         s =>
                         {
                             s.AddScoped<IServerTransportSession>(_session);
-                            s.AddScoped<IMcpServerSampling>(new McpServerSampling(_session));
+                            s.AddScoped<IMcpServerSampling>(new McpServerSampling(_session, Log));
                         },
                         cancellationToken);
                     continue;
@@ -127,7 +131,7 @@ public class StdioServerTransport : IServerTransport
                         s =>
                         {
                             s.AddScoped<IServerTransportSession>(session);
-                            s.AddScoped<IMcpServerSampling>(new McpServerSampling(session));
+                            s.AddScoped<IMcpServerSampling>(new McpServerSampling(session, Log));
                         },
                         cancellationToken);
                     if (response2 is null)
@@ -142,6 +146,7 @@ public class StdioServerTransport : IServerTransport
 
                 default:
                     // 无法解析的消息，回复错误。
+                    Log.Warn($"[McpServer][Stdio] Received unrecognizable message, responding with error.");
                     await _manager.RespondJsonRpcAsync(output, new JsonRpcResponse
                     {
                         Error = new JsonRpcError

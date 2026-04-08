@@ -1,6 +1,7 @@
 using System.Text.Json;
 using DotNetCampus.ModelContextProtocol.CompilerServices;
 using DotNetCampus.ModelContextProtocol.Exceptions;
+using DotNetCampus.ModelContextProtocol.Hosting.Logging;
 using DotNetCampus.ModelContextProtocol.Protocol;
 using DotNetCampus.ModelContextProtocol.Protocol.Messages;
 using DotNetCampus.ModelContextProtocol.Protocol.Messages.JsonRpc;
@@ -80,7 +81,7 @@ public static class McpServerSamplingExtensions
 /// <summary>
 /// <see cref="IMcpServerSampling"/> 的内部实现，通过关联的传输层会话与客户端通信。
 /// </summary>
-internal sealed class McpServerSampling(IServerTransportSession session) : IMcpServerSampling
+internal sealed class McpServerSampling(IServerTransportSession session, IMcpLogger logger) : IMcpServerSampling
 {
     /// <inheritdoc />
     public bool IsSupported => session.ConnectedClientCapabilities?.Sampling is not null;
@@ -102,6 +103,8 @@ internal sealed class McpServerSampling(IServerTransportSession session) : IMcpS
             Params = JsonSerializer.SerializeToElement(requestParams, McpInternalJsonContext.Default.CreateMessageRequestParams),
         };
 
+        logger.Debug($"[McpServer][Mcp] Sending sampling/createMessage request. Id={request.Id}");
+
         var response = await session.SendRequestAsync(request, cancellationToken).ConfigureAwait(false);
 
         if (response.Error is { } error)
@@ -114,9 +117,11 @@ internal sealed class McpServerSampling(IServerTransportSession session) : IMcpS
             // is user-defined and typically indicates an explicit rejection by the human-in-the-loop.
             if (error.Code > -32000)
             {
+                logger.Warn($"[McpServer][Mcp] Sampling/createMessage rejected by user. Id={request.Id}, Code={error.Code}, Message={error.Message}");
                 throw new McpSamplingRejectedException(error.Code, error.Message);
             }
 
+            logger.Error($"[McpServer][Mcp] Sampling/createMessage failed. Id={request.Id}, Code={error.Code}, Message={error.Message}");
             throw new McpClientException($"Sampling request failed: [{error.Code}] {error.Message}");
         }
 
@@ -124,6 +129,8 @@ internal sealed class McpServerSampling(IServerTransportSession session) : IMcpS
         {
             throw new McpClientException("Sampling response missing result.");
         }
+
+        logger.Debug($"[McpServer][Mcp] Sampling/createMessage succeeded. Id={request.Id}");
 
         return resultElement.Deserialize(McpInternalJsonContext.Default.CreateMessageResult)
                ?? throw new McpClientException("Failed to deserialize sampling result.");

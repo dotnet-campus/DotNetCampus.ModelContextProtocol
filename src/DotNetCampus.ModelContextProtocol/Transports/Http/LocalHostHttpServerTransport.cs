@@ -5,6 +5,7 @@ using System.Text.Json;
 using DotNetCampus.ModelContextProtocol.Hosting.Logging;
 using DotNetCampus.ModelContextProtocol.Hosting.Services;
 using DotNetCampus.ModelContextProtocol.Protocol;
+using DotNetCampus.ModelContextProtocol.Protocol.Messages;
 using DotNetCampus.ModelContextProtocol.Protocol.Messages.JsonRpc;
 
 namespace DotNetCampus.ModelContextProtocol.Transports.Http;
@@ -204,6 +205,13 @@ public class LocalHostHttpServerTransport : IServerTransport
 
         var sessionIdStr = request.Headers[SessionIdHeader];
 
+        if (Log.IsEnabled(LoggingLevel.Debug) && message is not null)
+        {
+            using var ms = new MemoryStream();
+            await _manager.WriteMessageAsync(ms, message, cancellationToken);
+            Log.Debug($"[McpServer][StreamableHttp] ← {Encoding.UTF8.GetString(ms.ToArray())}");
+        }
+
         switch (message)
         {
             case JsonRpcResponse jsonRpcResponse:
@@ -230,7 +238,7 @@ public class LocalHostHttpServerTransport : IServerTransport
                 var capturedNotificationSession = notificationSession;
                 await _manager.HandleRequestAsync(
                     new JsonRpcRequest { Method = notification.Method, Params = notification.Params },
-                    s => s.AddTransportSession(capturedNotificationSession),
+                    s => s.AddTransportSession(capturedNotificationSession, Log),
                     cancellationToken);
                 context.RespondHttpSuccess(HttpStatusCode.Accepted);
                 return;
@@ -276,7 +284,7 @@ public class LocalHostHttpServerTransport : IServerTransport
 
                 var capturedSession = session;
                 var jsonRpcResponse2 = await _manager.HandleRequestAsync(jsonRpcRequest,
-                    s => s.AddTransportSession(capturedSession),
+                    s => s.AddTransportSession(capturedSession, Log),
                     cancellationToken);
 
                 if (jsonRpcResponse2 != null)

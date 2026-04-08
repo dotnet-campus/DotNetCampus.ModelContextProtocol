@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using System.Text;
 using System.Text.Json;
 using DotNetCampus.ModelContextProtocol.CompilerServices;
+using DotNetCampus.ModelContextProtocol.Hosting.Logging;
 using DotNetCampus.ModelContextProtocol.Protocol.Messages;
 using DotNetCampus.ModelContextProtocol.Protocol.Messages.JsonRpc;
 
@@ -15,7 +16,17 @@ public class StdioServerTransportSession : IServerTransportSession
     private static readonly ReadOnlyMemory<byte> NewLineBytes = "\n"u8.ToArray();
     private readonly ConcurrentDictionary<string, TaskCompletionSource<JsonRpcResponse>> _pendingRequests = [];
     private readonly SemaphoreSlim _writeLock = new(1, 1);
+    private readonly IMcpLogger _logger;
     private StreamWriter? _output;
+
+    /// <summary>
+    /// 初始化 <see cref="StdioServerTransportSession"/> 类的新实例。
+    /// </summary>
+    /// <param name="logger">日志记录器。</param>
+    public StdioServerTransportSession(IMcpLogger logger)
+    {
+        _logger = logger;
+    }
 
     /// <summary>
     /// STDIO 传输层是专用的，不需要会话 ID。
@@ -44,7 +55,18 @@ public class StdioServerTransportSession : IServerTransportSession
         await _writeLock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            await JsonSerializer.SerializeAsync(output.BaseStream, message, GetTypeInfo(message), cancellationToken).ConfigureAwait(false);
+            if (_logger.IsEnabled(LoggingLevel.Debug))
+            {
+                using var ms = new MemoryStream();
+                await JsonSerializer.SerializeAsync(ms, message, GetTypeInfo(message), cancellationToken).ConfigureAwait(false);
+                var json = Encoding.UTF8.GetString(ms.ToArray());
+                _logger.Debug($"[McpServer][Stdio] → {json}");
+                await output.BaseStream.WriteAsync(ms.ToArray(), cancellationToken).ConfigureAwait(false);
+            }
+            else
+            {
+                await JsonSerializer.SerializeAsync(output.BaseStream, message, GetTypeInfo(message), cancellationToken).ConfigureAwait(false);
+            }
             await output.BaseStream.WriteAsync(NewLineBytes, cancellationToken).ConfigureAwait(false);
             await output.BaseStream.FlushAsync(cancellationToken).ConfigureAwait(false);
         }
@@ -61,6 +83,8 @@ public class StdioServerTransportSession : IServerTransportSession
         {
             throw new InvalidOperationException("请求 ID 不能为 null。Request ID must not be null.");
         }
+
+        _logger.Debug($"[McpServer][Stdio] Sending server-initiated request. Method={request.Method}, Id={id}");
 
         var tcs = new TaskCompletionSource<JsonRpcResponse>(TaskCreationOptions.RunContinuationsAsynchronously);
         _pendingRequests[id] = tcs;
@@ -94,7 +118,12 @@ public class StdioServerTransportSession : IServerTransportSession
 
         if (_pendingRequests.TryRemove(id, out var tcs))
         {
+            _logger.Debug($"[McpServer][Stdio] Received client response for pending request. Id={id}");
             tcs.TrySetResult(response);
+        }
+        else
+        {
+            _logger.Warn($"[McpServer][Stdio] Received unmatched client response. Id={id}");
         }
     }
 

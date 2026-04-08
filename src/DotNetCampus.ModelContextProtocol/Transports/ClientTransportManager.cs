@@ -3,6 +3,7 @@ using System.Text.Json;
 using DotNetCampus.ModelContextProtocol.Clients;
 using DotNetCampus.ModelContextProtocol.CompilerServices;
 using DotNetCampus.ModelContextProtocol.Exceptions;
+using DotNetCampus.ModelContextProtocol.Hosting.Logging;
 using DotNetCampus.ModelContextProtocol.Protocol;
 using DotNetCampus.ModelContextProtocol.Protocol.Messages;
 using DotNetCampus.ModelContextProtocol.Protocol.Messages.JsonRpc;
@@ -94,7 +95,12 @@ internal class ClientTransportManager(IClientTransportContext context) : IClient
 
         if (_pendingRequests.TryRemove(id, out var tcs))
         {
+            Context.Logger.Debug($"[McpClient][Mcp] Response matched to pending request. Id={id}");
             tcs.SetResult(response);
+        }
+        else
+        {
+            Context.Logger.Warn($"[McpClient][Mcp] Received unmatched response. Id={id}");
         }
 
         return ValueTask.CompletedTask;
@@ -108,6 +114,8 @@ internal class ClientTransportManager(IClientTransportContext context) : IClient
             // JSON-RPC 2.0 规定：通知（notification）没有 id，不应发送响应。
             return;
         }
+
+        Context.Logger.Info($"[McpClient][Mcp] Received server-initiated request. Method={request.Method}, Id={request.Id}");
 
         JsonRpcResponse response;
 
@@ -123,6 +131,7 @@ internal class ClientTransportManager(IClientTransportContext context) : IClient
                 requestParams ??= new CreateMessageRequestParams { Messages = [], MaxTokens = 1024 };
 
                 var result = await handler(requestParams, cancellationToken).ConfigureAwait(false);
+                Context.Logger.Debug($"[McpClient][Mcp] Sampling request handled successfully. Id={request.Id}");
                 response = new JsonRpcResponse
                 {
                     Id = request.Id,
@@ -131,6 +140,7 @@ internal class ClientTransportManager(IClientTransportContext context) : IClient
             }
             catch (Exception ex)
             {
+                Context.Logger.Error($"[McpClient][Mcp] Sampling request handler threw exception. Id={request.Id}, Error={ex.Message}");
                 response = new JsonRpcResponse
                 {
                     Id = request.Id,
@@ -144,6 +154,7 @@ internal class ClientTransportManager(IClientTransportContext context) : IClient
         }
         else
         {
+            Context.Logger.Warn($"[McpClient][Mcp] Unsupported server-initiated request method. Method={request.Method}, Id={request.Id}");
             response = new JsonRpcResponse
             {
                 Id = request.Id,

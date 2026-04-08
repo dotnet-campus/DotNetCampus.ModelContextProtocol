@@ -1,4 +1,5 @@
 ﻿using System.Collections.Concurrent;
+using System.Text;
 using System.Threading.Channels;
 using DotNetCampus.ModelContextProtocol.Hosting.Logging;
 using DotNetCampus.ModelContextProtocol.Protocol.Messages;
@@ -55,6 +56,8 @@ internal class LocalHostHttpServerTransportSession : IServerTransportSession
             throw new InvalidOperationException("请求 ID 不能为 null。Request ID must not be null.");
         }
 
+        Log.Debug($"[McpServer][StreamableHttp] Sending server-initiated request. Method={request.Method}, Id={id}, SessionId={SessionId}");
+
         var tcs = new TaskCompletionSource<JsonRpcResponse>(TaskCreationOptions.RunContinuationsAsynchronously);
         _pendingRequests[id] = tcs;
 
@@ -88,7 +91,12 @@ internal class LocalHostHttpServerTransportSession : IServerTransportSession
 
         if (_pendingRequests.TryRemove(id, out var tcs))
         {
+            Log.Debug($"[McpServer][StreamableHttp] Received client response for pending request. Id={id}, SessionId={SessionId}");
             tcs.TrySetResult(response);
+        }
+        else
+        {
+            Log.Warn($"[McpServer][StreamableHttp] Received unmatched client response. Id={id}, SessionId={SessionId}");
         }
     }
 
@@ -132,7 +140,18 @@ internal class LocalHostHttpServerTransportSession : IServerTransportSession
             await stream.WriteAsync(DataPrefixBytes, ct);
 
             // Serialize
-            await _manager.WriteMessageAsync(stream, message, ct);
+            if (Log.IsEnabled(LoggingLevel.Debug))
+            {
+                using var ms = new MemoryStream();
+                await _manager.WriteMessageAsync(ms, message, ct);
+                var json = Encoding.UTF8.GetString(ms.ToArray());
+                Log.Debug($"[McpServer][StreamableHttp] → {json}");
+                await stream.WriteAsync(ms.ToArray(), ct);
+            }
+            else
+            {
+                await _manager.WriteMessageAsync(stream, message, ct);
+            }
 
             // \n\n (End of event)
             await stream.WriteAsync(NewLineBytes, ct);

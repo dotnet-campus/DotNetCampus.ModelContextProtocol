@@ -151,7 +151,7 @@ public class HttpClientTransport : IClientTransport
         content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
         request.Content = content;
 
-        _logger.Debug($"[McpClient][Http] Sending POST request. Url={requestUrl}, Type={(isInitialize ? "Initialize" : message.GetType().Name)}");
+        _logger.Debug($"[McpClient][Http] → {jsonContent}");
 
         // 4. 发送请求 (ResponseHeadersRead 以支持流式响应)
         var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
@@ -378,6 +378,8 @@ public class HttpClientTransport : IClientTransport
 
         if (string.IsNullOrEmpty(eventName) || string.Equals(eventName, "message", StringComparison.OrdinalIgnoreCase))
         {
+            _logger.Debug($"[McpClient][Http] ← {data}");
+
             try
             {
                 // 先尝试用 JsonDocument 解析来执行检查器，因为 _manager.ReadResponseAsync 会直接反序列化为对象，

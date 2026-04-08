@@ -70,6 +70,7 @@ public class StdioClientTransport : IClientTransport
         }
 
         var line = _manager.WriteMessageAsync(message);
+        Log.Debug($"[McpClient][Stdio] → {line}");
         await stdio.StandardInput.WriteAsync(line);
         await stdio.StandardInput.WriteAsync('\n');
         await stdio.StandardInput.FlushAsync();
@@ -104,6 +105,8 @@ public class StdioClientTransport : IClientTransport
             {
                 continue;
             }
+
+            Log.Debug($"[McpClient][Stdio] ← {line}");
 
             // 检测是服务器主动发起的请求（有 method），还是对客户端请求的响应（有 result/error）。
             if (IsServerRequest(line))

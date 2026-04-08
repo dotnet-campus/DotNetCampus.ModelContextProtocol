@@ -6,7 +6,6 @@ using DotNetCampus.ModelContextProtocol.Hosting.Services;
 using DotNetCampus.ModelContextProtocol.Protocol;
 using DotNetCampus.ModelContextProtocol.Protocol.Messages.JsonRpc;
 using DotNetCampus.ModelContextProtocol.Servers;
-using DotNetCampus.ModelContextProtocol.Transports;
 using DotNetCampus.ModelContextProtocol.Transports.Http;
 using TouchSocket.Core;
 using TouchSocket.Http;
@@ -306,7 +305,7 @@ public class TouchSocketHttpServerTransport : PluginBase, IHttpPlugin, IServerTr
                     s =>
                     {
                         s.AddHttpTransportServices(capturedNotificationSession.SessionId, request);
-                        s.AddTransportSession(capturedNotificationSession);
+                        s.AddTransportSession(capturedNotificationSession, Log);
                     },
                     cancellationToken: cancellationToken);
                 await context.RespondHttpSuccess(HttpStatusCode.Accepted);
@@ -361,7 +360,7 @@ public class TouchSocketHttpServerTransport : PluginBase, IHttpPlugin, IServerTr
                     s =>
                     {
                         s.AddHttpTransportServices(session.SessionId, request);
-                        s.AddTransportSession(session);
+                        s.AddTransportSession(session, Log);
                     },
                     cancellationToken: cancellationToken);
 

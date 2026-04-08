@@ -1,3 +1,4 @@
+using DotNetCampus.ModelContextProtocol.Hosting.Logging;
 using DotNetCampus.ModelContextProtocol.Servers;
 using DotNetCampus.ModelContextProtocol.Transports;
 
@@ -17,11 +18,12 @@ public static class McpServiceCollectionTransportExtensions
     /// </summary>
     /// <param name="services">MCP 服务集合。The MCP service collection.</param>
     /// <param name="session">当前传输层会话实例。The current transport session instance.</param>
+    /// <param name="logger">日志记录器，传递给 Sampling 实现。</param>
     /// <returns>提供链式调用的服务集合。The service collection for chaining.</returns>
-    public static IMcpServiceCollection AddTransportSession(this IMcpServiceCollection services, IServerTransportSession session)
+    public static IMcpServiceCollection AddTransportSession(this IMcpServiceCollection services, IServerTransportSession session, IMcpLogger logger)
     {
         services.AddScoped<IServerTransportSession>(session);
-        services.AddScoped<IMcpServerSampling>(new McpServerSampling(session));
+        services.AddScoped<IMcpServerSampling>(new McpServerSampling(session, logger));
         return services;
     }
 }
