@@ -20,6 +20,23 @@ public interface IClientTransportManager
     RequestId MakeNewRequestId();
 
     /// <summary>
+    /// 提供给传输层调用。当传输层收到消息字符串行后，一次解析即可分类并反序列化为具体消息类型。
+    /// </summary>
+    /// <param name="messageLine">消息字符串行。</param>
+    /// <returns>
+    /// 读取出来的 JSON-RPC 消息对象：
+    /// <list type="bullet">
+    /// <item>服务器主动发起的请求 → <see cref="JsonRpcRequest"/>；</item>
+    /// <item>对客户端请求的响应 → <see cref="JsonRpcResponse"/>；</item>
+    /// <item>无法识别或解析失败 → <see langword="null"/>。</item>
+    /// </list>
+    /// </returns>
+    /// <remarks>
+    /// 如果读取失败，此方法会暴露底层的任何读取异常，传输层需处理好此异常（说明消息不正确）。
+    /// </remarks>
+    ValueTask<JsonRpcMessage?> ReadMessageAsync(string messageLine);
+
+    /// <summary>
     /// 提供给传输层调用。当传输层收到响应字符串行后，调用此方法可以将字符串读取为 JSON-RPC 响应对象。
     /// </summary>
     /// <param name="responseLine">响应字符串行。</param>

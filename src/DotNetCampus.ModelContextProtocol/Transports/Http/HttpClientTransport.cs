@@ -182,9 +182,9 @@ public class HttpClientTransport : IClientTransport
 
             await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
             await ProcessSseStreamAsync(stream, cancellationToken, isInitialize
-                ? (json) =>
+                ? (msg) =>
                 {
-                    if (json.TryGetProperty("result", out var resultElement))
+                    if (msg is JsonRpcResponse { Result: { ValueKind: JsonValueKind.Object } resultElement })
                     {
                         _protocolVersion = TryExtractProtocolVersion(resultElement, "SSE");
                     }
@@ -331,7 +331,7 @@ public class HttpClientTransport : IClientTransport
 
     // --- SSE 解析核心逻辑 ---
 
-    private async Task ProcessSseStreamAsync(Stream stream, CancellationToken token, Action<JsonElement>? messageInspector = null)
+    private async Task ProcessSseStreamAsync(Stream stream, CancellationToken token, Action<JsonRpcMessage>? messageInspector = null)
     {
         using var reader = new StreamReader(stream, Encoding.UTF8, leaveOpen: true);
 
@@ -372,7 +372,7 @@ public class HttpClientTransport : IClientTransport
         }
     }
 
-    private async Task DispatchSseEventAsync(string? eventName, string data, CancellationToken token, Action<JsonElement>? messageInspector)
+    private async Task DispatchSseEventAsync(string? eventName, string data, CancellationToken token, Action<JsonRpcMessage>? messageInspector)
     {
         if (string.IsNullOrEmpty(data) || data == "[DONE]") return;
 
@@ -382,48 +382,35 @@ public class HttpClientTransport : IClientTransport
 
             try
             {
-                // 先尝试用 JsonDocument 解析来执行检查器，因为 _manager.ReadResponseAsync 会直接反序列化为对象，
-                // 而我们需要 inspect 具体字段（如 protocolVersion）
-                if (messageInspector != null)
-                {
-                    try
-                    {
-                        using var doc = JsonDocument.Parse(data);
-                        messageInspector(doc.RootElement);
-                    }
-                    catch
-                    {
-                        // 忽略解析错误，后续 _manager 会处理
-                    }
-                }
-
-                // 检测是服务器主动发起的请求（有 method），还是对客户端请求的响应（有 result/error）。
-                bool isServerRequest;
+                // 一次解析即可分类：有 method → 服务器主动请求；有 result/error → 对客户端请求的响应。
+                JsonRpcMessage? message;
                 try
                 {
-                    using var doc = JsonDocument.Parse(data);
-                    isServerRequest = doc.RootElement.TryGetProperty("method", out _);
+                    message = await _manager.ReadMessageAsync(data);
                 }
                 catch
                 {
-                    isServerRequest = false;
+                    _logger.Warn($"[McpClient][Http] Failed to parse SSE message.");
+                    return;
                 }
 
-                if (isServerRequest)
+                // 传入 messageInspector（如需检查初始化响应中的协议版本等字段）
+                if (message is not null)
                 {
-                    var request = TryParseServerRequest(data);
-                    if (request is not null)
-                    {
-                        await _manager.HandleServerRequestAsync(request, token);
-                    }
+                    messageInspector?.Invoke(message);
                 }
-                else
+
+                switch (message)
                 {
-                    var response = await _manager.ReadResponseAsync(data);
-                    if (response != null)
-                    {
+                    case JsonRpcRequest request:
+                        await _manager.HandleServerRequestAsync(request, token);
+                        break;
+                    case JsonRpcResponse response:
                         await _manager.HandleRespondAsync(response, token);
-                    }
+                        break;
+                    default:
+                        _logger.Warn($"[McpClient][Http] Unrecognized SSE message received.");
+                        break;
                 }
             }
             catch (Exception ex)
@@ -433,15 +420,4 @@ public class HttpClientTransport : IClientTransport
         }
     }
 
-    private static JsonRpcRequest? TryParseServerRequest(string json)
-    {
-        try
-        {
-            return JsonSerializer.Deserialize(json, CompilerServices.McpInternalJsonContext.Default.JsonRpcRequest);
-        }
-        catch
-        {
-            return null;
-        }
-    }
 }

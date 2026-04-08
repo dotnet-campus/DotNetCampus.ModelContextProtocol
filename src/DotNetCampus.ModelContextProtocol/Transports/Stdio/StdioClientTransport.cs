@@ -1,8 +1,6 @@
 using System.Diagnostics;
 using System.Diagnostics.Contracts;
 using System.Text;
-using System.Text.Json;
-using DotNetCampus.ModelContextProtocol.CompilerServices;
 using DotNetCampus.ModelContextProtocol.Hosting.Logging;
 using DotNetCampus.ModelContextProtocol.Protocol.Messages.JsonRpc;
 
@@ -108,52 +106,30 @@ public class StdioClientTransport : IClientTransport
 
             Log.Debug($"[McpClient][Stdio] ← {line}");
 
-            // 检测是服务器主动发起的请求（有 method），还是对客户端请求的响应（有 result/error）。
-            if (IsServerRequest(line))
+            // 一次解析即可分类：有 method → 服务器主动请求；有 result/error → 对客户端请求的响应。
+            JsonRpcMessage? message;
+            try
             {
-                var request = TryParseServerRequest(line);
-                if (request is null)
-                {
-                    Log.Warn($"[McpClient][Stdio] Invalid server request received.");
-                    continue;
-                }
-                await _manager.HandleServerRequestAsync(request, cancellationToken);
-                continue;
+                message = await _manager.ReadMessageAsync(line);
             }
-
-            var response = await _manager.ParseAndCatchResponseAsync(line);
-            if (response is null)
+            catch
             {
                 Log.Warn($"[McpClient][Stdio] Invalid server message received.");
                 continue;
             }
 
-            await _manager.HandleRespondAsync(response, cancellationToken);
-        }
-    }
-
-    private static bool IsServerRequest(string json)
-    {
-        try
-        {
-            using var doc = JsonDocument.Parse(json);
-            return doc.RootElement.TryGetProperty("method", out _);
-        }
-        catch
-        {
-            return false;
-        }
-    }
-
-    private static JsonRpcRequest? TryParseServerRequest(string json)
-    {
-        try
-        {
-            return JsonSerializer.Deserialize(json, McpInternalJsonContext.Default.JsonRpcRequest);
-        }
-        catch
-        {
-            return null;
+            switch (message)
+            {
+                case JsonRpcRequest request:
+                    await _manager.HandleServerRequestAsync(request, cancellationToken);
+                    break;
+                case JsonRpcResponse response:
+                    await _manager.HandleRespondAsync(response, cancellationToken);
+                    break;
+                default:
+                    Log.Warn($"[McpClient][Stdio] Unrecognized server message received.");
+                    break;
+            }
         }
     }
 
@@ -242,24 +218,5 @@ public class StdioClientTransport : IClientTransport
         public required StreamReader StandardOutput { get; init; }
 
         public required StreamReader StandardError { get; init; }
-    }
-}
-
-file static class Extensions
-{
-    extension(IClientTransportManager manager)
-    {
-        public async ValueTask<JsonRpcResponse?> ParseAndCatchResponseAsync(string inputMessageText)
-        {
-            try
-            {
-                return await manager.ReadResponseAsync(inputMessageText);
-            }
-            catch
-            {
-                // 响应消息格式不正确，返回 null 后，原样给 MCP 客户端报告错误。
-                return null;
-            }
-        }
     }
 }

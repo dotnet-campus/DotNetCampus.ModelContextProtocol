@@ -46,6 +46,31 @@ internal class ClientTransportManager(IClientTransportContext context) : IClient
     }
 
     /// <inheritdoc />
+    public ValueTask<JsonRpcMessage?> ReadMessageAsync(string messageLine)
+    {
+        using var doc = JsonDocument.Parse(messageLine);
+        return ValueTask.FromResult(ClassifyAndDeserialize(doc.RootElement));
+    }
+
+    /// <summary>
+    /// 根据 JSON-RPC 2.0 字段特征将 <paramref name="element"/> 分类并反序列化为具体消息类型。
+    /// </summary>
+    private static JsonRpcMessage? ClassifyAndDeserialize(JsonElement element)
+    {
+        if (element.TryGetProperty("method", out _))
+        {
+            return element.Deserialize(McpInternalJsonContext.Default.JsonRpcRequest);
+        }
+
+        if (element.TryGetProperty("result", out _) || element.TryGetProperty("error", out _))
+        {
+            return element.Deserialize(McpInternalJsonContext.Default.JsonRpcResponse);
+        }
+
+        return null;
+    }
+
+    /// <inheritdoc />
     public ValueTask<JsonRpcResponse?> ReadResponseAsync(string responseLine)
     {
         var message = JsonSerializer.Deserialize(responseLine, McpInternalJsonContext.Default.JsonRpcResponse);
