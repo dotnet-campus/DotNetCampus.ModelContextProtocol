@@ -1,4 +1,3 @@
-using System.Text;
 using DotNetCampus.ModelContextProtocol.Hosting.Logging;
 using DotNetCampus.ModelContextProtocol.Protocol.Messages;
 using DotNetCampus.ModelContextProtocol.Protocol.Messages.JsonRpc;
@@ -101,12 +100,8 @@ public class HttpServerTransportSession : ServerTransportSession
             // Serialize
             if (Log.IsEnabled(LoggingLevel.Debug))
             {
-                using var ms = new MemoryStream();
-                await _manager.WriteMessageAsync(ms, message, ct);
-                var bytes = ms.ToArray();
-                var json = Encoding.UTF8.GetString(bytes);
-                Log.Debug($"{_logPrefix} → {json}");
-                await stream.WriteAsync(bytes, ct);
+                await _manager.WriteMessageAsync(stream, message, ct);
+                _manager.LogRawOut(_logPrefix, message);
             }
             else
             {

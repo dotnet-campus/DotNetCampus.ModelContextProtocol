@@ -68,7 +68,7 @@ public class StdioClientTransport : IClientTransport
         }
 
         var line = _manager.WriteMessageAsync(message);
-        Log.Debug($"[McpClient][Stdio] → {line}");
+        _manager.LogRawOut("[Stdio]", line);
         await stdio.StandardInput.WriteAsync(line);
         await stdio.StandardInput.WriteAsync('\n');
         await stdio.StandardInput.FlushAsync();
@@ -104,7 +104,7 @@ public class StdioClientTransport : IClientTransport
                 continue;
             }
 
-            Log.Debug($"[McpClient][Stdio] ← {line}");
+            _manager.LogRawIn("[Stdio]", line);
 
             // 一次解析即可分类：有 method → 服务器主动请求；有 result/error → 对客户端请求的响应。
             JsonRpcMessage? message;

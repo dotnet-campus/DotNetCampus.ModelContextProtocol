@@ -151,7 +151,7 @@ public class HttpClientTransport : IClientTransport
         content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
         request.Content = content;
 
-        _logger.Debug($"[McpClient][Http] → {jsonContent}");
+        _manager.LogRawOut("[Http]", jsonContent);
 
         // 4. 发送请求 (ResponseHeadersRead 以支持流式响应)
         var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
@@ -378,7 +378,7 @@ public class HttpClientTransport : IClientTransport
 
         if (string.IsNullOrEmpty(eventName) || string.Equals(eventName, "message", StringComparison.OrdinalIgnoreCase))
         {
-            _logger.Debug($"[McpClient][Http] ← {data}");
+            _manager.LogRawIn("[Http]", data);
 
             try
             {

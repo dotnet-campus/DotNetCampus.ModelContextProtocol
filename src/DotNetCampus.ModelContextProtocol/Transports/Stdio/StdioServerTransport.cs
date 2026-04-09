@@ -29,7 +29,7 @@ public class StdioServerTransport : IServerTransport
     public StdioServerTransport(IServerTransportManager manager)
     {
         _manager = manager;
-        _session = new StdioServerTransportSession(manager.Context.Logger);
+        _session = new StdioServerTransportSession(manager);
     }
 
     private IMcpLogger Log => _manager.Context.Logger;
@@ -92,7 +92,7 @@ public class StdioServerTransport : IServerTransport
                 continue;
             }
 
-            Log.Debug($"[McpServer][Stdio] ← {line}");
+            _manager.LogRawIn("Stdio", line);
 
             JsonRpcMessage? message;
             try

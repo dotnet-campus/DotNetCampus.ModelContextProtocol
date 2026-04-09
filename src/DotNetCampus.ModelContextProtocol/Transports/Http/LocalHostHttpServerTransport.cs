@@ -201,11 +201,9 @@ public class LocalHostHttpServerTransport : IServerTransport
             return;
         }
 
-        if (Log.IsEnabled(LoggingLevel.Debug) && message is not null)
+        if (message is not null)
         {
-            using var ms = new MemoryStream();
-            await _manager.WriteMessageAsync(ms, message, cancellationToken);
-            Log.Debug($"[McpServer][StreamableHttp] ← {Encoding.UTF8.GetString(ms.ToArray())}");
+            _manager.LogRawIn("[StreamableHttp]", message);
         }
 
         var sessionIdStr = request.Headers[SessionIdHeader];
@@ -251,7 +249,8 @@ public class LocalHostHttpServerTransport : IServerTransport
     /// <param name="sessionIdStr"></param>
     /// <param name="notification"></param>
     /// <param name="cancellationToken"></param>
-    private async Task HandleNotificationAsync(HttpListenerContext context, string? sessionIdStr, JsonRpcNotification notification, CancellationToken cancellationToken)
+    private async Task HandleNotificationAsync(HttpListenerContext context, string? sessionIdStr, JsonRpcNotification notification,
+        CancellationToken cancellationToken)
     {
         if (string.IsNullOrEmpty(sessionIdStr) || !_sessions.TryGetValue(sessionIdStr, out var session))
         {
@@ -272,7 +271,8 @@ public class LocalHostHttpServerTransport : IServerTransport
     /// <param name="sessionIdStr"></param>
     /// <param name="jsonRpcRequest"></param>
     /// <param name="cancellationToken"></param>
-    private async Task HandleRpcRequestAsync(HttpListenerContext context, string? sessionIdStr, JsonRpcRequest jsonRpcRequest, CancellationToken cancellationToken)
+    private async Task HandleRpcRequestAsync(HttpListenerContext context, string? sessionIdStr, JsonRpcRequest jsonRpcRequest,
+        CancellationToken cancellationToken)
     {
         var session = await GetOrCreateSessionAsync(context, sessionIdStr, jsonRpcRequest);
         if (session is null) return;
@@ -330,7 +330,8 @@ public class LocalHostHttpServerTransport : IServerTransport
     /// <param name="session"></param>
     /// <param name="jsonRpcRequest"></param>
     /// <param name="cancellationToken"></param>
-    private async Task HandleInitializeAsync(HttpListenerContext context, HttpServerTransportSession session, JsonRpcRequest jsonRpcRequest, CancellationToken cancellationToken)
+    private async Task HandleInitializeAsync(HttpListenerContext context, HttpServerTransportSession session, JsonRpcRequest jsonRpcRequest,
+        CancellationToken cancellationToken)
     {
         var initResponse = await _manager.HandleRequestAsync(jsonRpcRequest,
             s => s.AddTransportSession(session, Log),
@@ -365,7 +366,8 @@ public class LocalHostHttpServerTransport : IServerTransport
     /// <param name="session"></param>
     /// <param name="jsonRpcRequest"></param>
     /// <param name="cancellationToken"></param>
-    private async Task HandleSseRequestAsync(HttpListenerContext context, HttpServerTransportSession session, JsonRpcRequest jsonRpcRequest, CancellationToken cancellationToken)
+    private async Task HandleSseRequestAsync(HttpListenerContext context, HttpServerTransportSession session, JsonRpcRequest jsonRpcRequest,
+        CancellationToken cancellationToken)
     {
         context.Response.StatusCode = (int)HttpStatusCode.OK;
         context.Response.ContentType = "text/event-stream";

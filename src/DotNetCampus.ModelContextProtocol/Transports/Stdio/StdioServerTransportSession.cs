@@ -14,16 +14,18 @@ public class StdioServerTransportSession : ServerTransportSession
 {
     private static readonly ReadOnlyMemory<byte> NewLineBytes = "\n"u8.ToArray();
     private readonly SemaphoreSlim _writeLock = new(1, 1);
+    private readonly IServerTransportManager _manager;
     private readonly IMcpLogger _logger;
     private StreamWriter? _output;
 
     /// <summary>
     /// 初始化 <see cref="StdioServerTransportSession"/> 类的新实例。
     /// </summary>
-    /// <param name="logger">日志记录器。</param>
-    public StdioServerTransportSession(IMcpLogger logger)
+    /// <param name="manager">辅助管理 MCP 传输层的管理器。</param>
+    public StdioServerTransportSession(IServerTransportManager manager)
     {
-        _logger = logger;
+        _manager = manager;
+        _logger = manager.Context.Logger;
     }
 
     /// <summary>
@@ -62,7 +64,7 @@ public class StdioServerTransportSession : ServerTransportSession
                 await JsonSerializer.SerializeAsync(ms, message, GetTypeInfo(message), cancellationToken).ConfigureAwait(false);
                 var bytes = ms.ToArray();
                 var json = Encoding.UTF8.GetString(bytes);
-                _logger.Debug($"[McpServer][Stdio] → {json}");
+                _manager.LogRawOut("[Stdio]", json);
                 await output.BaseStream.WriteAsync(bytes, cancellationToken).ConfigureAwait(false);
             }
             else
