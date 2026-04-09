@@ -233,6 +233,8 @@ public class TouchSocketHttpServerTransport : PluginBase, IHttpPlugin, IServerTr
         context.Response.ContentType = "text/event-stream";
         context.Response.Headers.Add("Cache-Control", "no-cache");
 
+        Log.Info($"[McpServer][TouchSocket] SSE connection established. SessionId={sessionId}");
+
         try
         {
             context.Response.IsChunk = true;
@@ -248,10 +250,12 @@ public class TouchSocketHttpServerTransport : PluginBase, IHttpPlugin, IServerTr
                 await output.WriteAsync(SseKeepAliveBytes, cancellationToken);
                 await output.FlushAsync(cancellationToken);
             }
+            Log.Info($"[McpServer][TouchSocket] SSE connection cancelled. SessionId={sessionId}");
         }
         catch (OperationCanceledException)
         {
             // 正常关闭
+            Log.Info($"[McpServer][TouchSocket] SSE connection ended. SessionId={sessionId}");
         }
         catch (Exception ex)
         {

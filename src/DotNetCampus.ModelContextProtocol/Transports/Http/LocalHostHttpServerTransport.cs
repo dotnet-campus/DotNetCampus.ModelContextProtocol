@@ -420,6 +420,8 @@ public class LocalHostHttpServerTransport : IServerTransport
         context.Response.ContentType = "text/event-stream";
         context.Response.Headers["Cache-Control"] = "no-cache";
 
+        Log.Info($"[McpServer][StreamableHttp] SSE connection established. SessionId={sessionId}");
+
         try
         {
             var output = context.Response.OutputStream;
@@ -434,14 +436,16 @@ public class LocalHostHttpServerTransport : IServerTransport
                 await output.WriteAsync(SseKeepAliveBytes, cancellationToken);
                 await output.FlushAsync(cancellationToken);
             }
+            Log.Info($"[McpServer][StreamableHttp] SSE connection cancelled. SessionId={sessionId}");
         }
         catch (OperationCanceledException)
         {
             // 正常关闭
+            Log.Info($"[McpServer][StreamableHttp] SSE connection ended. SessionId={sessionId}");
         }
         catch (Exception ex)
         {
-            Log.Debug($"[McpServer][StreamableHttp] SSE connection ended. SessionId={sessionId}, Error={ex.Message}");
+            Log.Info($"[McpServer][StreamableHttp] SSE connection ended. SessionId={sessionId}, Error={ex.Message}");
         }
         finally
         {
