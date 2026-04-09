@@ -164,7 +164,7 @@ internal class ServerTransportManager(McpServer server, McpServerContext context
             var hasId = element.TryGetProperty("id", out var idElement) && idElement.ValueKind != JsonValueKind.Null;
 
             // initialize 请求即使 id 缺失或为 null 也应被视为请求（兼容旧客户端）。
-            var isInitialize = methodElement.GetString() == RequestMethods.Initialize;
+            var isInitialize = methodElement.ValueKind is JsonValueKind.String && methodElement.GetString() == RequestMethods.Initialize;
 
             if (hasId || isInitialize)
             {
