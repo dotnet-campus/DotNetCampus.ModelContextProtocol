@@ -20,10 +20,11 @@ public class HttpServerTransportSession : ServerTransportSession
     private readonly SemaphoreSlim _writeLock = new(1, 1);
 
     /// <summary>
-    /// 当前 POST 请求绑定的 SSE 输出流。
+    /// 当前 POST 请求绑定的 SSE 输出流，使用 AsyncLocal 确保每个异步执行上下文（即每个并发 POST 请求）
+    /// 都拥有独立的值，避免多个并发请求相互覆盖导致竞态条件。
     /// 非 null 时，SendRequestAsync 直接向此流写入采样请求。
     /// </summary>
-    private Stream? _currentRequestSseStream;
+    private static readonly AsyncLocal<Stream?> _currentRequestSseStream = new();
 
     private IMcpLogger Log => _manager.Context.Logger;
 
@@ -49,21 +50,23 @@ public class HttpServerTransportSession : ServerTransportSession
     /// </summary>
     public IDisposable SetRequestSseStream(Stream stream)
     {
-        _currentRequestSseStream = stream;
+        _currentRequestSseStream.Value = stream;
         return new SseStreamScope(this, stream);
     }
 
     private void ClearRequestSseStream(Stream stream)
     {
-        // 仅在字段仍指向本次绑定的 stream 时才清除，避免并发请求相互覆盖。
-        Interlocked.CompareExchange(ref _currentRequestSseStream, null, stream);
+        if (_currentRequestSseStream.Value == stream)
+        {
+            _currentRequestSseStream.Value = null;
+        }
     }
 
     /// <inheritdoc />
     protected override async Task SendRequestMessageAsync(JsonRpcRequest request, CancellationToken cancellationToken)
     {
-        var stream = _currentRequestSseStream
-            ?? throw new InvalidOperationException("当前没有绑定的 SSE 流，无法发送服务端主动请求。");
+        var stream = _currentRequestSseStream.Value
+                     ?? throw new InvalidOperationException("当前没有绑定的 SSE 流，无法发送服务端主动请求。");
 
         Log.Debug($"{_logPrefix} Sending server-initiated request. Method={request.Method}, Id={request.Id}, SessionId={SessionId}");
 
