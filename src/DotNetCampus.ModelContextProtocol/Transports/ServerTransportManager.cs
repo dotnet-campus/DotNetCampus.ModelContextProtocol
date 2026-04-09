@@ -1,7 +1,5 @@
-using System.Buffers;
 using System.Collections.Concurrent;
 using System.Diagnostics.CodeAnalysis;
-using System.IO.Pipelines;
 using System.Text.Json;
 using DotNetCampus.ModelContextProtocol.CompilerServices;
 using DotNetCampus.ModelContextProtocol.Hosting.Services;
@@ -137,8 +135,8 @@ internal class ServerTransportManager(McpServer server, McpServerContext context
 
     public ValueTask<JsonRpcMessage?> ReadMessageAsync(string messageLine)
     {
-        using var doc = JsonDocument.Parse(messageLine);
-        return ValueTask.FromResult(ClassifyAndDeserialize(doc.RootElement));
+        var message = JsonElement.Parse(messageLine);
+        return ValueTask.FromResult(ClassifyAndDeserialize(message));
     }
 
     public async ValueTask<JsonRpcMessage?> ReadMessageAsync(Stream messageStream)
@@ -147,19 +145,10 @@ internal class ServerTransportManager(McpServer server, McpServerContext context
         return ClassifyAndDeserialize(doc.RootElement);
     }
 
-    public async ValueTask<JsonRpcMessage?> ReadMessageAsync(ReadOnlyMemory<byte> messageMemory)
+    public ValueTask<JsonRpcMessage?> ReadMessageAsync(ReadOnlyMemory<byte> messageMemory)
     {
-        var pipeReader = PipeReader.Create(new ReadOnlySequence<byte>(messageMemory));
-        try
-        {
-            using var stream = pipeReader.AsStream();
-            using var doc = await JsonDocument.ParseAsync(stream);
-            return ClassifyAndDeserialize(doc.RootElement);
-        }
-        finally
-        {
-            await pipeReader.CompleteAsync();
-        }
+        var message = JsonElement.Parse(messageMemory.Span);
+        return ValueTask.FromResult(ClassifyAndDeserialize(message));
     }
 
     /// <summary>

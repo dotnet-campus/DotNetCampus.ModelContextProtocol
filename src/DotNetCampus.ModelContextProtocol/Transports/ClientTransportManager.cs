@@ -48,8 +48,8 @@ internal class ClientTransportManager(IClientTransportContext context) : IClient
     /// <inheritdoc />
     public ValueTask<JsonRpcMessage?> ReadMessageAsync(string messageLine)
     {
-        using var doc = JsonDocument.Parse(messageLine);
-        return ValueTask.FromResult(ClassifyAndDeserialize(doc.RootElement));
+        var message = JsonElement.Parse(messageLine);
+        return ValueTask.FromResult(ClassifyAndDeserialize(message));
     }
 
     /// <summary>
