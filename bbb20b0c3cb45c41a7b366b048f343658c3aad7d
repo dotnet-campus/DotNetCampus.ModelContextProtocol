@@ -1,0 +1,24 @@
+src/DotNetCampus.ModelContextProtocol/Transports/Http/HttpServerTransportSession.cs
+  3f5c830898290684 23-24,27,53,59-62,68-69
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.9",
+  "base_commit_sha": "bbb20b0c3cb45c41a7b366b048f343658c3aad7d",
+  "prompts": {
+    "3f5c830898290684": {
+      "agent_id": {
+        "tool": "github-copilot",
+        "id": "d23b11a4-4f2b-4b8f-b5e1-f5e6fc58c862",
+        "model": "copilot/claude-sonnet-4.6"
+      },
+      "human_author": "walterlv",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 187,
+      "overriden_lines": 0,
+      "messages_url": "https://gitai.gz.cvte.cn/cas/8d20703255d1794cf6a2447625af4f7e9e53d294ba0f3f1686d56b38d982184c"
+    }
+  }
+}
