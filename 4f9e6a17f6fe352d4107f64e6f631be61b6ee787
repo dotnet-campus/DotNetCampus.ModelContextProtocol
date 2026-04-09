@@ -1,0 +1,22 @@
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.9",
+  "base_commit_sha": "4f9e6a17f6fe352d4107f64e6f631be61b6ee787",
+  "prompts": {
+    "3f5c830898290684": {
+      "agent_id": {
+        "tool": "github-copilot",
+        "id": "d23b11a4-4f2b-4b8f-b5e1-f5e6fc58c862",
+        "model": "copilot/claude-sonnet-4.6"
+      },
+      "human_author": "walterlv",
+      "messages": [],
+      "total_additions": 218,
+      "total_deletions": 158,
+      "accepted_lines": 216,
+      "overriden_lines": 0,
+      "messages_url": "https://gitai.gz.cvte.cn/cas/8d20703255d1794cf6a2447625af4f7e9e53d294ba0f3f1686d56b38d982184c"
+    }
+  }
+}
