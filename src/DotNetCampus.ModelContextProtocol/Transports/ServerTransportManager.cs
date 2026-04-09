@@ -156,13 +156,12 @@ internal class ServerTransportManager(McpServer server, McpServerContext context
     /// </summary>
     private JsonRpcMessage? ClassifyAndDeserialize(JsonElement element)
     {
-        var hasMethod = TryGetPropertyIgnoreCase(element, "method", out var methodElement);
+        var hasMethod = element.TryGetProperty("method", out var methodElement);
 
         if (hasMethod)
         {
             // 有 id 且非 null → 请求；无 id 或 id 为 null → 通知。
-            var hasId = TryGetPropertyIgnoreCase(element, "id", out var idElement)
-                && idElement.ValueKind != JsonValueKind.Null;
+            var hasId = element.TryGetProperty("id", out var idElement) && idElement.ValueKind != JsonValueKind.Null;
 
             // initialize 请求即使 id 缺失或为 null 也应被视为请求（兼容旧客户端）。
             var isInitialize = methodElement.GetString() == RequestMethods.Initialize;
@@ -182,32 +181,13 @@ internal class ServerTransportManager(McpServer server, McpServerContext context
             }
         }
 
-        var hasResultOrError = TryGetPropertyIgnoreCase(element, "result", out _)
-            || TryGetPropertyIgnoreCase(element, "error", out _);
+        var hasResultOrError = element.TryGetProperty("result", out _) || element.TryGetProperty("error", out _);
         if (hasResultOrError)
         {
             return element.Deserialize(McpInternalJsonContext.Default.JsonRpcResponse);
         }
 
         return null;
-    }
-
-    /// <summary>
-    /// 以大小写不敏感的方式在 JSON 元素中查找属性，与 <see cref="McpInternalJsonContext"/> 的
-    /// <c>PropertyNameCaseInsensitive = true</c> 设置保持一致。
-    /// </summary>
-    private static bool TryGetPropertyIgnoreCase(JsonElement element, string name, out JsonElement value)
-    {
-        foreach (var property in element.EnumerateObject())
-        {
-            if (property.Name.Equals(name, StringComparison.OrdinalIgnoreCase))
-            {
-                value = property.Value;
-                return true;
-            }
-        }
-        value = default;
-        return false;
     }
 
     public Task WriteMessageAsync(Stream stream, JsonRpcMessage message, CancellationToken cancellationToken) => message switch
