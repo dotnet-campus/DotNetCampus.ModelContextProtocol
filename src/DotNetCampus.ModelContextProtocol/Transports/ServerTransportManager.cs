@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using DotNetCampus.ModelContextProtocol.CompilerServices;
+using DotNetCampus.ModelContextProtocol.Hosting.Logging;
 using DotNetCampus.ModelContextProtocol.Hosting.Services;
 using DotNetCampus.ModelContextProtocol.Protocol;
 using DotNetCampus.ModelContextProtocol.Protocol.Messages.JsonRpc;
@@ -10,7 +11,7 @@ using DotNetCampus.ModelContextProtocol.Utils;
 
 namespace DotNetCampus.ModelContextProtocol.Transports;
 
-internal class ServerTransportManager(McpServer server, McpServerContext context) : IServerTransportManager
+internal class ServerTransportManager(McpServer server, McpServerContext context) : IServerTransportManager, IMcpTransportLogger
 {
     /// <summary>
     /// 表示 MCP 服务正在运行的 <see cref="CancellationTokenSource"/>。
@@ -49,6 +50,12 @@ internal class ServerTransportManager(McpServer server, McpServerContext context
 
     /// <inheritdoc />
     public IServerTransportContext Context => context;
+
+    /// <inheritdoc />
+    public IMcpLogger Logger => Context.Logger;
+
+    /// <inheritdoc />
+    public McpTransportRawMessageLoggingDetailLevel RawMessageLoggingDetailLevel { get; init; }
 
     /// <summary>
     /// 获取已注册的传输层列表。

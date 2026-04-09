@@ -15,6 +15,7 @@ public class McpClientBuilder
     private string _clientName = "<Unknown>";
     private string _clientVersion = "0.0.0";
     private IMcpLogger? _logger;
+    private McpTransportRawMessageLoggingDetailLevel _rawMessageLoggingDetailLevel = McpTransportRawMessageLoggingDetailLevel.None;
     private IServiceProvider? _serviceProvider;
     private Func<IClientTransportManager, IClientTransport>? _transportFactory;
     private ClientCapabilities _capabilities = new();
@@ -41,6 +42,19 @@ public class McpClientBuilder
     public McpClientBuilder WithLogger(IMcpLogger logger)
     {
         _logger = logger;
+        return this;
+    }
+
+    /// <summary>
+    /// 配置 MCP 客户端的日志记录器。
+    /// </summary>
+    /// <param name="logger">日志记录器。</param>
+    /// <param name="rawMessageLoggingDetailLevel">传输层原始消息的日志记录详细级别。</param>
+    /// <returns>用于链式调用的 MCP 客户端生成器。</returns>
+    public McpClientBuilder WithLogger(IMcpLogger logger, McpTransportRawMessageLoggingDetailLevel rawMessageLoggingDetailLevel)
+    {
+        _logger = logger;
+        _rawMessageLoggingDetailLevel = rawMessageLoggingDetailLevel;
         return this;
     }
 
@@ -186,7 +200,10 @@ public class McpClientBuilder
             ServiceProvider = _serviceProvider,
         };
 
-        var transportManager = new ClientTransportManager(context);
+        var transportManager = new ClientTransportManager(context)
+        {
+            RawMessageLoggingDetailLevel = _rawMessageLoggingDetailLevel,
+        };
         context.Transport = transportManager;
 
         if (_samplingHandler is { } handler)

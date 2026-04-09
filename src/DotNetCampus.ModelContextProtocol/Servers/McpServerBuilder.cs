@@ -21,6 +21,7 @@ public class McpServerBuilder(string serverName, string serverVersion)
     private readonly McpServerToolsProvider _tools = new();
     private readonly McpServerResourcesProvider _resources = new();
     private IMcpLogger? _logger;
+    private McpTransportRawMessageLoggingDetailLevel _rawMessageLoggingDetailLevel = McpTransportRawMessageLoggingDetailLevel.None;
     private IMcpServerToolJsonSerializer? _jsonSerializer;
     private string? _jsonSerializerTypeName;
     private IServiceProvider? _serviceProvider;
@@ -93,6 +94,19 @@ public class McpServerBuilder(string serverName, string serverVersion)
     public McpServerBuilder WithLogger(IMcpLogger logger)
     {
         _logger = logger;
+        return this;
+    }
+
+    /// <summary>
+    /// 配置 MCP 服务器的日志记录器。
+    /// </summary>
+    /// <param name="logger">日志记录器。</param>
+    /// <param name="rawMessageLoggingDetailLevel">传输层原始消息的日志记录详细级别。</param>
+    /// <returns>用于链式调用的 MCP 服务器生成器。</returns>
+    public McpServerBuilder WithLogger(IMcpLogger logger, McpTransportRawMessageLoggingDetailLevel rawMessageLoggingDetailLevel)
+    {
+        _logger = logger;
+        _rawMessageLoggingDetailLevel = rawMessageLoggingDetailLevel;
         return this;
     }
 
@@ -187,7 +201,10 @@ public class McpServerBuilder(string serverName, string serverVersion)
         context.Handlers = _requestHandlers is { } requestHandlers
             ? requestHandlers(server)
             : new McpServerRequestHandlers(server);
-        var transportManager = new ServerTransportManager(server, context);
+        var transportManager = new ServerTransportManager(server, context)
+        {
+            RawMessageLoggingDetailLevel = _rawMessageLoggingDetailLevel,
+        };
         context.Transport = transportManager;
         foreach (var factory in _transportFactories)
         {

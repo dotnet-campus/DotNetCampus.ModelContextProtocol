@@ -14,7 +14,7 @@ namespace DotNetCampus.ModelContextProtocol.Transports;
 /// <summary>
 /// 用于管理 MCP 客户端传输层的管理器。
 /// </summary>
-internal class ClientTransportManager(IClientTransportContext context) : IClientTransportManager
+internal class ClientTransportManager(IClientTransportContext context) : IClientTransportManager, IMcpTransportLogger
 {
     private readonly ConcurrentDictionary<string, TaskCompletionSource<JsonRpcResponse>> _pendingRequests = [];
     private IClientTransport? _transport;
@@ -22,6 +22,12 @@ internal class ClientTransportManager(IClientTransportContext context) : IClient
 
     /// <inheritdoc />
     public IClientTransportContext Context { get; } = context;
+
+    /// <inheritdoc />
+    public IMcpLogger Logger => Context.Logger;
+
+    /// <inheritdoc />
+    public McpTransportRawMessageLoggingDetailLevel RawMessageLoggingDetailLevel { get; init; }
 
     /// <summary>
     /// 设置传输层实例。
