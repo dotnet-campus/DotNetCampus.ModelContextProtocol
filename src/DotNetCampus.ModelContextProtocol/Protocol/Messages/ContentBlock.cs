@@ -47,6 +47,14 @@ public sealed record TextContentBlock : ContentBlock
     /// </summary>
     [JsonPropertyName("text")]
     public required string Text { get; init; }
+
+    /// <summary>
+    /// 输出此文本内容块的文本。
+    /// </summary>
+    public override string ToString()
+    {
+        return Text;
+    }
 }
 
 /// <summary>
@@ -68,6 +76,14 @@ public sealed record ImageContentBlock : ContentBlock
     /// </summary>
     [JsonPropertyName("mimeType")]
     public required string MimeType { get; init; }
+
+    /// <summary>
+    /// 输出此图像内容块的文本表示形式，格式为 data URI scheme（data:[&lt;mediatype&gt;][;base64],&lt;data&gt;）。
+    /// </summary>
+    public override string ToString()
+    {
+        return $"data:{MimeType};base64,{Data}";
+    }
 }
 
 /// <summary>
@@ -89,6 +105,14 @@ public sealed record AudioContentBlock : ContentBlock
     /// </summary>
     [JsonPropertyName("mimeType")]
     public required string MimeType { get; init; }
+
+    /// <summary>
+    /// 输出此音频内容块的文本表示形式，格式为 data URI scheme（data:[&lt;mediatype&gt;][;base64],&lt;data&gt;）。
+    /// </summary>
+    public override string ToString()
+    {
+        return $"data:{MimeType};base64,{Data}";
+    }
 }
 
 /// <summary>
@@ -155,6 +179,14 @@ public sealed record ResourceLinkContentBlock : ContentBlock
     [JsonPropertyName("size")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public long? Size { get; init; }
+
+    /// <summary>
+    /// 输出此资源链接内容块的文本表示形式，格式为 data URI scheme（data:[&lt;mediatype&gt;][;base64],&lt;data&gt;）。
+    /// </summary>
+    public override string ToString()
+    {
+        return $"data:{MimeType ?? "application/octet-stream"};base64,{Uri}";
+    }
 }
 
 /// <summary>
@@ -204,6 +236,14 @@ public abstract record ResourceContents
     [JsonPropertyName("_meta")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public JsonElement? Meta { get; init; }
+
+    /// <summary>
+    /// 输出此资源内容的文本表示形式，格式为 data URI scheme（data:[&lt;mediatype&gt;][;base64],&lt;data&gt;）。
+    /// </summary>
+    public override string ToString()
+    {
+        return $"data:{MimeType ?? "application/octet-stream"};base64,{Uri}";
+    }
 }
 
 /// <summary>
@@ -219,6 +259,14 @@ public sealed record TextResourceContents : ResourceContents
     /// </summary>
     [JsonPropertyName("text")]
     public required string Text { get; init; }
+
+    /// <summary>
+    /// 输出此文本资源内容的文本表示形式。
+    /// </summary>
+    public override string ToString()
+    {
+        return Text;
+    }
 }
 
 /// <summary>
