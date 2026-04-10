@@ -136,6 +136,11 @@ public class IpcServerTransport : IServerTransport
             parsed = null;
         }
 
+        if (parsed is not null)
+        {
+            _manager.LogRawIn("[Ipc]", parsed);
+        }
+
         switch (parsed)
         {
             case JsonRpcResponse response:
@@ -188,6 +193,7 @@ file static class Extensions
         {
             try
             {
+                manager.LogRawOut("[Ipc]", response);
                 using var ms = new MemoryStream();
                 await manager.WriteMessageAsync(ms, response, cancellationToken);
                 await peer.NotifyAsync(new IpcMessage("", new IpcMessageBody(ms.GetBuffer(), 0, (int)ms.Length), IpcServerTransportSession.McpIpcHeader));

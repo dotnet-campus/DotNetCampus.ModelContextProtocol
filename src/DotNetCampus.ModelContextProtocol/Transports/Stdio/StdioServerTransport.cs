@@ -92,7 +92,7 @@ public class StdioServerTransport : IServerTransport
                 continue;
             }
 
-            _manager.LogRawIn("Stdio", line);
+            _manager.LogRawIn("[Stdio]", line);
 
             JsonRpcMessage? message;
             try
@@ -182,6 +182,7 @@ file static class Extensions
         {
             try
             {
+                manager.LogRawOut("[Stdio]", response);
                 await manager.WriteMessageAsync(writer.BaseStream, response, cancellationToken);
                 await writer.WriteLineAsync();
             }

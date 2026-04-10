@@ -9,29 +9,53 @@ namespace DotNetCampus.ModelContextProtocol.Transports;
 /// <summary>
 /// <see cref="IMcpLogger"/> 专为传输层原始消息进行日志记录的扩展方法。
 /// </summary>
-internal static class McpTransportLoggerExtensions
+public static class McpTransportLoggerExtensions
 {
     private const int TrimmedRawMessageMaxLength = 80;
 
     /// <param name="manager">MCP 传输层管理器。</param>
     extension(IServerTransportManager manager)
     {
-        public void LogRawIn(string tag, string jsonRpcRawMessage) => ((IMcpTransportLogger)manager).LogRaw(tag, "←", jsonRpcRawMessage);
-        public void LogRawIn(string tag, JsonRpcMessage jsonRpcRawMessage) => ((IMcpTransportLogger)manager).LogRaw(tag, "←", jsonRpcRawMessage);
-        public void LogRawOut(string tag, string jsonRpcRawMessage) => ((IMcpTransportLogger)manager).LogRaw(tag, "→", jsonRpcRawMessage);
-        public void LogRawOut(string tag, JsonRpcMessage jsonRpcRawMessage) => ((IMcpTransportLogger)manager).LogRaw(tag, "→", jsonRpcRawMessage);
+        /// <summary>记录传输层接收到的原始 JSON-RPC 消息。</summary>
+        public void LogRawIn(string tag, string jsonRpcRawMessage) => ((IMcpTransportLogger)manager).LogRaw("[McpServer]", tag, "←", jsonRpcRawMessage);
+        /// <summary>记录传输层接收到的原始 JSON-RPC 消息。</summary>
+        public void LogRawIn(string tag, JsonRpcMessage jsonRpcRawMessage) => ((IMcpTransportLogger)manager).LogRaw("[McpServer]", tag, "←", jsonRpcRawMessage);
+        /// <summary>记录传输层接收到的原始 JSON-RPC 消息。</summary>
+        public void LogRawIn(string tag, string channel, string jsonRpcRawMessage) => ((IMcpTransportLogger)manager).LogRaw("[McpServer]", tag, "←", jsonRpcRawMessage, channel);
+        /// <summary>记录传输层接收到的原始 JSON-RPC 消息。</summary>
+        public void LogRawIn(string tag, string channel, JsonRpcMessage jsonRpcRawMessage) => ((IMcpTransportLogger)manager).LogRaw("[McpServer]", tag, "←", jsonRpcRawMessage, channel);
+        /// <summary>记录传输层接收到的原始 JSON-RPC 消息。</summary>
+        public void LogRawOut(string tag, string jsonRpcRawMessage) => ((IMcpTransportLogger)manager).LogRaw("[McpServer]", tag, "→", jsonRpcRawMessage);
+        /// <summary>记录传输层接收到的原始 JSON-RPC 消息。</summary>
+        public void LogRawOut(string tag, JsonRpcMessage jsonRpcRawMessage) => ((IMcpTransportLogger)manager).LogRaw("[McpServer]", tag, "→", jsonRpcRawMessage);
+        /// <summary>记录传输层接收到的原始 JSON-RPC 消息。</summary>
+        public void LogRawOut(string tag, string channel, string jsonRpcRawMessage) => ((IMcpTransportLogger)manager).LogRaw("[McpServer]", tag, "→", jsonRpcRawMessage, channel);
+        /// <summary>记录传输层接收到的原始 JSON-RPC 消息。</summary>
+        public void LogRawOut(string tag, string channel, JsonRpcMessage jsonRpcRawMessage) => ((IMcpTransportLogger)manager).LogRaw("[McpServer]", tag, "→", jsonRpcRawMessage, channel);
     }
 
     /// <param name="manager">MCP 传输层管理器。</param>
     extension(IClientTransportManager manager)
     {
-        public void LogRawIn(string tag, string jsonRpcRawMessage) => ((IMcpTransportLogger)manager).LogRaw(tag, "←", jsonRpcRawMessage);
-        public void LogRawIn(string tag, JsonRpcMessage jsonRpcRawMessage) => ((IMcpTransportLogger)manager).LogRaw(tag, "←", jsonRpcRawMessage);
-        public void LogRawOut(string tag, string jsonRpcRawMessage) => ((IMcpTransportLogger)manager).LogRaw(tag, "→", jsonRpcRawMessage);
-        public void LogRawOut(string tag, JsonRpcMessage jsonRpcRawMessage) => ((IMcpTransportLogger)manager).LogRaw(tag, "→", jsonRpcRawMessage);
+        /// <summary>记录传输层接收到的原始 JSON-RPC 消息。</summary>
+        public void LogRawIn(string tag, string jsonRpcRawMessage) => ((IMcpTransportLogger)manager).LogRaw("[McpClient]", tag, "←", jsonRpcRawMessage);
+        /// <summary>记录传输层接收到的原始 JSON-RPC 消息。</summary>
+        public void LogRawIn(string tag, JsonRpcMessage jsonRpcRawMessage) => ((IMcpTransportLogger)manager).LogRaw("[McpClient]", tag, "←", jsonRpcRawMessage);
+        /// <summary>记录传输层接收到的原始 JSON-RPC 消息。</summary>
+        public void LogRawIn(string tag, string channel, string jsonRpcRawMessage) => ((IMcpTransportLogger)manager).LogRaw("[McpClient]", tag, "←", jsonRpcRawMessage, channel);
+        /// <summary>记录传输层接收到的原始 JSON-RPC 消息。</summary>
+        public void LogRawIn(string tag, string channel, JsonRpcMessage jsonRpcRawMessage) => ((IMcpTransportLogger)manager).LogRaw("[McpClient]", tag, "←", jsonRpcRawMessage, channel);
+        /// <summary>记录传输层接收到的原始 JSON-RPC 消息。</summary>
+        public void LogRawOut(string tag, string jsonRpcRawMessage) => ((IMcpTransportLogger)manager).LogRaw("[McpClient]", tag, "→", jsonRpcRawMessage);
+        /// <summary>记录传输层接收到的原始 JSON-RPC 消息。</summary>
+        public void LogRawOut(string tag, JsonRpcMessage jsonRpcRawMessage) => ((IMcpTransportLogger)manager).LogRaw("[McpClient]", tag, "→", jsonRpcRawMessage);
+        /// <summary>记录传输层接收到的原始 JSON-RPC 消息。</summary>
+        public void LogRawOut(string tag, string channel, string jsonRpcRawMessage) => ((IMcpTransportLogger)manager).LogRaw("[McpClient]", tag, "→", jsonRpcRawMessage, channel);
+        /// <summary>记录传输层接收到的原始 JSON-RPC 消息。</summary>
+        public void LogRawOut(string tag, string channel, JsonRpcMessage jsonRpcRawMessage) => ((IMcpTransportLogger)manager).LogRaw("[McpClient]", tag, "→", jsonRpcRawMessage, channel);
     }
 
-    private static void LogRaw(this IMcpTransportLogger transportLogger, string tag, string direction, string jsonRpcRawMessage)
+    private static void LogRaw(this IMcpTransportLogger transportLogger, string role, string tag, string direction, string jsonRpcRawMessage, string? channel = null)
     {
         if (transportLogger.RawMessageLoggingDetailLevel is not McpTransportRawMessageLoggingDetailLevel.None
             && transportLogger.Logger.IsEnabled(LoggingLevel.Debug))
@@ -40,11 +64,12 @@ internal static class McpTransportLoggerExtensions
                                  || jsonRpcRawMessage.Length <= TrimmedRawMessageMaxLength
                 ? jsonRpcRawMessage
                 : jsonRpcRawMessage[..TrimmedRawMessageMaxLength] + "...(trimmed)";
-            transportLogger.Logger.Debug($"[McpServer]{tag} {direction} {trimmedMessage}");
+            var channelPart = channel != null ? $" [via {channel}]" : "";
+            transportLogger.Logger.Debug($"{role}{tag} {direction}{channelPart} {trimmedMessage}");
         }
     }
 
-    private static void LogRaw(this IMcpTransportLogger transportLogger, string tag, string direction, JsonRpcMessage jsonRpcRawMessage)
+    private static void LogRaw(this IMcpTransportLogger transportLogger, string role, string tag, string direction, JsonRpcMessage jsonRpcRawMessage, string? channel = null)
     {
         if (transportLogger.RawMessageLoggingDetailLevel is not McpTransportRawMessageLoggingDetailLevel.None
             && transportLogger.Logger.IsEnabled(LoggingLevel.Debug))
@@ -60,7 +85,8 @@ internal static class McpTransportLoggerExtensions
                                  || json.Length <= TrimmedRawMessageMaxLength
                 ? json
                 : json[..TrimmedRawMessageMaxLength] + "...(trimmed)";
-            transportLogger.Logger.Debug($"[McpServer]{tag} {direction} {trimmedMessage}");
+            var channelPart = channel != null ? $" [via {channel}]" : "";
+            transportLogger.Logger.Debug($"{role}{tag} {direction}{channelPart} {trimmedMessage}");
         }
     }
 }

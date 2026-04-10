@@ -299,6 +299,11 @@ public class TouchSocketHttpServerTransport : PluginBase, IHttpPlugin, IServerTr
             return;
         }
 
+        if (message is not null)
+        {
+            _manager.LogRawIn("[TouchSocket]", $"POST, SessionId={sessionIdStr}", message);
+        }
+
         switch (message)
         {
             case JsonRpcResponse jsonRpcResponse:
@@ -448,6 +453,7 @@ public class TouchSocketHttpServerTransport : PluginBase, IHttpPlugin, IServerTr
         if (initResponse != null)
         {
             Log.Debug($"[McpServer][TouchSocket] Sending initialize response. SessionId={session.SessionId}, MessageId={jsonRpcRequest.Id}");
+            _manager.LogRawOut("[TouchSocket]", $"POST/json, SessionId={session.SessionId}", initResponse);
             await context.RespondJsonRpcAsync(_manager, HttpStatusCode.OK, initResponse, cancellationToken);
         }
         else

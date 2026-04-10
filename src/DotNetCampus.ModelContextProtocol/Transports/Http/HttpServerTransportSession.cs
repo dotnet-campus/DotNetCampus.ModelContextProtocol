@@ -101,15 +101,8 @@ public class HttpServerTransportSession : ServerTransportSession
             await stream.WriteAsync(DataPrefixBytes, ct);
 
             // Serialize
-            if (Log.IsEnabled(LoggingLevel.Debug))
-            {
-                await _manager.WriteMessageAsync(stream, message, ct);
-                _manager.LogRawOut(_logPrefix, message);
-            }
-            else
-            {
-                await _manager.WriteMessageAsync(stream, message, ct);
-            }
+            await _manager.WriteMessageAsync(stream, message, ct);
+            _manager.LogRawOut(_logPrefix, $"POST/sse, SessionId={SessionId}", message);
 
             // \n\n (End of event)
             await stream.WriteAsync(NewLineBytes, ct);

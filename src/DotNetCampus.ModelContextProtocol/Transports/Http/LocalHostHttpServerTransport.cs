@@ -5,7 +5,6 @@ using System.Text.Json;
 using DotNetCampus.ModelContextProtocol.Hosting.Logging;
 using DotNetCampus.ModelContextProtocol.Hosting.Services;
 using DotNetCampus.ModelContextProtocol.Protocol;
-using DotNetCampus.ModelContextProtocol.Protocol.Messages;
 using DotNetCampus.ModelContextProtocol.Protocol.Messages.JsonRpc;
 
 namespace DotNetCampus.ModelContextProtocol.Transports.Http;
@@ -201,13 +200,12 @@ public class LocalHostHttpServerTransport : IServerTransport
             return;
         }
 
-        if (message is not null)
-        {
-            _manager.LogRawIn("[StreamableHttp]", message);
-        }
-
         var sessionIdStr = request.Headers[SessionIdHeader];
 
+        if (message is not null)
+        {
+            _manager.LogRawIn("[StreamableHttp]", $"POST, SessionId={sessionIdStr}", message);
+        }
         switch (message)
         {
             case JsonRpcResponse jsonRpcResponse:
@@ -343,6 +341,7 @@ public class LocalHostHttpServerTransport : IServerTransport
             context.Response.StatusCode = (int)HttpStatusCode.OK;
             try
             {
+                _manager.LogRawOut("[StreamableHttp]", $"POST/json, SessionId={session.SessionId}", initResponse);
                 await _manager.WriteMessageAsync(context.Response.OutputStream, initResponse, cancellationToken);
                 context.Response.SafeClose();
             }

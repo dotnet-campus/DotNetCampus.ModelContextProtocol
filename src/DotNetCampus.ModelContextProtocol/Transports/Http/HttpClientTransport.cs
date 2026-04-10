@@ -151,7 +151,7 @@ public class HttpClientTransport : IClientTransport
         content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
         request.Content = content;
 
-        _manager.LogRawOut("[Http]", jsonContent);
+        _manager.LogRawOut("[Http]", $"POST, SessionId={_sessionId}", jsonContent);
 
         // 4. 发送请求 (ResponseHeadersRead 以支持流式响应)
         var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
@@ -181,7 +181,7 @@ public class HttpClientTransport : IClientTransport
             _logger.Debug($"[McpClient][Http] Received SSE stream response.");
 
             await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
-            await ProcessSseStreamAsync(stream, cancellationToken, isInitialize
+            await ProcessSseStreamAsync(stream, cancellationToken, $"POST/sse, SessionId={_sessionId ?? "init"}", isInitialize
                 ? (msg) =>
                 {
                     if (msg is JsonRpcResponse { Result: { ValueKind: JsonValueKind.Object } resultElement })
@@ -212,6 +212,7 @@ public class HttpClientTransport : IClientTransport
                     _protocolVersion = TryExtractProtocolVersion(resultElement, "POST");
                 }
 
+                _manager.LogRawIn("[Http]", $"POST/json, SessionId={_sessionId ?? "init"}", rpcResponse);
                 await _manager.HandleRespondAsync(rpcResponse, cancellationToken);
             }
         }
@@ -304,7 +305,7 @@ public class HttpClientTransport : IClientTransport
                     }
 
                     await using var stream = await response.Content.ReadAsStreamAsync(token);
-                    await ProcessSseStreamAsync(stream, token);
+                    await ProcessSseStreamAsync(stream, token, $"GET/sse, SessionId={_sessionId}");
                 }
                 _logger.Info($"[McpClient][Http] SSE stream ended, reconnecting.");
             }
@@ -331,7 +332,7 @@ public class HttpClientTransport : IClientTransport
 
     // --- SSE 解析核心逻辑 ---
 
-    private async Task ProcessSseStreamAsync(Stream stream, CancellationToken token, Action<JsonRpcMessage>? messageInspector = null)
+    private async Task ProcessSseStreamAsync(Stream stream, CancellationToken token, string channel, Action<JsonRpcMessage>? messageInspector = null)
     {
         using var reader = new StreamReader(stream, Encoding.UTF8, leaveOpen: true);
 
@@ -351,7 +352,7 @@ public class HttpClientTransport : IClientTransport
             {
                 if (dataBuffer.Length > 0)
                 {
-                    await DispatchSseEventAsync(currentEvent, dataBuffer.ToString(), token, messageInspector);
+                    await DispatchSseEventAsync(currentEvent, dataBuffer.ToString(), token, channel, messageInspector);
                     dataBuffer.Clear();
                     currentEvent = null;
                 }
@@ -372,13 +373,13 @@ public class HttpClientTransport : IClientTransport
         }
     }
 
-    private async Task DispatchSseEventAsync(string? eventName, string data, CancellationToken token, Action<JsonRpcMessage>? messageInspector)
+    private async Task DispatchSseEventAsync(string? eventName, string data, CancellationToken token, string channel, Action<JsonRpcMessage>? messageInspector)
     {
         if (string.IsNullOrEmpty(data) || data == "[DONE]") return;
 
         if (string.IsNullOrEmpty(eventName) || string.Equals(eventName, "message", StringComparison.OrdinalIgnoreCase))
         {
-            _manager.LogRawIn("[Http]", data);
+            _manager.LogRawIn("[Http]", channel, data);
 
             try
             {

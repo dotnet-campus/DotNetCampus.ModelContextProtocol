@@ -48,6 +48,7 @@ public class IpcServerTransportSession : ServerTransportSession
             throw new InvalidOperationException("IPC 对端代理尚未设置，无法发送服务端主动请求。请确认 SetPeer 已在连接建立时被调用。");
         }
 
+        _manager.LogRawOut("[Ipc]", request);
         using var ms = new MemoryStream();
         await _manager.WriteMessageAsync(ms, request, cancellationToken);
         await peer.NotifyAsync(new IpcMessage("McpServer.SendMessage", new IpcMessageBody(ms.GetBuffer(), 0, (int)ms.Length), McpIpcHeader));
