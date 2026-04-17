@@ -1,4 +1,3 @@
-using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
 using DotNetCampus.ModelContextProtocol.CompilerServices;
@@ -164,11 +163,7 @@ internal sealed class McpProtocolBridge(McpServerContext context)
         JsonTypeInfo<TParams> paramsTypeInfo, JsonTypeInfo<TResult> resultTypeInfo,
         CancellationToken cancellationToken)
     {
-        if (!EnsureParams(request, out var paramsElement, out var errorResponse))
-        {
-            return errorResponse;
-        }
-
+        var paramsElement = request.Params ?? EmptyObject.JsonElement;
         var requestParams = paramsElement.Deserialize(paramsTypeInfo);
         var requestContext = new RequestContext<TParams>(services, requestParams);
 
@@ -218,26 +213,4 @@ internal sealed class McpProtocolBridge(McpServerContext context)
         }
     }
 
-    private bool EnsureParams(JsonRpcRequest request,
-        out JsonElement paramsElement,
-        [NotNullWhen(false)] out JsonRpcResponse? errorResponse)
-    {
-        if (request.Params is { } element)
-        {
-            paramsElement = element;
-            errorResponse = null;
-            return true;
-        }
-        errorResponse = new JsonRpcResponse
-        {
-            Id = request.Id,
-            Error = new JsonRpcError
-            {
-                Code = (int)JsonRpcErrorCode.InvalidParams,
-                Message = "The params field is missing or not a valid JSON object.",
-            },
-        };
-        paramsElement = default;
-        return false;
-    }
 }
