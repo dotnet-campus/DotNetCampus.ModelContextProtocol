@@ -1,6 +1,8 @@
 using System.Net;
 using System.Text;
 using System.Text.Json;
+using DotNetCampus.ModelContextProtocol.Transports.Http;
+using DotNetCampus.ModelContextProtocol.Transports.TouchSocket;
 
 namespace DotNetCampus.ModelContextProtocol.Tests.Transports;
 
@@ -10,6 +12,32 @@ namespace DotNetCampus.ModelContextProtocol.Tests.Transports;
 [TestClass]
 public class HttpTransportTests
 {
+    [TestMethod("DefaultOptions_EnableLegacySseCompatibility: 默认开启 2024-11-05 服务端兼容")]
+    public void DefaultOptions_EnableLegacySseCompatibility()
+    {
+        var localHostOptions = new LocalHostHttpServerTransportOptions
+        {
+            Port = 9527,
+        };
+        var touchSocketOptions = new TouchSocketHttpServerTransportOptions
+        {
+            Listen = ["127.0.0.1:9527"],
+        };
+        var externalTouchSocketOptions = new ExternalTouchSocketHttpServerTransportOptions();
+
+        Assert.IsTrue(localHostOptions.IsCompatibleWithSse);
+        Assert.AreEqual("/mcp/sse", localHostOptions.SseEndPoint);
+        Assert.AreEqual("/mcp/messages", localHostOptions.SseMessageEndPoint);
+
+        Assert.IsTrue(touchSocketOptions.IsCompatibleWithSse);
+        Assert.AreEqual("/mcp/sse", touchSocketOptions.SseEndPoint);
+        Assert.AreEqual("/mcp/messages", touchSocketOptions.SseMessageEndPoint);
+
+        Assert.IsTrue(externalTouchSocketOptions.IsCompatibleWithSse);
+        Assert.AreEqual("/mcp/sse", externalTouchSocketOptions.SseEndPoint);
+        Assert.AreEqual("/mcp/messages", externalTouchSocketOptions.SseMessageEndPoint);
+    }
+
     [TestMethod("Post_NoSessionId: 旧协议下不带 sessionId 应返回错误")]
     [DataRow(HttpTransportType.LocalHost, DisplayName = "LocalHost")]
     [DataRow(HttpTransportType.TouchSocket, DisplayName = "TouchSocket")]
