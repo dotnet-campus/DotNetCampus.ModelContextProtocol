@@ -215,6 +215,8 @@ public class HttpTransportTests
 
     [TestMethod("StreamableHttp_BlankProtocolVersionHeaderIsRejected: 空白协议版本头应视为无效")]
     [DataRow(HttpTransportType.LocalHost, DisplayName = "LocalHost")]
+    // TODO：等待 TouchSocket 修复客户端发送空白 Header 时，HttpBase 内部直接丢弃此头的问题后，接触注释本测试。
+    // [DataRow(HttpTransportType.TouchSocket, DisplayName = "TouchSocket")]
     public async Task StreamableHttp_BlankProtocolVersionHeaderIsRejected(HttpTransportType type)
     {
         await using var package = await TestMcpFactory.Shared.CreateSimpleHttpAsync(type);
