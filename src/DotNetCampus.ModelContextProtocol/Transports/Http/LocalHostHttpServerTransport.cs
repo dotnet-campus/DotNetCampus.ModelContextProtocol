@@ -381,16 +381,7 @@ public class LocalHostHttpServerTransport : IServerTransport
     private async Task HandlePostRequestAsync(HttpListenerContext context, CancellationToken cancellationToken)
     {
         var request = context.Request;
-
-        // 协议版本检查
-        // 按照 MCP 协议规范 §2.7：Streamable HTTP 传输层最低支持版本为 2025-03-26（该版本引入了 Streamable HTTP 传输层）。
-        // If the server receives a request with an invalid or unsupported MCP-Protocol-Version, it MUST respond with 400 Bad Request.
         var protocolVersion = request.Headers[ProtocolVersionHeader];
-        if (!string.IsNullOrEmpty(protocolVersion) && (ProtocolVersion)protocolVersion < ProtocolVersion.StreamableHttpMinimum)
-        {
-            await context.RespondHttpError(HttpStatusCode.BadRequest, $"Unsupported protocol version. Minimum required: {ProtocolVersion.StreamableHttpMinimum}");
-            return;
-        }
 
         // 解析消息体
         JsonRpcMessage? message;
@@ -418,13 +409,13 @@ public class LocalHostHttpServerTransport : IServerTransport
         switch (message)
         {
             case JsonRpcResponse jsonRpcResponse:
-                await HandleClientResponseAsync(context, sessionIdStr, jsonRpcResponse);
+                await HandleClientResponseAsync(context, sessionIdStr, protocolVersion, jsonRpcResponse);
                 return;
             case JsonRpcNotification notification:
-                await HandleNotificationAsync(context, sessionIdStr, notification, cancellationToken);
+                await HandleNotificationAsync(context, sessionIdStr, protocolVersion, notification, cancellationToken);
                 return;
             case JsonRpcRequest jsonRpcRequest:
-                await HandleRpcRequestAsync(context, sessionIdStr, jsonRpcRequest, cancellationToken);
+                await HandleRpcRequestAsync(context, sessionIdStr, protocolVersion, jsonRpcRequest, cancellationToken);
                 return;
             default:
                 await context.RespondHttpError(HttpStatusCode.BadRequest, "Invalid or unrecognized JSON-RPC message");
@@ -437,14 +428,16 @@ public class LocalHostHttpServerTransport : IServerTransport
     /// </summary>
     /// <param name="context"></param>
     /// <param name="sessionIdStr"></param>
+    /// <param name="protocolVersion"></param>
     /// <param name="response"></param>
-    private async Task HandleClientResponseAsync(HttpListenerContext context, string? sessionIdStr, JsonRpcResponse response)
+    private async Task HandleClientResponseAsync(HttpListenerContext context, string? sessionIdStr, string? protocolVersion, JsonRpcResponse response)
     {
-        if (string.IsNullOrEmpty(sessionIdStr) || !_sessions.TryGetValue(sessionIdStr, out var session))
+        var session = await GetExistingSessionAsync(context, sessionIdStr, protocolVersion);
+        if (session is null)
         {
-            await context.RespondHttpError(HttpStatusCode.NotFound, "Session not found");
             return;
         }
+
         session.HandleResponseAsync(response);
         context.RespondHttpSuccess(HttpStatusCode.Accepted);
     }
@@ -454,16 +447,18 @@ public class LocalHostHttpServerTransport : IServerTransport
     /// </summary>
     /// <param name="context"></param>
     /// <param name="sessionIdStr"></param>
+    /// <param name="protocolVersion"></param>
     /// <param name="notification"></param>
     /// <param name="cancellationToken"></param>
-    private async Task HandleNotificationAsync(HttpListenerContext context, string? sessionIdStr, JsonRpcNotification notification,
+    private async Task HandleNotificationAsync(HttpListenerContext context, string? sessionIdStr, string? protocolVersion, JsonRpcNotification notification,
         CancellationToken cancellationToken)
     {
-        if (string.IsNullOrEmpty(sessionIdStr) || !_sessions.TryGetValue(sessionIdStr, out var session))
+        var session = await GetExistingSessionAsync(context, sessionIdStr, protocolVersion);
+        if (session is null)
         {
-            await context.RespondHttpError(HttpStatusCode.NotFound, "Session not found");
             return;
         }
+
         await _manager.HandleRequestAsync(
             new JsonRpcRequest { Method = notification.Method, Params = notification.Params },
             s => s.AddTransportSession(session, Log),
@@ -476,12 +471,13 @@ public class LocalHostHttpServerTransport : IServerTransport
     /// </summary>
     /// <param name="context"></param>
     /// <param name="sessionIdStr"></param>
+    /// <param name="protocolVersion"></param>
     /// <param name="jsonRpcRequest"></param>
     /// <param name="cancellationToken"></param>
-    private async Task HandleRpcRequestAsync(HttpListenerContext context, string? sessionIdStr, JsonRpcRequest jsonRpcRequest,
+    private async Task HandleRpcRequestAsync(HttpListenerContext context, string? sessionIdStr, string? protocolVersion, JsonRpcRequest jsonRpcRequest,
         CancellationToken cancellationToken)
     {
-        var session = await GetOrCreateSessionAsync(context, sessionIdStr, jsonRpcRequest);
+        var session = await GetOrCreateSessionAsync(context, sessionIdStr, protocolVersion, jsonRpcRequest);
         if (session is null) return;
 
         if (jsonRpcRequest.Method == RequestMethods.Initialize)
@@ -499,12 +495,18 @@ public class LocalHostHttpServerTransport : IServerTransport
     /// </summary>
     /// <param name="context"></param>
     /// <param name="sessionIdStr"></param>
+    /// <param name="protocolVersion"></param>
     /// <param name="jsonRpcRequest"></param>
     /// <returns></returns>
-    private async Task<HttpServerTransportSession?> GetOrCreateSessionAsync(HttpListenerContext context, string? sessionIdStr, JsonRpcRequest jsonRpcRequest)
+    private async Task<HttpServerTransportSession?> GetOrCreateSessionAsync(HttpListenerContext context, string? sessionIdStr, string? protocolVersion, JsonRpcRequest jsonRpcRequest)
     {
         if (jsonRpcRequest.Method == RequestMethods.Initialize)
         {
+            if (!await ValidateProtocolVersionHeaderAsync(context, protocolVersion, null))
+            {
+                return null;
+            }
+
             var newSessionId = _manager.MakeNewSessionId();
             var newSession = new HttpServerTransportSession(_manager, newSessionId.Id, "[McpServer][StreamableHttp]");
             if (_sessions.TryAdd(newSessionId.Id, newSession))
@@ -517,6 +519,11 @@ public class LocalHostHttpServerTransport : IServerTransport
             return null;
         }
 
+        return await GetExistingSessionAsync(context, sessionIdStr, protocolVersion);
+    }
+
+    private async Task<HttpServerTransportSession?> GetExistingSessionAsync(HttpListenerContext context, string? sessionIdStr, string? protocolVersion)
+    {
         if (string.IsNullOrEmpty(sessionIdStr))
         {
             await context.RespondHttpError(HttpStatusCode.BadRequest, "Missing Mcp-Session-Id header");
@@ -527,7 +534,34 @@ public class LocalHostHttpServerTransport : IServerTransport
             await context.RespondHttpError(HttpStatusCode.NotFound, "Session not found");
             return null;
         }
+
+        if (!await ValidateProtocolVersionHeaderAsync(context, protocolVersion, session.NegotiatedProtocolVersion))
+        {
+            return null;
+        }
+
         return session;
+    }
+
+    private async Task<bool> ValidateProtocolVersionHeaderAsync(HttpListenerContext context, string? protocolVersion, ProtocolVersion? negotiatedProtocolVersion)
+    {
+        if (!string.IsNullOrEmpty(protocolVersion) && !ProtocolVersion.IsSupportedStreamableHttpVersion(protocolVersion))
+        {
+            await context.RespondHttpError(HttpStatusCode.BadRequest,
+                $"Unsupported protocol version. Supported versions: {string.Join(", ", ProtocolVersion.StreamableHttpSupportedVersions)}");
+            return false;
+        }
+
+        if (!string.IsNullOrEmpty(protocolVersion)
+            && negotiatedProtocolVersion is { } negotiated
+            && !string.Equals(protocolVersion, negotiated.ToString(), StringComparison.Ordinal))
+        {
+            await context.RespondHttpError(HttpStatusCode.BadRequest,
+                $"Protocol version mismatch. Expected: {negotiated}, Actual: {protocolVersion}");
+            return false;
+        }
+
+        return true;
     }
 
     /// <summary>
@@ -628,6 +662,11 @@ public class LocalHostHttpServerTransport : IServerTransport
             return;
         }
 
+        if (!await ValidateProtocolVersionHeaderAsync(context, request.Headers[ProtocolVersionHeader], session.NegotiatedProtocolVersion))
+        {
+            return;
+        }
+
         context.Response.StatusCode = (int)HttpStatusCode.OK;
         context.Response.ContentType = "text/event-stream";
         context.Response.Headers["Cache-Control"] = "no-cache";
@@ -668,6 +707,14 @@ public class LocalHostHttpServerTransport : IServerTransport
     private async Task HandleDeleteRequestAsync(HttpListenerContext context)
     {
         var sessionId = context.Request.Headers[SessionIdHeader];
+        if (!string.IsNullOrEmpty(sessionId) && _sessions.TryGetValue(sessionId, out var existingSession))
+        {
+            if (!await ValidateProtocolVersionHeaderAsync(context, context.Request.Headers[ProtocolVersionHeader], existingSession.NegotiatedProtocolVersion))
+            {
+                return;
+            }
+        }
+
         if (!string.IsNullOrEmpty(sessionId))
         {
             if (_sessions.TryRemove(sessionId, out var session))

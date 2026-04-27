@@ -63,14 +63,20 @@ public class McpServerRequestHandlers
         CancellationToken cancellationToken)
     {
         var clientInfo = request.Params?.ClientInfo;
+        var negotiatedProtocolVersion = ProtocolVersion.NegotiateStreamableHttpVersion(request.Params?.ProtocolVersion);
         Logger.Info(
-            $"[McpServer][Mcp] Client initializing. ClientName={clientInfo?.Name}, ClientVersion={clientInfo?.Version}, ProtocolVersion={request.Params?.ProtocolVersion}");
+            $"[McpServer][Mcp] Client initializing. ClientName={clientInfo?.Name}, ClientVersion={clientInfo?.Version}, RequestedProtocolVersion={request.Params?.ProtocolVersion}, NegotiatedProtocolVersion={negotiatedProtocolVersion}");
 
         // 将客户端能力保存到当前传输层会话，以便后续服务器发起请求（如 sampling）时判断能力。
         var session = (IServerTransportSession?)request.Services.GetService(typeof(IServerTransportSession));
-        if (session is not null && request.Params?.Capabilities is { } capabilities)
+        if (session is not null)
         {
-            session.ConnectedClientCapabilities = capabilities;
+            session.NegotiatedProtocolVersion = negotiatedProtocolVersion;
+
+            if (request.Params?.Capabilities is { } capabilities)
+            {
+                session.ConnectedClientCapabilities = capabilities;
+            }
         }
 
         var hasTools = _server.Tools.Count > 0;
@@ -78,7 +84,7 @@ public class McpServerRequestHandlers
 
         var result = new InitializeResult
         {
-            ProtocolVersion = ProtocolVersion.Current,
+            ProtocolVersion = negotiatedProtocolVersion,
             ServerInfo = new Implementation
             {
                 Name = _server.ServerName,
@@ -99,7 +105,7 @@ public class McpServerRequestHandlers
         };
 
         Logger.Info(
-            $"[McpServer][Mcp] Server initialized. ServerName={_server.ServerName}, ServerVersion={_server.ServerVersion}, ToolCount={_server.Tools.Count}, ResourceCount={_server.Resources.Count}");
+            $"[McpServer][Mcp] Server initialized. ServerName={_server.ServerName}, ServerVersion={_server.ServerVersion}, ProtocolVersion={negotiatedProtocolVersion}, ToolCount={_server.Tools.Count}, ResourceCount={_server.Resources.Count}");
 
         return ValueTask.FromResult(result);
     }

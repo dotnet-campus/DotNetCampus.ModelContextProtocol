@@ -106,6 +106,72 @@ public class HttpTransportTests
         Assert.IsFalse(package.Client.IsConnected);
     }
 
+    [TestMethod("StreamableHttp_NegotiatedVersionMustMatchSubsequentHeader: 协商结果应贯穿后续请求")]
+    [DataRow(HttpTransportType.LocalHost, DisplayName = "LocalHost")]
+    [DataRow(HttpTransportType.TouchSocket, DisplayName = "TouchSocket")]
+    public async Task StreamableHttp_NegotiatedVersionMustMatchSubsequentHeader(HttpTransportType type)
+    {
+        await using var package = await TestMcpFactory.Shared.CreateSimpleHttpAsync(type);
+        using var client = CreateHttpClient();
+
+        using var initializeRequest = CreateStreamableHttpRequest(HttpMethod.Post, package.Endpoint);
+        initializeRequest.Content = CreateInitializeRequestContent("2025-06-18");
+
+        using var initializeResponse = await client.SendAsync(initializeRequest);
+
+        Assert.AreEqual(HttpStatusCode.OK, initializeResponse.StatusCode);
+        Assert.IsTrue(initializeResponse.Headers.TryGetValues("Mcp-Session-Id", out var sessionHeaders));
+        var sessionId = sessionHeaders.Single();
+
+        using (var document = JsonDocument.Parse(await initializeResponse.Content.ReadAsStringAsync()))
+        {
+            Assert.AreEqual("2025-06-18", document.RootElement.GetProperty("result").GetProperty("protocolVersion").GetString());
+        }
+
+        using var mismatchRequest = CreateStreamableHttpRequest(HttpMethod.Post, package.Endpoint);
+        mismatchRequest.Headers.Add("Mcp-Session-Id", sessionId);
+        mismatchRequest.Headers.Add("Mcp-Protocol-Version", "2025-11-25");
+        mismatchRequest.Content = CreateInitializedNotificationContent();
+
+        using var mismatchResponse = await client.SendAsync(mismatchRequest);
+
+        Assert.AreEqual(HttpStatusCode.BadRequest, mismatchResponse.StatusCode);
+    }
+
+    [TestMethod("StreamableHttp_GetAndDeleteMustMatchNegotiatedHeader: GET 与 DELETE 也应遵守协商结果")]
+    [DataRow(HttpTransportType.LocalHost, DisplayName = "LocalHost")]
+    [DataRow(HttpTransportType.TouchSocket, DisplayName = "TouchSocket")]
+    public async Task StreamableHttp_GetAndDeleteMustMatchNegotiatedHeader(HttpTransportType type)
+    {
+        await using var package = await TestMcpFactory.Shared.CreateSimpleHttpAsync(type);
+        using var client = CreateHttpClient();
+
+        using var initializeRequest = CreateStreamableHttpRequest(HttpMethod.Post, package.Endpoint);
+        initializeRequest.Content = CreateInitializeRequestContent("2025-06-18");
+
+        using var initializeResponse = await client.SendAsync(initializeRequest);
+
+        Assert.AreEqual(HttpStatusCode.OK, initializeResponse.StatusCode);
+        Assert.IsTrue(initializeResponse.Headers.TryGetValues("Mcp-Session-Id", out var sessionHeaders));
+        var sessionId = sessionHeaders.Single();
+
+        using var getRequest = CreateStreamableHttpRequest(HttpMethod.Get, package.Endpoint);
+        getRequest.Headers.Add("Mcp-Session-Id", sessionId);
+        getRequest.Headers.Add("Mcp-Protocol-Version", "2025-11-25");
+
+        using var getResponse = await client.SendAsync(getRequest, HttpCompletionOption.ResponseHeadersRead);
+
+        Assert.AreEqual(HttpStatusCode.BadRequest, getResponse.StatusCode);
+
+        using var deleteRequest = CreateStreamableHttpRequest(HttpMethod.Delete, package.Endpoint);
+        deleteRequest.Headers.Add("Mcp-Session-Id", sessionId);
+        deleteRequest.Headers.Add("Mcp-Protocol-Version", "2025-11-25");
+
+        using var deleteResponse = await client.SendAsync(deleteRequest);
+
+        Assert.AreEqual(HttpStatusCode.BadRequest, deleteResponse.StatusCode);
+    }
+
     private static HttpClient CreateHttpClient()
     {
         return new HttpClient
@@ -114,14 +180,30 @@ public class HttpTransportTests
         };
     }
 
-    private static StringContent CreateInitializeRequestContent()
+    private static StringContent CreateInitializeRequestContent(string protocolVersion = "2024-11-05")
+    {
+        return new StringContent(
+            $"{{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{{\"protocolVersion\":\"{protocolVersion}\",\"capabilities\":{{}},\"clientInfo\":{{\"name\":\"legacy-test-client\",\"version\":\"1.0.0\"}}}}}}",
+            Encoding.UTF8,
+            "application/json");
+    }
+
+    private static StringContent CreateInitializedNotificationContent()
     {
         return new StringContent(
             """
-            {"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"legacy-test-client","version":"1.0.0"}}}
+            {"jsonrpc":"2.0","method":"notifications/initialized"}
             """,
             Encoding.UTF8,
             "application/json");
+    }
+
+    private static HttpRequestMessage CreateStreamableHttpRequest(HttpMethod method, Uri endpoint)
+    {
+        var request = new HttpRequestMessage(method, endpoint);
+        request.Headers.Accept.ParseAdd("application/json");
+        request.Headers.Accept.ParseAdd("text/event-stream");
+        return request;
     }
 
     private static Uri ResolveEndpoint(Uri baseEndpoint, string endpoint)

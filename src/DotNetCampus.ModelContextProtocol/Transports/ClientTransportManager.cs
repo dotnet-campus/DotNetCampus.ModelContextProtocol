@@ -274,7 +274,7 @@ internal class ClientTransportManager(IClientTransportContext context) : IClient
             Method = RequestMethods.Initialize,
             Params = JsonSerializer.SerializeToElement(new InitializeRequestParams
             {
-                ProtocolVersion = ProtocolVersion.Current,
+                ProtocolVersion = client.PreferredProtocolVersion,
                 ClientInfo = new Implementation
                 {
                     Name = client.ClientName,
@@ -298,6 +298,17 @@ internal class ClientTransportManager(IClientTransportContext context) : IClient
 
         var result = responseResult.Deserialize<InitializeResult>(McpInternalJsonContext.Default.InitializeResult)
                      ?? throw new McpClientException("无法解析初始化响应");
+
+        if (!client.SupportedProtocolVersions.Contains(result.ProtocolVersion, StringComparer.Ordinal))
+        {
+            throw new McpClientException($"服务器返回了客户端不支持的协议版本：{result.ProtocolVersion}");
+        }
+
+        if (!string.Equals(result.ProtocolVersion, client.PreferredProtocolVersion, StringComparison.Ordinal))
+        {
+            Context.Logger.Info(
+                $"[McpClient][Mcp] Protocol version negotiated. Requested={client.PreferredProtocolVersion}, Negotiated={result.ProtocolVersion}");
+        }
 
         // 发送 initialized 通知。
         await SendNotificationAsync(new JsonRpcNotification

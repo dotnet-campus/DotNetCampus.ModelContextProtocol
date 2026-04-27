@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using DotNetCampus.ModelContextProtocol.Protocol;
 using DotNetCampus.ModelContextProtocol.Protocol.Messages;
 using DotNetCampus.ModelContextProtocol.Protocol.Messages.JsonRpc;
 
@@ -20,6 +21,9 @@ public abstract class ServerTransportSession : IServerTransportSession
 
     /// <inheritdoc />
     public ClientCapabilities? ConnectedClientCapabilities { get; set; }
+
+    /// <inheritdoc />
+    public ProtocolVersion? NegotiatedProtocolVersion { get; set; }
 
     /// <inheritdoc />
     public async Task<JsonRpcResponse> SendRequestAsync(JsonRpcRequest request, CancellationToken cancellationToken = default)

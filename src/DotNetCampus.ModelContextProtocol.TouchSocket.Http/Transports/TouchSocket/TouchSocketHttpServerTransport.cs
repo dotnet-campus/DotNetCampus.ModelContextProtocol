@@ -262,6 +262,11 @@ public class TouchSocketHttpServerTransport : PluginBase, IHttpPlugin, IServerTr
             return;
         }
 
+        if (!await ValidateProtocolVersionHeaderAsync(context, request.Headers.Get(ProtocolVersionHeader).First, session.NegotiatedProtocolVersion))
+        {
+            return;
+        }
+
         Log.Info($"[McpServer][TouchSocket] Establishing SSE connection. SessionId={sessionId}");
 
         context.Response.SetStatus(HttpStatusCode.OK, "");
@@ -494,17 +499,7 @@ public class TouchSocketHttpServerTransport : PluginBase, IHttpPlugin, IServerTr
     private async ValueTask HandleStreamableHttpMessageAsync(HttpContext context, CancellationToken cancellationToken)
     {
         var request = context.Request;
-
-        // 协议版本检查
-        // 按照 MCP 协议规范 §2.7：Streamable HTTP 传输层最低支持版本为 2025-03-26（该版本引入了 Streamable HTTP 传输层）。
-        // If the server receives a request with an invalid or unsupported MCP-Protocol-Version, it MUST respond with 400 Bad Request.
         var protocolVersion = request.Headers.Get(ProtocolVersionHeader).First;
-        if (!string.IsNullOrEmpty(protocolVersion) && (ProtocolVersion)protocolVersion < ProtocolVersion.StreamableHttpMinimum)
-        {
-            Log.Warn($"[McpServer][TouchSocket] POST request rejected: Unsupported protocol version. Version={protocolVersion}");
-            await context.RespondHttpError(HttpStatusCode.BadRequest, $"Unsupported protocol version. Minimum required: {ProtocolVersion.StreamableHttpMinimum}");
-            return;
-        }
 
         var sessionIdStr = request.Headers.Get(SessionIdHeader).First;
 
@@ -530,13 +525,13 @@ public class TouchSocketHttpServerTransport : PluginBase, IHttpPlugin, IServerTr
         switch (message)
         {
             case JsonRpcResponse jsonRpcResponse:
-                await HandleClientResponseAsync(context, sessionIdStr, jsonRpcResponse);
+                await HandleClientResponseAsync(context, sessionIdStr, protocolVersion, jsonRpcResponse);
                 return;
             case JsonRpcNotification notification:
-                await HandleNotificationAsync(context, sessionIdStr, notification, request, cancellationToken);
+                await HandleNotificationAsync(context, sessionIdStr, protocolVersion, notification, request, cancellationToken);
                 return;
             case JsonRpcRequest jsonRpcRequest:
-                await HandleRpcRequestAsync(context, sessionIdStr, jsonRpcRequest, request, cancellationToken);
+                await HandleRpcRequestAsync(context, sessionIdStr, protocolVersion, jsonRpcRequest, request, cancellationToken);
                 return;
             default:
                 Log.Warn($"[McpServer][TouchSocket] POST request rejected: Invalid or unrecognized JSON-RPC message.");
@@ -550,15 +545,16 @@ public class TouchSocketHttpServerTransport : PluginBase, IHttpPlugin, IServerTr
     /// </summary>
     /// <param name="context"></param>
     /// <param name="sessionIdStr"></param>
+    /// <param name="protocolVersion"></param>
     /// <param name="response"></param>
-    private async ValueTask HandleClientResponseAsync(HttpContext context, string? sessionIdStr, JsonRpcResponse response)
+    private async ValueTask HandleClientResponseAsync(HttpContext context, string? sessionIdStr, string? protocolVersion, JsonRpcResponse response)
     {
-        if (string.IsNullOrEmpty(sessionIdStr) || !_sessions.TryGetValue(sessionIdStr, out var session))
+        var session = await GetExistingSessionAsync(context, sessionIdStr, protocolVersion);
+        if (session is null)
         {
-            Log.Warn($"[McpServer][TouchSocket] Response routing failed: Session not found. SessionId={sessionIdStr}");
-            await context.RespondHttpError(HttpStatusCode.NotFound, "Session not found");
             return;
         }
+
         session.HandleResponseAsync(response);
         await context.RespondHttpSuccess(HttpStatusCode.Accepted);
     }
@@ -568,17 +564,18 @@ public class TouchSocketHttpServerTransport : PluginBase, IHttpPlugin, IServerTr
     /// </summary>
     /// <param name="context"></param>
     /// <param name="sessionIdStr"></param>
+    /// <param name="protocolVersion"></param>
     /// <param name="notification"></param>
     /// <param name="request"></param>
     /// <param name="cancellationToken"></param>
-    private async ValueTask HandleNotificationAsync(HttpContext context, string? sessionIdStr, JsonRpcNotification notification, HttpRequest request, CancellationToken cancellationToken)
+    private async ValueTask HandleNotificationAsync(HttpContext context, string? sessionIdStr, string? protocolVersion, JsonRpcNotification notification, HttpRequest request, CancellationToken cancellationToken)
     {
-        if (string.IsNullOrEmpty(sessionIdStr) || !_sessions.TryGetValue(sessionIdStr, out var session))
+        var session = await GetExistingSessionAsync(context, sessionIdStr, protocolVersion);
+        if (session is null)
         {
-            Log.Warn($"[McpServer][TouchSocket] Notification routing failed: Session not found. SessionId={sessionIdStr}");
-            await context.RespondHttpError(HttpStatusCode.NotFound, "Session not found");
             return;
         }
+
         await _manager.HandleRequestAsync(
             new JsonRpcRequest { Method = notification.Method, Params = notification.Params },
             s =>
@@ -595,12 +592,13 @@ public class TouchSocketHttpServerTransport : PluginBase, IHttpPlugin, IServerTr
     /// </summary>
     /// <param name="context"></param>
     /// <param name="sessionIdStr"></param>
+    /// <param name="protocolVersion"></param>
     /// <param name="jsonRpcRequest"></param>
     /// <param name="request"></param>
     /// <param name="cancellationToken"></param>
-    private async ValueTask HandleRpcRequestAsync(HttpContext context, string? sessionIdStr, JsonRpcRequest jsonRpcRequest, HttpRequest request, CancellationToken cancellationToken)
+    private async ValueTask HandleRpcRequestAsync(HttpContext context, string? sessionIdStr, string? protocolVersion, JsonRpcRequest jsonRpcRequest, HttpRequest request, CancellationToken cancellationToken)
     {
-        var session = await GetOrCreateSessionAsync(context, sessionIdStr, jsonRpcRequest);
+        var session = await GetOrCreateSessionAsync(context, sessionIdStr, protocolVersion, jsonRpcRequest);
         if (session is null) return;
 
         Log.Debug($"[McpServer][TouchSocket] Handling JSON-RPC request. SessionId={session.SessionId}, Method={jsonRpcRequest.Method}, MessageId={jsonRpcRequest.Id}");
@@ -620,12 +618,18 @@ public class TouchSocketHttpServerTransport : PluginBase, IHttpPlugin, IServerTr
     /// </summary>
     /// <param name="context"></param>
     /// <param name="sessionIdStr"></param>
+    /// <param name="protocolVersion"></param>
     /// <param name="jsonRpcRequest"></param>
     /// <returns></returns>
-    private async ValueTask<HttpServerTransportSession?> GetOrCreateSessionAsync(HttpContext context, string? sessionIdStr, JsonRpcRequest jsonRpcRequest)
+    private async ValueTask<HttpServerTransportSession?> GetOrCreateSessionAsync(HttpContext context, string? sessionIdStr, string? protocolVersion, JsonRpcRequest jsonRpcRequest)
     {
         if (jsonRpcRequest.Method == RequestMethods.Initialize)
         {
+            if (!await ValidateProtocolVersionHeaderAsync(context, protocolVersion, null))
+            {
+                return null;
+            }
+
             var newSessionId = _manager.MakeNewSessionId();
             var newSession = new HttpServerTransportSession(_manager, newSessionId.Id, "[McpServer][TouchSocket]");
             if (_sessions.TryAdd(newSessionId.Id, newSession))
@@ -640,19 +644,53 @@ public class TouchSocketHttpServerTransport : PluginBase, IHttpPlugin, IServerTr
             return null;
         }
 
+        return await GetExistingSessionAsync(context, sessionIdStr, protocolVersion);
+    }
+
+    private async ValueTask<HttpServerTransportSession?> GetExistingSessionAsync(HttpContext context, string? sessionIdStr, string? protocolVersion)
+    {
         if (string.IsNullOrEmpty(sessionIdStr))
         {
-            Log.Warn($"[McpServer][TouchSocket] POST request rejected: Missing Mcp-Session-Id header. Method={jsonRpcRequest.Method}");
+            Log.Warn($"[McpServer][TouchSocket] POST request rejected: Missing Mcp-Session-Id header.");
             await context.RespondHttpError(HttpStatusCode.BadRequest, "Missing Mcp-Session-Id header");
             return null;
         }
         if (!_sessions.TryGetValue(sessionIdStr, out var session))
         {
-            Log.Warn($"[McpServer][TouchSocket] POST request rejected: Session not found. SessionId={sessionIdStr}, Method={jsonRpcRequest.Method}");
+            Log.Warn($"[McpServer][TouchSocket] POST request rejected: Session not found. SessionId={sessionIdStr}");
             await context.RespondHttpError(HttpStatusCode.NotFound, "Session not found");
             return null;
         }
+
+        if (!await ValidateProtocolVersionHeaderAsync(context, protocolVersion, session.NegotiatedProtocolVersion))
+        {
+            return null;
+        }
+
         return session;
+    }
+
+    private async ValueTask<bool> ValidateProtocolVersionHeaderAsync(HttpContext context, string? protocolVersion, ProtocolVersion? negotiatedProtocolVersion)
+    {
+        if (!string.IsNullOrEmpty(protocolVersion) && !ProtocolVersion.IsSupportedStreamableHttpVersion(protocolVersion))
+        {
+            Log.Warn($"[McpServer][TouchSocket] Request rejected: Unsupported protocol version. Version={protocolVersion}");
+            await context.RespondHttpError(HttpStatusCode.BadRequest,
+                $"Unsupported protocol version. Supported versions: {string.Join(", ", ProtocolVersion.StreamableHttpSupportedVersions)}");
+            return false;
+        }
+
+        if (!string.IsNullOrEmpty(protocolVersion)
+            && negotiatedProtocolVersion is { } negotiated
+            && !string.Equals(protocolVersion, negotiated.ToString(), StringComparison.Ordinal))
+        {
+            Log.Warn($"[McpServer][TouchSocket] Request rejected: Protocol version mismatch. Expected={negotiated}, Actual={protocolVersion}");
+            await context.RespondHttpError(HttpStatusCode.BadRequest,
+                $"Protocol version mismatch. Expected: {negotiated}, Actual: {protocolVersion}");
+            return false;
+        }
+
+        return true;
     }
 
     /// <summary>
@@ -730,7 +768,16 @@ public class TouchSocketHttpServerTransport : PluginBase, IHttpPlugin, IServerTr
     /// </summary>
     private async ValueTask HandleStreamableHttpDisconnectionAsync(HttpContext context)
     {
-        var sessionId = context.Request.Headers.Get(SessionIdHeader).First;
+        var request = context.Request;
+        var sessionId = request.Headers.Get(SessionIdHeader).First;
+        if (!string.IsNullOrEmpty(sessionId) && _sessions.TryGetValue(sessionId, out var existingSession))
+        {
+            if (!await ValidateProtocolVersionHeaderAsync(context, request.Headers.Get(ProtocolVersionHeader).First, existingSession.NegotiatedProtocolVersion))
+            {
+                return;
+            }
+        }
+
         if (!string.IsNullOrEmpty(sessionId))
         {
             if (_sessions.TryRemove(sessionId, out var session))

@@ -1,4 +1,5 @@
 ﻿using DotNetCampus.ModelContextProtocol.Hosting.Logging;
+using DotNetCampus.ModelContextProtocol.Protocol;
 using DotNetCampus.ModelContextProtocol.Protocol.Messages;
 using DotNetCampus.ModelContextProtocol.Transports;
 using DotNetCampus.ModelContextProtocol.Transports.Http;
@@ -20,6 +21,8 @@ public class McpClientBuilder
     private Func<IClientTransportManager, IClientTransport>? _transportFactory;
     private ClientCapabilities _capabilities = new();
     private Func<CreateMessageRequestParams, CancellationToken, Task<CreateMessageResult>>? _samplingHandler;
+    private string _preferredProtocolVersion = ProtocolVersion.Current;
+    private IReadOnlyList<string> _supportedProtocolVersions = ProtocolVersion.StreamableHttpSupportedVersions;
 
     /// <summary>
     /// 设置客户端名称和版本。
@@ -103,10 +106,10 @@ public class McpClientBuilder
     /// <returns>用于链式调用的 MCP 客户端生成器。</returns>
     public McpClientBuilder WithHttp(string serverUrl)
     {
-        return WithTransport(m => new HttpClientTransport(m, new HttpClientTransportOptions
+        return WithHttp(new HttpClientTransportOptions
         {
             ServerUrl = serverUrl,
-        }));
+        });
     }
 
     /// <summary>
@@ -116,6 +119,9 @@ public class McpClientBuilder
     /// <returns>用于链式调用的 MCP 客户端生成器。</returns>
     public McpClientBuilder WithHttp(HttpClientTransportOptions options)
     {
+        _supportedProtocolVersions = NormalizeSupportedProtocolVersions(options.SupportedProtocolVersions);
+        _preferredProtocolVersion = NormalizePreferredProtocolVersion(options.PreferredProtocolVersion);
+        ValidateProtocolVersionConfiguration(_preferredProtocolVersion, _supportedProtocolVersions);
         return WithTransport(m => new HttpClientTransport(m, options));
     }
 
@@ -219,6 +225,56 @@ public class McpClientBuilder
             ClientName = _clientName,
             ClientVersion = _clientVersion,
             Capabilities = _capabilities,
+            PreferredProtocolVersion = _preferredProtocolVersion,
+            SupportedProtocolVersions = _supportedProtocolVersions,
         };
+    }
+
+    private static IReadOnlyList<string> NormalizeSupportedProtocolVersions(IReadOnlyList<string>? supportedProtocolVersions)
+    {
+        if (supportedProtocolVersions is null || supportedProtocolVersions.Count == 0)
+        {
+            return ProtocolVersion.StreamableHttpSupportedVersions;
+        }
+
+        var normalizedVersions = supportedProtocolVersions
+            .Where(static version => !string.IsNullOrWhiteSpace(version))
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
+
+        if (normalizedVersions.Length == 0)
+        {
+            throw new InvalidOperationException("至少需要配置一个可接受的协议版本。");
+        }
+
+        foreach (var version in normalizedVersions)
+        {
+            if (!ProtocolVersion.IsSupportedStreamableHttpVersion(version))
+            {
+                throw new InvalidOperationException($"当前 HTTP 客户端尚不支持协议版本 '{version}'。");
+            }
+        }
+
+        return normalizedVersions;
+    }
+
+    private static string NormalizePreferredProtocolVersion(string? preferredProtocolVersion)
+    {
+        return string.IsNullOrWhiteSpace(preferredProtocolVersion)
+            ? ProtocolVersion.Current
+            : preferredProtocolVersion;
+    }
+
+    private static void ValidateProtocolVersionConfiguration(string preferredProtocolVersion, IReadOnlyList<string> supportedProtocolVersions)
+    {
+        if (!ProtocolVersion.IsSupportedStreamableHttpVersion(preferredProtocolVersion))
+        {
+            throw new InvalidOperationException($"当前 HTTP 客户端尚不支持首选协议版本 '{preferredProtocolVersion}'。");
+        }
+
+        if (!supportedProtocolVersions.Contains(preferredProtocolVersion, StringComparer.Ordinal))
+        {
+            throw new InvalidOperationException($"首选协议版本 '{preferredProtocolVersion}' 必须包含在支持版本集合中。");
+        }
     }
 }

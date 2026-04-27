@@ -1,4 +1,5 @@
-﻿using DotNetCampus.ModelContextProtocol.Protocol.Messages;
+﻿using DotNetCampus.ModelContextProtocol.Protocol;
+using DotNetCampus.ModelContextProtocol.Protocol.Messages;
 using DotNetCampus.ModelContextProtocol.Protocol.Messages.JsonRpc;
 
 namespace DotNetCampus.ModelContextProtocol.Transports;
@@ -19,6 +20,11 @@ public interface IServerTransportSession : IAsyncDisposable
     /// 连接的客户端所声明的客户端能力。在 Initialize 握手完成后设置。
     /// </summary>
     ClientCapabilities? ConnectedClientCapabilities { get; set; }
+
+    /// <summary>
+    /// 当前会话协商出的协议版本。在 Initialize 握手完成后设置。
+    /// </summary>
+    ProtocolVersion? NegotiatedProtocolVersion { get; set; }
 
     /// <summary>
     /// 向客户端发送 JSON-RPC 请求并等待响应。用于服务器主动发起的请求（如 sampling/createMessage）。

@@ -1,3 +1,5 @@
+using DotNetCampus.ModelContextProtocol.Protocol;
+
 namespace DotNetCampus.ModelContextProtocol.Transports.Http;
 
 /// <summary>
@@ -14,4 +16,14 @@ public class HttpClientTransportOptions
     /// 获取或设置自定义的 HttpClient 实例。如果未设置，将创建新的 <see cref="HttpClient"/>。
     /// </summary>
     public HttpClient? HttpClient { get; init; }
+
+    /// <summary>
+    /// 获取或设置 initialize 时优先声明的协议版本。默认使用当前最新版本。
+    /// </summary>
+    public string PreferredProtocolVersion { get; init; } = ProtocolVersion.Current;
+
+    /// <summary>
+    /// 获取或设置客户端可接受的协议版本集合。默认使用当前实现支持的 Streamable HTTP 版本集合。
+    /// </summary>
+    public IReadOnlyList<string>? SupportedProtocolVersions { get; init; }
 }

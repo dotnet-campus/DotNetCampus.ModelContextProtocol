@@ -11,6 +11,8 @@
 - 2025-03-26: https://modelcontextprotocol.io/specification/2025-03-26/basic/transports
 - 2024-11-05: https://modelcontextprotocol.io/specification/2024-11-05/basic/transports
 
+> 人类注：请严格按官方文档执行。官方文档明确要求的（MUST）、强烈建议的（SHOULD）要严格执行；可能（MAY）会发生的，客户端应严格执行，服务端视情况决定；没有提到的则应优先让代码保持简洁和易于维护，不要过度保护过度投影。
+
 ## 目标
 
 后续计划围绕三件事展开：

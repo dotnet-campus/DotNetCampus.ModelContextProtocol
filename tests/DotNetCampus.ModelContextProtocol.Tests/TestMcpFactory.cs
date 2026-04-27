@@ -209,13 +209,15 @@ public class TestMcpFactory
         mcpServer.EnableDebugMode();
         await mcpServer.StartAsync(CancellationToken.None);
 
+        var endpoint = new Uri($"http://127.0.0.1:{port}/mcp", UriKind.Absolute);
+
         var mcpClientBuilder = new McpClientBuilder()
             .WithLogger(DefaultLogger)
-            .WithHttp($"http://127.0.0.1:{port}/mcp");
+            .WithHttp(endpoint.AbsoluteUri);
         configureClient?.Invoke(mcpClientBuilder);
         var builtClient = mcpClientBuilder.Build();
 
-        return new McpTestingPackage(mcpServer, builtClient);
+        return new McpTestingPackage(mcpServer, builtClient, endpoint);
     }
 
     private static IServiceProvider CreateDefaultServices()
@@ -227,15 +229,18 @@ public class TestMcpFactory
 
 public class McpTestingPackage : IAsyncDisposable
 {
-    public McpTestingPackage(McpServer server, McpClient client)
+    public McpTestingPackage(McpServer server, McpClient client, Uri endpoint)
     {
         Server = server;
         Client = client;
+        Endpoint = endpoint;
     }
 
     public McpServer Server { get; }
 
     public McpClient Client { get; }
+
+    public Uri Endpoint { get; }
 
     public async ValueTask DisposeAsync()
     {
