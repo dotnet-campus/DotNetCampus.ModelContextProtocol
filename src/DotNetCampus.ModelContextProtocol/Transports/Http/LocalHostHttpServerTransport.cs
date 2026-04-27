@@ -260,19 +260,26 @@ public class LocalHostHttpServerTransport : IServerTransport
 
     private async Task HandleLegacyPostRequestAsync(HttpListenerContext context, CancellationToken cancellationToken)
     {
+        var requestBody = await TryReadRequestBodyAsync(context.Request.InputStream, context, cancellationToken);
+        if (requestBody is null)
+        {
+            return;
+        }
+
+        if (IsBatchMessage(requestBody.Value.Span))
+        {
+            await context.RespondHttpError(HttpStatusCode.BadRequest, "Batch JSON-RPC messages are not supported yet.");
+            return;
+        }
+
         JsonRpcMessage? message;
         try
         {
-            message = await _manager.ReadMessageAsync(context.Request.InputStream);
+            message = await _manager.ReadMessageAsync(requestBody.Value);
         }
         catch (JsonException)
         {
             await context.RespondHttpError(HttpStatusCode.BadRequest, "Invalid JSON");
-            return;
-        }
-        catch
-        {
-            await context.RespondHttpError(HttpStatusCode.BadRequest, "Failed to read request body");
             return;
         }
 
@@ -383,20 +390,26 @@ public class LocalHostHttpServerTransport : IServerTransport
         var request = context.Request;
         var protocolVersion = request.Headers[ProtocolVersionHeader];
 
-        // 解析消息体
+        var requestBody = await TryReadRequestBodyAsync(request.InputStream, context, cancellationToken);
+        if (requestBody is null)
+        {
+            return;
+        }
+
+        if (IsBatchMessage(requestBody.Value.Span))
+        {
+            await context.RespondHttpError(HttpStatusCode.BadRequest, "Batch JSON-RPC messages are not supported yet.");
+            return;
+        }
+
         JsonRpcMessage? message;
         try
         {
-            message = await _manager.ReadMessageAsync(request.InputStream);
+            message = await _manager.ReadMessageAsync(requestBody.Value);
         }
         catch (JsonException)
         {
             await context.RespondHttpError(HttpStatusCode.BadRequest, "Invalid JSON");
-            return;
-        }
-        catch
-        {
-            await context.RespondHttpError(HttpStatusCode.BadRequest, "Failed to read request body");
             return;
         }
 
@@ -548,7 +561,7 @@ public class LocalHostHttpServerTransport : IServerTransport
         if (!string.IsNullOrEmpty(protocolVersion) && !ProtocolVersion.IsSupportedStreamableHttpVersion(protocolVersion))
         {
             await context.RespondHttpError(HttpStatusCode.BadRequest,
-                $"Unsupported protocol version. Supported versions: {string.Join(", ", ProtocolVersion.StreamableHttpSupportedVersions)}");
+                $"Unsupported protocol version. Supported range: {ProtocolVersion.StreamableHttpMinimum} to {ProtocolVersion.Current}");
             return false;
         }
 
@@ -562,6 +575,27 @@ public class LocalHostHttpServerTransport : IServerTransport
         }
 
         return true;
+    }
+
+    private static bool IsBatchMessage(ReadOnlySpan<byte> requestBody)
+    {
+        using var document = JsonDocument.Parse(requestBody.ToArray());
+        return document.RootElement.ValueKind == JsonValueKind.Array;
+    }
+
+    private static async Task<ReadOnlyMemory<byte>?> TryReadRequestBodyAsync(Stream inputStream, HttpListenerContext context, CancellationToken cancellationToken)
+    {
+        try
+        {
+            using var memoryStream = new MemoryStream();
+            await inputStream.CopyToAsync(memoryStream, cancellationToken);
+            return memoryStream.ToArray();
+        }
+        catch
+        {
+            await context.RespondHttpError(HttpStatusCode.BadRequest, "Failed to read request body");
+            return null;
+        }
     }
 
     /// <summary>

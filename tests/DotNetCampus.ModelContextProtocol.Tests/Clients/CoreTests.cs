@@ -1,7 +1,5 @@
 using System.Text.Json;
-using DotNetCampus.ModelContextProtocol.Clients;
 using DotNetCampus.ModelContextProtocol.Protocol.Messages;
-using DotNetCampus.ModelContextProtocol.Transports.Http;
 
 namespace DotNetCampus.ModelContextProtocol.Tests.Clients;
 
@@ -29,29 +27,6 @@ public class CoreTests
         Assert.IsNotNull(package.Client.ServerInfo);
         Assert.IsNotNull(package.Client.ServerInfo.ServerInfo);
         Assert.AreEqual("TestMcpServer", package.Client.ServerInfo.ServerInfo.Name);
-    }
-
-    [TestMethod("Initialize: 可按客户端配置协商较低的 HTTP 协议版本")]
-    [DataRow(HttpTransportType.LocalHost, DisplayName = "LocalHost")]
-    [DataRow(HttpTransportType.TouchSocket, DisplayName = "TouchSocket")]
-    public async Task Initialize_WithConfiguredProtocolVersion(HttpTransportType transportType)
-    {
-        await using var package = await TestMcpFactory.Shared.CreateSimpleHttpAsync(transportType);
-        await using var client = new McpClientBuilder()
-            .WithLogger(TestMcpFactory.DefaultLogger)
-            .WithHttp(new HttpClientTransportOptions
-            {
-                ServerUrl = package.Endpoint.AbsoluteUri,
-                PreferredProtocolVersion = "2025-06-18",
-                SupportedProtocolVersions = ["2025-11-25", "2025-06-18", "2025-03-26"],
-            })
-            .Build();
-
-        var result = await client.ListToolsAsync();
-
-        Assert.IsTrue(result.Tools.Count > 0);
-        Assert.IsNotNull(client.ServerInfo);
-        Assert.AreEqual("2025-06-18", client.ServerInfo.ProtocolVersion);
     }
 
     [TestMethod("Ping: 握手后连接状态正常")]

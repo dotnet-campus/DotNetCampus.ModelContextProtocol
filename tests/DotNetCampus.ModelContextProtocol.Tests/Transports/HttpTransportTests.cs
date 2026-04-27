@@ -172,6 +172,27 @@ public class HttpTransportTests
         Assert.AreEqual(HttpStatusCode.BadRequest, deleteResponse.StatusCode);
     }
 
+    [TestMethod("StreamableHttp_BatchRequest_IsExplicitlyRejected: batch 请求边界应明确")]
+    [DataRow(HttpTransportType.LocalHost, DisplayName = "LocalHost")]
+    [DataRow(HttpTransportType.TouchSocket, DisplayName = "TouchSocket")]
+    public async Task StreamableHttp_BatchRequest_IsExplicitlyRejected(HttpTransportType type)
+    {
+        await using var package = await TestMcpFactory.Shared.CreateSimpleHttpAsync(type);
+        using var client = CreateHttpClient();
+
+        using var request = CreateStreamableHttpRequest(HttpMethod.Post, package.Endpoint);
+        request.Content = new StringContent(
+            """
+            [{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"batch-client","version":"1.0.0"}}}]
+            """,
+            Encoding.UTF8,
+            "application/json");
+
+        using var response = await client.SendAsync(request);
+
+        Assert.AreEqual(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
     private static HttpClient CreateHttpClient()
     {
         return new HttpClient

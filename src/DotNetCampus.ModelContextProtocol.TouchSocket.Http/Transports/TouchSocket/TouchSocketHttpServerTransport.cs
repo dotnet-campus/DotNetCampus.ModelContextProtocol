@@ -372,9 +372,17 @@ public class TouchSocketHttpServerTransport : PluginBase, IHttpPlugin, IServerTr
     private async ValueTask HandleLegacyMessageAsync(HttpContext context, CancellationToken cancellationToken)
     {
         JsonRpcMessage? message;
+        ReadOnlyMemory<byte> bodyBytes;
         try
         {
-            var bodyBytes = await context.Request.GetContentAsync();
+            bodyBytes = await context.Request.GetContentAsync();
+
+            if (IsBatchMessage(bodyBytes.Span))
+            {
+                await context.RespondHttpError(HttpStatusCode.BadRequest, "Batch JSON-RPC messages are not supported yet.");
+                return;
+            }
+
             message = await _manager.ReadMessageAsync(bodyBytes);
         }
         catch (JsonException)
@@ -508,6 +516,14 @@ public class TouchSocketHttpServerTransport : PluginBase, IHttpPlugin, IServerTr
         try
         {
             var bodyBytes = await request.GetContentAsync();
+
+            if (IsBatchMessage(bodyBytes.Span))
+            {
+                Log.Warn($"[McpServer][TouchSocket] POST request rejected: Batch JSON-RPC messages are not supported yet.");
+                await context.RespondHttpError(HttpStatusCode.BadRequest, "Batch JSON-RPC messages are not supported yet.");
+                return;
+            }
+
             message = await _manager.ReadMessageAsync(bodyBytes);
         }
         catch (JsonException)
@@ -676,7 +692,7 @@ public class TouchSocketHttpServerTransport : PluginBase, IHttpPlugin, IServerTr
         {
             Log.Warn($"[McpServer][TouchSocket] Request rejected: Unsupported protocol version. Version={protocolVersion}");
             await context.RespondHttpError(HttpStatusCode.BadRequest,
-                $"Unsupported protocol version. Supported versions: {string.Join(", ", ProtocolVersion.StreamableHttpSupportedVersions)}");
+                $"Unsupported protocol version. Supported range: {ProtocolVersion.StreamableHttpMinimum} to {ProtocolVersion.Current}");
             return false;
         }
 
@@ -691,6 +707,12 @@ public class TouchSocketHttpServerTransport : PluginBase, IHttpPlugin, IServerTr
         }
 
         return true;
+    }
+
+    private static bool IsBatchMessage(ReadOnlySpan<byte> requestBody)
+    {
+        using var document = JsonDocument.Parse(requestBody.ToArray());
+        return document.RootElement.ValueKind == JsonValueKind.Array;
     }
 
     /// <summary>

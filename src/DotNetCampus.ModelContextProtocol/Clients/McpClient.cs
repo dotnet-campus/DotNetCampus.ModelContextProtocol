@@ -53,16 +53,6 @@ public class McpClient : IAsyncDisposable
     public required ClientCapabilities Capabilities { get; init; }
 
     /// <summary>
-    /// 获取 initialize 时优先声明的协议版本。
-    /// </summary>
-    public string PreferredProtocolVersion { get; init; } = ProtocolVersion.Current;
-
-    /// <summary>
-    /// 获取客户端可接受的协议版本集合。
-    /// </summary>
-    public IReadOnlyList<string> SupportedProtocolVersions { get; init; } = ProtocolVersion.StreamableHttpSupportedVersions;
-
-    /// <summary>
     /// 获取服务器信息（初始化后可用）。
     /// </summary>
     public InitializeResult? ServerInfo => _serverInfo;

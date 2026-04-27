@@ -50,6 +50,22 @@ public readonly record struct ProtocolVersion
         return string.Compare(left.ToString(), right.ToString(), StringComparison.Ordinal) < 0;
     }
 
+    /// <summary>
+    /// 比较两个协议版本，判断左侧是否大于或等于右侧。
+    /// </summary>
+    public static bool operator >=(ProtocolVersion left, ProtocolVersion right)
+    {
+        return string.Compare(left.ToString(), right.ToString(), StringComparison.Ordinal) >= 0;
+    }
+
+    /// <summary>
+    /// 比较两个协议版本，判断左侧是否小于或等于右侧。
+    /// </summary>
+    public static bool operator <=(ProtocolVersion left, ProtocolVersion right)
+    {
+        return string.Compare(left.ToString(), right.ToString(), StringComparison.Ordinal) <= 0;
+    }
+
     private const string CurrentVersion = "2025-11-25";
     private const string MinimumVersion = "2024-11-05";
     private const string StreamableHttpMinimumVersion = "2025-03-26";
@@ -68,16 +84,6 @@ public readonly record struct ProtocolVersion
     /// Streamable HTTP 传输层所需的最低协议版本（2025-03-26 引入 Streamable HTTP）
     /// </summary>
     public static readonly ProtocolVersion StreamableHttpMinimum = new(StreamableHttpMinimumVersion);
-
-    /// <summary>
-    /// Streamable HTTP 传输层当前支持的协议版本列表，按优先级从高到低排列。
-    /// </summary>
-    public static IReadOnlyList<string> StreamableHttpSupportedVersions { get; } =
-    [
-        CurrentVersion,
-        "2025-06-18",
-        StreamableHttpMinimumVersion,
-    ];
 
     /// <summary>
     /// 历史版本列表，按时间倒序排列
@@ -100,7 +106,8 @@ public readonly record struct ProtocolVersion
             return false;
         }
 
-        return StreamableHttpSupportedVersions.Contains(version, StringComparer.Ordinal);
+        var protocolVersion = (ProtocolVersion)version;
+        return protocolVersion >= StreamableHttpMinimum;
     }
 
     /// <summary>
