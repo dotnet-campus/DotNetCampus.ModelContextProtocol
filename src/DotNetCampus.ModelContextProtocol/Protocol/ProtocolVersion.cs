@@ -86,6 +86,21 @@ public readonly record struct ProtocolVersion
     public static readonly ProtocolVersion StreamableHttpMinimum = new(StreamableHttpMinimumVersion);
 
     /// <summary>
+    /// 当前明确支持的 Streamable HTTP 协议版本列表。
+    /// </summary>
+    public static IReadOnlyList<string> SupportedStreamableHttpVersions { get; } =
+    [
+        "2025-11-25",
+        "2025-06-18",
+        "2025-03-26",
+    ];
+
+    /// <summary>
+    /// 以逗号分隔的 Streamable HTTP 支持版本字符串，可用于错误提示。
+    /// </summary>
+    public static string SupportedStreamableHttpVersionList => string.Join(", ", SupportedStreamableHttpVersions);
+
+    /// <summary>
     /// 历史版本列表，按时间倒序排列
     /// </summary>
     internal static IReadOnlyList<string> HistoryVersions { get; } =
@@ -106,8 +121,7 @@ public readonly record struct ProtocolVersion
             return false;
         }
 
-        var protocolVersion = (ProtocolVersion)version;
-        return protocolVersion >= StreamableHttpMinimum;
+        return SupportedStreamableHttpVersions.Contains(version, StringComparer.Ordinal);
     }
 
     /// <summary>

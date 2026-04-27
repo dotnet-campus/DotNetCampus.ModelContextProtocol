@@ -301,6 +301,15 @@ internal class ClientTransportManager(IClientTransportContext context) : IClient
 
         if (!ProtocolVersion.IsSupportedStreamableHttpVersion(result.ProtocolVersion))
         {
+            try
+            {
+                await DisconnectAsync(cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                Context.Logger.Warn($"[McpClient][Mcp] Failed to disconnect after receiving an unsupported protocol version. Error={ex.Message}");
+            }
+
             throw new McpClientException($"服务器返回了客户端不支持的协议版本：{result.ProtocolVersion}");
         }
 

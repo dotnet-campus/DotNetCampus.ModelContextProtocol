@@ -1,4 +1,5 @@
 using System.Net;
+using System.Net.Sockets;
 using System.Text;
 using System.Text.Json;
 using DotNetCampus.ModelContextProtocol.Transports.Http;
@@ -193,6 +194,46 @@ public class HttpTransportTests
         Assert.AreEqual(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
+    [TestMethod("StreamableHttp_UnknownFutureVersionNegotiatesDownToCurrent: 未知未来版本应回落到当前支持版本")]
+    [DataRow(HttpTransportType.LocalHost, DisplayName = "LocalHost")]
+    [DataRow(HttpTransportType.TouchSocket, DisplayName = "TouchSocket")]
+    public async Task StreamableHttp_UnknownFutureVersionNegotiatesDownToCurrent(HttpTransportType type)
+    {
+        await using var package = await TestMcpFactory.Shared.CreateSimpleHttpAsync(type);
+        using var client = CreateHttpClient();
+
+        using var initializeRequest = CreateStreamableHttpRequest(HttpMethod.Post, package.Endpoint);
+        initializeRequest.Content = CreateInitializeRequestContent("2026-01-01");
+
+        using var initializeResponse = await client.SendAsync(initializeRequest);
+
+        Assert.AreEqual(HttpStatusCode.OK, initializeResponse.StatusCode);
+
+        using var document = JsonDocument.Parse(await initializeResponse.Content.ReadAsStringAsync());
+        Assert.AreEqual("2025-11-25", document.RootElement.GetProperty("result").GetProperty("protocolVersion").GetString());
+    }
+
+    [TestMethod("StreamableHttp_BlankProtocolVersionHeaderIsRejected: 空白协议版本头应视为无效")]
+    [DataRow(HttpTransportType.LocalHost, DisplayName = "LocalHost")]
+    public async Task StreamableHttp_BlankProtocolVersionHeaderIsRejected(HttpTransportType type)
+    {
+        await using var package = await TestMcpFactory.Shared.CreateSimpleHttpAsync(type);
+        using var client = CreateHttpClient();
+
+        using var initializeRequest = CreateStreamableHttpRequest(HttpMethod.Post, package.Endpoint);
+        initializeRequest.Content = CreateInitializeRequestContent("2025-06-18");
+
+        using var initializeResponse = await client.SendAsync(initializeRequest);
+
+        Assert.AreEqual(HttpStatusCode.OK, initializeResponse.StatusCode);
+        Assert.IsTrue(initializeResponse.Headers.TryGetValues("Mcp-Session-Id", out var sessionHeaders));
+        var sessionId = sessionHeaders.Single();
+
+        var statusLine = await SendRawHttpRequestAsync(package.Endpoint, BuildBlankProtocolVersionRequest(package.Endpoint, sessionId));
+
+        StringAssert.Contains(statusLine, "400");
+    }
+
     private static HttpClient CreateHttpClient()
     {
         return new HttpClient
@@ -232,6 +273,42 @@ public class HttpTransportTests
         return Uri.TryCreate(endpoint, UriKind.Absolute, out var absoluteUri)
             ? absoluteUri
             : new Uri(baseEndpoint, endpoint);
+    }
+
+    private static async Task<string> SendRawHttpRequestAsync(Uri endpoint, string rawRequest)
+    {
+        using var tcpClient = new TcpClient();
+        await tcpClient.ConnectAsync(endpoint.Host, endpoint.Port);
+        await using var stream = tcpClient.GetStream();
+
+        var requestBytes = Encoding.ASCII.GetBytes(rawRequest);
+        await stream.WriteAsync(requestBytes);
+        await stream.FlushAsync();
+
+        using var reader = new StreamReader(stream, Encoding.ASCII, leaveOpen: true);
+        return await reader.ReadLineAsync() ?? string.Empty;
+    }
+
+    private static string BuildBlankProtocolVersionRequest(Uri endpoint, string sessionId)
+    {
+        const string body = "{\"jsonrpc\":\"2.0\",\"method\":\"notifications/initialized\"}";
+        var hostHeader = endpoint.IsDefaultPort ? endpoint.Host : $"{endpoint.Host}:{endpoint.Port}";
+        var contentLength = Encoding.UTF8.GetByteCount(body);
+
+        return string.Join("\r\n",
+        [
+            $"POST {endpoint.PathAndQuery} HTTP/1.1",
+            $"Host: {hostHeader}",
+            "Accept: application/json",
+            "Accept: text/event-stream",
+            $"Mcp-Session-Id: {sessionId}",
+            "Mcp-Protocol-Version: ",
+            "Content-Type: application/json",
+            $"Content-Length: {contentLength}",
+            "Connection: close",
+            string.Empty,
+            body,
+        ]);
     }
 
     private static async Task<SseEvent> ReadNextSseEventAsync(StreamReader reader, CancellationToken cancellationToken)

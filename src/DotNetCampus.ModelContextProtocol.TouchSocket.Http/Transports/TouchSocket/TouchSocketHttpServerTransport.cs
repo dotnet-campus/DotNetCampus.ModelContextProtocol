@@ -262,7 +262,7 @@ public class TouchSocketHttpServerTransport : PluginBase, IHttpPlugin, IServerTr
             return;
         }
 
-        if (!await ValidateProtocolVersionHeaderAsync(context, request.Headers.Get(ProtocolVersionHeader).First, session.NegotiatedProtocolVersion))
+        if (!await ValidateProtocolVersionHeaderAsync(context, GetOptionalHeaderValue(request, ProtocolVersionHeader), session.NegotiatedProtocolVersion))
         {
             return;
         }
@@ -507,7 +507,7 @@ public class TouchSocketHttpServerTransport : PluginBase, IHttpPlugin, IServerTr
     private async ValueTask HandleStreamableHttpMessageAsync(HttpContext context, CancellationToken cancellationToken)
     {
         var request = context.Request;
-        var protocolVersion = request.Headers.Get(ProtocolVersionHeader).First;
+        var protocolVersion = GetOptionalHeaderValue(request, ProtocolVersionHeader);
 
         var sessionIdStr = request.Headers.Get(SessionIdHeader).First;
 
@@ -688,15 +688,22 @@ public class TouchSocketHttpServerTransport : PluginBase, IHttpPlugin, IServerTr
 
     private async ValueTask<bool> ValidateProtocolVersionHeaderAsync(HttpContext context, string? protocolVersion, ProtocolVersion? negotiatedProtocolVersion)
     {
-        if (!string.IsNullOrEmpty(protocolVersion) && !ProtocolVersion.IsSupportedStreamableHttpVersion(protocolVersion))
+        if (protocolVersion is not null && string.IsNullOrWhiteSpace(protocolVersion))
         {
-            Log.Warn($"[McpServer][TouchSocket] Request rejected: Unsupported protocol version. Version={protocolVersion}");
-            await context.RespondHttpError(HttpStatusCode.BadRequest,
-                $"Unsupported protocol version. Supported range: {ProtocolVersion.StreamableHttpMinimum} to {ProtocolVersion.Current}");
+            Log.Warn($"[McpServer][TouchSocket] Request rejected: Invalid protocol version header.");
+            await context.RespondHttpError(HttpStatusCode.BadRequest, "Invalid protocol version header.");
             return false;
         }
 
-        if (!string.IsNullOrEmpty(protocolVersion)
+        if (protocolVersion is not null && !ProtocolVersion.IsSupportedStreamableHttpVersion(protocolVersion))
+        {
+            Log.Warn($"[McpServer][TouchSocket] Request rejected: Unsupported protocol version. Version={protocolVersion}");
+            await context.RespondHttpError(HttpStatusCode.BadRequest,
+                $"Unsupported protocol version. Supported versions: {ProtocolVersion.SupportedStreamableHttpVersionList}");
+            return false;
+        }
+
+        if (protocolVersion is not null
             && negotiatedProtocolVersion is { } negotiated
             && !string.Equals(protocolVersion, negotiated.ToString(), StringComparison.Ordinal))
         {
@@ -794,7 +801,7 @@ public class TouchSocketHttpServerTransport : PluginBase, IHttpPlugin, IServerTr
         var sessionId = request.Headers.Get(SessionIdHeader).First;
         if (!string.IsNullOrEmpty(sessionId) && _sessions.TryGetValue(sessionId, out var existingSession))
         {
-            if (!await ValidateProtocolVersionHeaderAsync(context, request.Headers.Get(ProtocolVersionHeader).First, existingSession.NegotiatedProtocolVersion))
+            if (!await ValidateProtocolVersionHeaderAsync(context, GetOptionalHeaderValue(request, ProtocolVersionHeader), existingSession.NegotiatedProtocolVersion))
             {
                 return;
             }
@@ -833,6 +840,16 @@ public class TouchSocketHttpServerTransport : PluginBase, IHttpPlugin, IServerTr
     {
         var queryIndex = rawEndpoint.IndexOf('?');
         return queryIndex < 0 ? rawEndpoint : rawEndpoint[..queryIndex];
+    }
+
+    private static string? GetOptionalHeaderValue(HttpRequest request, string headerName)
+    {
+        if (!request.Headers.ContainsKey(headerName))
+        {
+            return null;
+        }
+
+        return request.Headers.Get(headerName).First ?? string.Empty;
     }
 
 

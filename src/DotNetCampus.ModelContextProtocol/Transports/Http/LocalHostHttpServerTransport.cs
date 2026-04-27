@@ -558,14 +558,20 @@ public class LocalHostHttpServerTransport : IServerTransport
 
     private async Task<bool> ValidateProtocolVersionHeaderAsync(HttpListenerContext context, string? protocolVersion, ProtocolVersion? negotiatedProtocolVersion)
     {
-        if (!string.IsNullOrEmpty(protocolVersion) && !ProtocolVersion.IsSupportedStreamableHttpVersion(protocolVersion))
+        if (protocolVersion is not null && string.IsNullOrWhiteSpace(protocolVersion))
         {
-            await context.RespondHttpError(HttpStatusCode.BadRequest,
-                $"Unsupported protocol version. Supported range: {ProtocolVersion.StreamableHttpMinimum} to {ProtocolVersion.Current}");
+            await context.RespondHttpError(HttpStatusCode.BadRequest, "Invalid protocol version header.");
             return false;
         }
 
-        if (!string.IsNullOrEmpty(protocolVersion)
+        if (protocolVersion is not null && !ProtocolVersion.IsSupportedStreamableHttpVersion(protocolVersion))
+        {
+            await context.RespondHttpError(HttpStatusCode.BadRequest,
+                $"Unsupported protocol version. Supported versions: {ProtocolVersion.SupportedStreamableHttpVersionList}");
+            return false;
+        }
+
+        if (protocolVersion is not null
             && negotiatedProtocolVersion is { } negotiated
             && !string.Equals(protocolVersion, negotiated.ToString(), StringComparison.Ordinal))
         {

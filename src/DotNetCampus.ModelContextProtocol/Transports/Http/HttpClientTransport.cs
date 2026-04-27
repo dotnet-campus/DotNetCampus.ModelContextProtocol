@@ -1,7 +1,12 @@
 using System.Net.Http.Headers;
+using System.Net;
 using System.Text;
 using System.Text.Json;
+using DotNetCampus.ModelContextProtocol.CompilerServices;
+using DotNetCampus.ModelContextProtocol.Exceptions;
 using DotNetCampus.ModelContextProtocol.Hosting.Logging;
+using DotNetCampus.ModelContextProtocol.Protocol;
+using DotNetCampus.ModelContextProtocol.Protocol.Messages;
 using DotNetCampus.ModelContextProtocol.Protocol.Messages.JsonRpc;
 
 namespace DotNetCampus.ModelContextProtocol.Transports.Http;
@@ -20,6 +25,8 @@ public class HttpClientTransport : IClientTransport
     // 会话状态
     private string? _sessionId;
     private string? _protocolVersion;
+    private InitializeRequestParams? _initializeRequestParams;
+    private readonly SemaphoreSlim _sessionRecoveryLock = new(1, 1);
 
     // 后台接收循环 (GET Loop)
     private Task? _receiveLoopTask;
@@ -129,9 +136,14 @@ public class HttpClientTransport : IClientTransport
         }
     }
 
-    private async ValueTask SendRequestCoreAsync(JsonRpcMessage message, CancellationToken cancellationToken)
+    private async ValueTask SendRequestCoreAsync(JsonRpcMessage message, CancellationToken cancellationToken, bool allowSessionRecovery = true)
     {
         var isInitialize = message is JsonRpcRequest { Method: "initialize" };
+        if (isInitialize && message is JsonRpcRequest initializeRequest)
+        {
+            CaptureInitializeRequestParams(initializeRequest);
+        }
+
         var requestUrl = _options.ServerUrl;
 
         // 1. 构建请求
@@ -161,7 +173,19 @@ public class HttpClientTransport : IClientTransport
         _manager.LogRawOut("[Http]", $"POST, SessionId={_sessionId}", jsonContent);
 
         // 4. 发送请求 (ResponseHeadersRead 以支持流式响应)
-        var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+        using var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+
+        var requestSessionId = GetSingleHeaderValue(request.Headers, "Mcp-Session-Id");
+        if (response.StatusCode == HttpStatusCode.NotFound && requestSessionId is not null)
+        {
+            if (allowSessionRecovery && await TryRecoverExpiredSessionAsync(requestSessionId, cancellationToken))
+            {
+                await SendRequestCoreAsync(message, cancellationToken, allowSessionRecovery: false);
+                return;
+            }
+
+            throw new McpClientException("HTTP session expired and could not be reinitialized.");
+        }
 
         // 5. 检查握手响应 (Initialize) 提取 SessionId
         if (isInitialize && response.Headers.TryGetValues("Mcp-Session-Id", out var headers))
@@ -171,9 +195,6 @@ public class HttpClientTransport : IClientTransport
             {
                 _sessionId = newId;
                 _logger.Info($"[McpClient][Http] Session negotiated. SessionId={_sessionId}");
-
-                // 握手成功，启动后台接收循环
-                StartReceiveLoop();
             }
         }
 
@@ -223,6 +244,11 @@ public class HttpClientTransport : IClientTransport
                 await _manager.HandleRespondAsync(rpcResponse, cancellationToken);
             }
         }
+
+        if (isInitialize && !string.IsNullOrEmpty(_sessionId))
+        {
+            StartReceiveLoop();
+        }
     }
 
     private string? TryExtractProtocolVersion(JsonElement resultElement, string source)
@@ -242,6 +268,98 @@ public class HttpClientTransport : IClientTransport
                 _logger.Info($"[McpClient][Http] Server protocol version extracted. Source={source}, Version={version}");
                 return version;
             }
+        }
+
+        return null;
+    }
+
+    private void CaptureInitializeRequestParams(JsonRpcRequest initializeRequest)
+    {
+        if (initializeRequest.Params is not { } paramsElement)
+        {
+            return;
+        }
+
+        var requestParams = paramsElement.Deserialize(McpInternalJsonContext.Default.InitializeRequestParams);
+        if (requestParams is not null)
+        {
+            _initializeRequestParams = requestParams;
+        }
+    }
+
+    private async Task<bool> TryRecoverExpiredSessionAsync(string expiredSessionId, CancellationToken cancellationToken)
+    {
+        var manager = _manager as ClientTransportManager;
+        if (manager is null || _initializeRequestParams is null)
+        {
+            InvalidateSessionState();
+            return false;
+        }
+
+        await _sessionRecoveryLock.WaitAsync(cancellationToken);
+        try
+        {
+            if (!string.IsNullOrEmpty(_sessionId)
+                && !string.Equals(_sessionId, expiredSessionId, StringComparison.Ordinal))
+            {
+                return true;
+            }
+
+            _logger.Warn($"[McpClient][Http] Session expired. SessionId={expiredSessionId}, reinitializing.");
+            InvalidateSessionState();
+
+            var initializeRequest = new JsonRpcRequest
+            {
+                Id = manager.MakeNewRequestId().ToJsonElement(),
+                Method = RequestMethods.Initialize,
+                Params = JsonSerializer.SerializeToElement(_initializeRequestParams, McpInternalJsonContext.Default.InitializeRequestParams),
+            };
+
+            var response = await manager.SendRequestAsync(initializeRequest, cancellationToken).ConfigureAwait(false);
+            if (response.Error is not null)
+            {
+                throw new McpClientException($"Session reinitialization failed: {response.Error.Message}");
+            }
+
+            if (response.Result is not { } responseResult)
+            {
+                throw new McpClientException("Session reinitialization response is invalid.");
+            }
+
+            var result = responseResult.Deserialize<InitializeResult>(McpInternalJsonContext.Default.InitializeResult)
+                         ?? throw new McpClientException("Failed to deserialize session reinitialization response.");
+
+            if (!ProtocolVersion.IsSupportedStreamableHttpVersion(result.ProtocolVersion))
+            {
+                throw new McpClientException($"Server returned an unsupported protocol version during reinitialization: {result.ProtocolVersion}");
+            }
+
+            await manager.SendNotificationAsync(new JsonRpcNotification
+            {
+                Method = RequestMethods.NotificationsInitialized,
+            }, cancellationToken).ConfigureAwait(false);
+
+            _logger.Info($"[McpClient][Http] Session reinitialized. SessionId={_sessionId}");
+            return true;
+        }
+        finally
+        {
+            _sessionRecoveryLock.Release();
+        }
+    }
+
+    private void InvalidateSessionState()
+    {
+        StopReceiveLoop();
+        _sessionId = null;
+        _protocolVersion = null;
+    }
+
+    private static string? GetSingleHeaderValue(HttpHeaders headers, string headerName)
+    {
+        if (headers.TryGetValues(headerName, out var values))
+        {
+            return values.FirstOrDefault();
         }
 
         return null;
@@ -311,6 +429,17 @@ public class HttpClientTransport : IClientTransport
 
                 using (response)
                 {
+                    if (response.StatusCode == HttpStatusCode.NotFound && _sessionId is { } expiredSessionId)
+                    {
+                        if (await TryRecoverExpiredSessionAsync(expiredSessionId, token))
+                        {
+                            break;
+                        }
+
+                        _logger.Warn($"[McpClient][Http] Session expired during SSE polling and could not be reinitialized. SessionId={expiredSessionId}");
+                        break;
+                    }
+
                     if (!response.IsSuccessStatusCode)
                     {
                         _logger.Warn($"[McpClient][Http] SSE received unexpected status code, retrying. StatusCode={response.StatusCode}");
