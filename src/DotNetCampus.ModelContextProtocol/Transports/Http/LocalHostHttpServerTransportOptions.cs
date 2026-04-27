@@ -1,11 +1,12 @@
 ﻿using System.Diagnostics.CodeAnalysis;
+using DotNetCampus.ModelContextProtocol.Transports.Http.Legacy;
 
 namespace DotNetCampus.ModelContextProtocol.Transports.Http;
 
 /// <summary>
 /// HTTP 传输层配置选项。
 /// </summary>
-public record LocalHostHttpServerTransportOptions
+public record LocalHostHttpServerTransportOptions : ILegacySseTransportOptions
 {
     /// <summary>
     /// 指定用于传输的端口号。

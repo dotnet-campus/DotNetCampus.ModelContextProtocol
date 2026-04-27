@@ -1,9 +1,10 @@
 using System.Diagnostics.CodeAnalysis;
 using DotNetCampus.ModelContextProtocol.Transports.Http;
+using DotNetCampus.ModelContextProtocol.Transports.Http.Legacy;
 
 namespace DotNetCampus.ModelContextProtocol.Transports.TouchSocket;
 
-internal interface ITouchSocketHttpServerTransportOptions
+internal interface ITouchSocketHttpServerTransportOptions : ILegacySseTransportOptions
 {
     /// <summary>
     /// 指定用于传输的端点。
@@ -14,10 +15,6 @@ internal interface ITouchSocketHttpServerTransportOptions
 /// <summary>
 /// TouchSocket HTTP 服务端传输层配置选项。
 /// </summary>
-/// <remarks>
-/// TouchSocket.Http 的服务端传输层暂时没考虑兼容旧的 SSE 传输层协议（2024-11-05），
-/// 若要兼容 SSE，请使用 MCP 库自带的 <see cref="LocalHostHttpServerTransport"/> 传输层。
-/// </remarks>
 public record TouchSocketHttpServerTransportOptions : ITouchSocketHttpServerTransportOptions
 {
     /// <summary>
@@ -45,15 +42,21 @@ public record TouchSocketHttpServerTransportOptions : ITouchSocketHttpServerTran
             _ => value.StartsWith('/') ? value : "/" + value,
         };
     }
+
+    /// <inheritdoc />
+    [MemberNotNullWhen(true, nameof(SseEndPoint), nameof(SseMessageEndPoint))]
+    public bool IsCompatibleWithSse { get; init; }
+
+    /// <inheritdoc />
+    public string? SseEndPoint => IsCompatibleWithSse ? $"{EndPoint}/sse" : null;
+
+    /// <inheritdoc />
+    public string? SseMessageEndPoint => IsCompatibleWithSse ? $"{EndPoint}/messages" : null;
 }
 
 /// <summary>
 /// 从外部传入的 TouchSocket HTTP 服务端传输层配置选项。
 /// </summary>
-/// <remarks>
-/// TouchSocket.Http 的服务端传输层暂时没考虑兼容旧的 SSE 传输层协议（2024-11-05），
-/// 若要兼容 SSE，请使用 MCP 库自带的 <see cref="LocalHostHttpServerTransport"/> 传输层。
-/// </remarks>
 public record ExternalTouchSocketHttpServerTransportOptions : ITouchSocketHttpServerTransportOptions
 {
     /// <inheritdoc />
@@ -67,4 +70,14 @@ public record ExternalTouchSocketHttpServerTransportOptions : ITouchSocketHttpSe
             _ => value.StartsWith('/') ? value : "/" + value,
         };
     }
+
+    /// <inheritdoc />
+    [MemberNotNullWhen(true, nameof(SseEndPoint), nameof(SseMessageEndPoint))]
+    public bool IsCompatibleWithSse { get; init; }
+
+    /// <inheritdoc />
+    public string? SseEndPoint => IsCompatibleWithSse ? $"{EndPoint}/sse" : null;
+
+    /// <inheritdoc />
+    public string? SseMessageEndPoint => IsCompatibleWithSse ? $"{EndPoint}/messages" : null;
 }

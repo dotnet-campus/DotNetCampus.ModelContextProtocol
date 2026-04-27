@@ -48,6 +48,40 @@ public class TestMcpFactory
     }
 
     /// <summary>
+    /// 创建一个启用 2024-11-05 HTTP+SSE 兼容模式的 HTTP 服务端测试包。
+    /// </summary>
+    public async ValueTask<LegacyHttpTestingPackage> CreateLegacyHttpAsync(HttpTransportType httpTransportType)
+    {
+        var port = Interlocked.Increment(ref _port);
+        var mcpServerBuilder = new McpServerBuilder("TestMcpServer", "1.0.0")
+            .WithLogger(DefaultLogger)
+            .WithTools(t => t.WithTool(() => new SimpleTool()));
+
+        mcpServerBuilder = httpTransportType switch
+        {
+            HttpTransportType.LocalHost => mcpServerBuilder.WithLocalHostHttp(new LocalHostHttpServerTransportOptions
+            {
+                Port = port,
+                EndPoint = "mcp",
+                IsCompatibleWithSse = true,
+            }),
+            HttpTransportType.TouchSocket => mcpServerBuilder.WithTouchSocketHttp(new TouchSocketHttpServerTransportOptions
+            {
+                Listen = [$"127.0.0.1:{port}", $"[::1]:{port}"],
+                EndPoint = "mcp",
+                IsCompatibleWithSse = true,
+            }),
+            _ => throw new NotSupportedException($"不支持的传输层类型：{httpTransportType}"),
+        };
+
+        var server = mcpServerBuilder.Build();
+        server.EnableDebugMode();
+        await server.StartAsync(CancellationToken.None);
+
+        return new LegacyHttpTestingPackage(server, new Uri($"http://127.0.0.1:{port}/mcp", UriKind.Absolute));
+    }
+
+    /// <summary>
     /// 创建一个仅包含 transient 计数工具的 HTTP 传输 MCP 测试包。
     /// 用于验证 CreationMode.Transient 的实例语义。
     /// </summary>
@@ -210,6 +244,24 @@ public class McpTestingPackage : IAsyncDisposable
 
         // 停止服务端。
         await Server.StopAsync();
+    }
+}
+
+public class LegacyHttpTestingPackage : IAsyncDisposable
+{
+    public LegacyHttpTestingPackage(McpServer server, Uri endpoint)
+    {
+        Server = server;
+        Endpoint = endpoint;
+    }
+
+    public McpServer Server { get; }
+
+    public Uri Endpoint { get; }
+
+    public ValueTask DisposeAsync()
+    {
+        return new ValueTask(Server.StopAsync());
     }
 }
 

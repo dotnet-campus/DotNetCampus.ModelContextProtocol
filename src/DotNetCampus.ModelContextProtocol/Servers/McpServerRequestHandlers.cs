@@ -5,6 +5,7 @@ using DotNetCampus.ModelContextProtocol.Hosting.Logging;
 using DotNetCampus.ModelContextProtocol.Protocol;
 using DotNetCampus.ModelContextProtocol.Protocol.Messages;
 using DotNetCampus.ModelContextProtocol.Protocol.Messages.JsonRpc;
+using DotNetCampus.ModelContextProtocol.Transports;
 
 namespace DotNetCampus.ModelContextProtocol.Servers;
 
@@ -66,8 +67,7 @@ public class McpServerRequestHandlers
             $"[McpServer][Mcp] Client initializing. ClientName={clientInfo?.Name}, ClientVersion={clientInfo?.Version}, ProtocolVersion={request.Params?.ProtocolVersion}");
 
         // 将客户端能力保存到当前传输层会话，以便后续服务器发起请求（如 sampling）时判断能力。
-        var session = (DotNetCampus.ModelContextProtocol.Transports.IServerTransportSession?)request.Services.GetService(
-            typeof(DotNetCampus.ModelContextProtocol.Transports.IServerTransportSession));
+        var session = (IServerTransportSession?)request.Services.GetService(typeof(IServerTransportSession));
         if (session is not null && request.Params?.Capabilities is { } capabilities)
         {
             session.ConnectedClientCapabilities = capabilities;

@@ -7,6 +7,7 @@ using DotNetCampus.ModelContextProtocol.Protocol;
 using DotNetCampus.ModelContextProtocol.Protocol.Messages.JsonRpc;
 using DotNetCampus.ModelContextProtocol.Servers;
 using DotNetCampus.ModelContextProtocol.Transports.Http;
+using DotNetCampus.ModelContextProtocol.Transports.Http.Legacy;
 using TouchSocket.Core;
 using TouchSocket.Http;
 using TouchSocket.Sockets;
@@ -25,12 +26,8 @@ namespace DotNetCampus.ModelContextProtocol.Transports.TouchSocket;
 // 如需修改协议逻辑，请同时更新对应方法。
 
 /// <summary>
-/// 基于 TouchSocket.Http 的 Streamable HTTP 传输层实现。
+/// 基于 TouchSocket.Http 的 HTTP 传输层实现，同时支持 Streamable HTTP 与 2024-11-05 的 HTTP+SSE 兼容模式。
 /// </summary>
-/// <remarks>
-/// TouchSocket.Http 的服务端传输层暂时没考虑兼容旧的 SSE 传输层协议（2024-11-05），
-/// 若要兼容 SSE，请使用 MCP 库自带的 <see cref="LocalHostHttpServerTransport"/> 传输层。
-/// </remarks>
 public class TouchSocketHttpServerTransport : PluginBase, IHttpPlugin, IServerTransport
 {
     private const string ProtocolVersionHeader = "MCP-Protocol-Version";
@@ -42,6 +39,7 @@ public class TouchSocketHttpServerTransport : PluginBase, IHttpPlugin, IServerTr
     private readonly IServerTransportManager _manager;
     private readonly ITouchSocketHttpServerTransportOptions _options;
     private readonly ConcurrentDictionary<string, HttpServerTransportSession> _sessions = new();
+    private readonly ConcurrentDictionary<string, LegacySseServerTransportSession> _legacySessions = new();
     private CancellationToken _runningCancellationToken;
 
     private readonly TouchSocketConfig? _config;
@@ -145,43 +143,76 @@ public class TouchSocketHttpServerTransport : PluginBase, IHttpPlugin, IServerTr
     private async Task HandleRequestAsync(IHttpSessionClient client, HttpContextEventArgs e)
     {
         var context = e.Context;
-        var endpoint = context.Request.RelativeURL;
+        var rawEndpoint = context.Request.RelativeURL;
+        var endpoint = GetPathWithoutQuery(rawEndpoint);
+        var origin = context.Request.Headers.Get("Origin").First;
 
         Log.Debug($"[McpServer][TouchSocket] Received request. Method={context.Request.Method}, Endpoint={endpoint}");
 
-        // 请求安全性验证。
-        var validationError = ValidateRequest(context);
-        if (validationError.HasValue)
+        if (!ValidateOrigin(origin))
         {
-            var (statusCode, message) = validationError.Value;
-            Log.Warn($"[McpServer][TouchSocket] Request validation failed. StatusCode={statusCode}, Message={message}");
-            await context.Response
-                .SetStatus(statusCode, message)
-                .SetContent("")
-                .AnswerAsync();
+            await context.RespondHttpError(HttpStatusCode.Forbidden, "Invalid Origin header");
             return;
         }
 
-        context.Response.SetCorsHeaders();
+        var isModernEndpoint = endpoint.Equals(_options.EndPoint, StringComparison.OrdinalIgnoreCase);
+        var isLegacySseEndpoint = _options.IsCompatibleWithSse
+                                  && endpoint.Equals(_options.SseEndPoint, StringComparison.OrdinalIgnoreCase);
+        var isLegacyMessageEndpoint = _options.IsCompatibleWithSse
+                                      && endpoint.Equals(_options.SseMessageEndPoint, StringComparison.OrdinalIgnoreCase);
+
+        if (isModernEndpoint)
+        {
+            var validationError = ValidateRequest(context);
+            if (validationError.HasValue)
+            {
+                var (statusCode, message) = validationError.Value;
+                Log.Warn($"[McpServer][TouchSocket] Request validation failed. StatusCode={statusCode}, Message={message}");
+                await context.Response
+                    .SetStatus(statusCode, message)
+                    .SetContent("")
+                    .AnswerAsync();
+                return;
+            }
+        }
+        else if (isLegacyMessageEndpoint && !ValidateContentType(context.Request.ContentType.First))
+        {
+            await context.RespondHttpError(HttpStatusCode.BadRequest, "Invalid Content-Type header. Expected: application/json");
+            return;
+        }
+
+        context.Response.SetCorsHeaders(origin);
 
         var method = context.Request.Method.ToString();
 
         // Streamable HTTP: 客户端建立连接。
-        if (method == "GET" && endpoint.Equals(_options.EndPoint, StringComparison.OrdinalIgnoreCase))
+        if (method == "GET" && isModernEndpoint)
         {
             await HandleStreamableHttpConnectionAsync(context, _runningCancellationToken);
             return;
         }
 
+        if (method == "GET" && isLegacySseEndpoint)
+        {
+            await HandleLegacySseConnectionAsync(context, _runningCancellationToken);
+            return;
+        }
+
         // Streamable HTTP: 客户端发送消息。
-        if (method == "POST" && endpoint.Equals(_options.EndPoint, StringComparison.OrdinalIgnoreCase))
+        if (method == "POST" && isModernEndpoint)
         {
             await HandleStreamableHttpMessageAsync(context, _runningCancellationToken);
             return;
         }
 
+        if (method == "POST" && isLegacyMessageEndpoint)
+        {
+            await HandleLegacyMessageAsync(context, _runningCancellationToken);
+            return;
+        }
+
         // Streamable HTTP: 客户端关闭连接。
-        if (method == "DELETE" && endpoint.Equals(_options.EndPoint, StringComparison.OrdinalIgnoreCase))
+        if (method == "DELETE" && isModernEndpoint)
         {
             await HandleStreamableHttpDisconnectionAsync(context);
             return;
@@ -269,6 +300,192 @@ public class TouchSocketHttpServerTransport : PluginBase, IHttpPlugin, IServerTr
         {
             await context.Response.CompleteChunkAsync(cancellationToken);
         }
+    }
+
+    /// <summary>
+    /// 2024-11-05 HTTP+SSE: 客户端建立 SSE 连接 (GET /mcp/sse)。
+    /// </summary>
+    private async ValueTask HandleLegacySseConnectionAsync(HttpContext context, CancellationToken cancellationToken)
+    {
+        var newSessionId = _manager.MakeNewSessionId();
+        var session = new LegacySseServerTransportSession(_manager, newSessionId.Id, "[McpServer][LegacySse][TouchSocket]");
+        if (!_legacySessions.TryAdd(session.SessionId, session))
+        {
+            await context.RespondHttpError(HttpStatusCode.InternalServerError, "Session ID collision");
+            return;
+        }
+
+        _manager.Add(session);
+
+        context.Response.SetStatus(HttpStatusCode.OK, "");
+        context.Response.ContentType = "text/event-stream";
+        context.Response.Headers.Add("Cache-Control", "no-cache");
+        context.Response.IsChunk = true;
+
+        await using var output = context.Response.CreateWriteStream();
+        session.AttachSseStream(output);
+
+        try
+        {
+            await output.WriteAsync(PrimeEventBytes, cancellationToken);
+            await session.WriteEndpointEventAsync(output, BuildLegacyMessageEndpointUri(context.Request, session.SessionId), cancellationToken);
+
+            while (!cancellationToken.IsCancellationRequested)
+            {
+                await Task.Delay(SseKeepAliveIntervalMs, cancellationToken);
+                await output.WriteAsync(SseKeepAliveBytes, cancellationToken);
+                await output.FlushAsync(cancellationToken);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            Log.Info($"[McpServer][LegacySse][TouchSocket] SSE connection ended. SessionId={session.SessionId}");
+        }
+        catch (Exception ex)
+        {
+            Log.Info($"[McpServer][LegacySse][TouchSocket] SSE connection ended. SessionId={session.SessionId}, Error={ex.Message}");
+        }
+        finally
+        {
+            session.DetachSseStream(output);
+            _legacySessions.TryRemove(session.SessionId, out _);
+            await session.DisposeAsync();
+            try
+            {
+                await context.Response.CompleteChunkAsync(cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+                // 客户端断开时视为正常结束。
+            }
+        }
+    }
+
+    /// <summary>
+    /// 2024-11-05 HTTP+SSE: 客户端通过 POST 发送消息 (/mcp/messages?sessionId=...)。
+    /// </summary>
+    private async ValueTask HandleLegacyMessageAsync(HttpContext context, CancellationToken cancellationToken)
+    {
+        JsonRpcMessage? message;
+        try
+        {
+            var bodyBytes = await context.Request.GetContentAsync();
+            message = await _manager.ReadMessageAsync(bodyBytes);
+        }
+        catch (JsonException)
+        {
+            await context.RespondHttpError(HttpStatusCode.BadRequest, "Invalid JSON");
+            return;
+        }
+
+        var sessionId = context.Request.Query.Get("sessionId").First;
+        if (message is not null)
+        {
+            _manager.LogRawIn("[LegacySse][TouchSocket]", $"POST, SessionId={sessionId}", message);
+        }
+
+        switch (message)
+        {
+            case JsonRpcResponse jsonRpcResponse:
+                await HandleLegacyClientResponseAsync(context, sessionId, jsonRpcResponse);
+                return;
+            case JsonRpcNotification notification:
+                await HandleLegacyNotificationAsync(context, sessionId, notification, context.Request, cancellationToken);
+                return;
+            case JsonRpcRequest jsonRpcRequest:
+                await HandleLegacyRpcRequestAsync(context, sessionId, jsonRpcRequest, context.Request, cancellationToken);
+                return;
+            default:
+                await context.RespondHttpError(HttpStatusCode.BadRequest, "Invalid or unrecognized JSON-RPC message");
+                return;
+        }
+    }
+
+    private async ValueTask HandleLegacyClientResponseAsync(HttpContext context, string? sessionId, JsonRpcResponse response)
+    {
+        if (string.IsNullOrEmpty(sessionId))
+        {
+            await context.RespondHttpError(HttpStatusCode.BadRequest, "Missing sessionId query parameter");
+            return;
+        }
+
+        if (!_legacySessions.TryGetValue(sessionId, out var session))
+        {
+            await context.RespondHttpError(HttpStatusCode.NotFound, "Session not found");
+            return;
+        }
+
+        session.HandleResponseAsync(response);
+        await context.RespondHttpSuccess(HttpStatusCode.Accepted);
+    }
+
+    private async ValueTask HandleLegacyNotificationAsync(HttpContext context, string? sessionId, JsonRpcNotification notification,
+        HttpRequest request, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrEmpty(sessionId))
+        {
+            await context.RespondHttpError(HttpStatusCode.BadRequest, "Missing sessionId query parameter");
+            return;
+        }
+
+        if (!_legacySessions.TryGetValue(sessionId, out var session))
+        {
+            await context.RespondHttpError(HttpStatusCode.NotFound, "Session not found");
+            return;
+        }
+
+        await _manager.HandleRequestAsync(
+            new JsonRpcRequest { Method = notification.Method, Params = notification.Params },
+            s =>
+            {
+                s.AddHttpTransportServices(session.SessionId, request);
+                s.AddTransportSession(session, Log);
+            },
+            cancellationToken: cancellationToken);
+        await context.RespondHttpSuccess(HttpStatusCode.Accepted);
+    }
+
+    private async ValueTask HandleLegacyRpcRequestAsync(HttpContext context, string? sessionId, JsonRpcRequest jsonRpcRequest,
+        HttpRequest request, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrEmpty(sessionId))
+        {
+            await context.RespondHttpError(HttpStatusCode.BadRequest, "Missing sessionId query parameter");
+            return;
+        }
+
+        if (!_legacySessions.TryGetValue(sessionId, out var session))
+        {
+            await context.RespondHttpError(HttpStatusCode.NotFound, "Session not found");
+            return;
+        }
+
+        if (!session.HasActiveSseStream)
+        {
+            await context.RespondHttpError(HttpStatusCode.NotFound, "Session not connected");
+            return;
+        }
+
+        var response = await _manager.HandleRequestAsync(
+            jsonRpcRequest,
+            s =>
+            {
+                s.AddHttpTransportServices(session.SessionId, request);
+                s.AddTransportSession(session, Log);
+            },
+            cancellationToken: cancellationToken);
+
+        if (response is not null)
+        {
+            if (jsonRpcRequest.Method == RequestMethods.Initialize)
+            {
+                response = LegacySseInitializeResponseAdapter.Adapt(response);
+            }
+
+            await session.WriteMessageEventAsync(response, cancellationToken);
+        }
+
+        await context.RespondHttpSuccess(HttpStatusCode.Accepted);
     }
 
     /// <summary>
@@ -529,6 +746,27 @@ public class TouchSocketHttpServerTransport : PluginBase, IHttpPlugin, IServerTr
         await context.RespondHttpSuccess(HttpStatusCode.OK);
     }
 
+    private string BuildLegacyMessageEndpointUri(HttpRequest request, string sessionId)
+    {
+        var relativeEndpoint = $"{_options.SseMessageEndPoint}?sessionId={Uri.EscapeDataString(sessionId)}";
+        var host = request.Headers.Get("Host").First;
+        if (string.IsNullOrWhiteSpace(host))
+        {
+            return relativeEndpoint;
+        }
+
+        var origin = request.Headers.Get("Origin").First;
+        var scheme = origin?.StartsWith("https://", StringComparison.OrdinalIgnoreCase) == true ? "https" : "http";
+        return $"{scheme}://{host}{relativeEndpoint}";
+    }
+
+    private static string GetPathWithoutQuery(string rawEndpoint)
+    {
+        var queryIndex = rawEndpoint.IndexOf('?');
+        return queryIndex < 0 ? rawEndpoint : rawEndpoint[..queryIndex];
+    }
+
+
     /// <summary>
     /// 按照 MCP 官方协议规范对传输层的要求：<br/>
     /// 服务器必须验证所有传入连接的 Origin 标头，以防止 DNS 重绑定攻击。<br/>
@@ -562,10 +800,24 @@ public class TouchSocketHttpServerTransport : PluginBase, IHttpPlugin, IServerTr
             }
         }
 
-        // 3. DNS 重绑定防护（可选，默认禁用）。
-        // Skip remaining validation if DNS rebinding protection is disabled.
-
         return null;
+    }
+
+    private static bool ValidateOrigin(string? origin)
+    {
+        if (string.IsNullOrWhiteSpace(origin))
+        {
+            return true;
+        }
+
+        if (origin.Equals("null", StringComparison.Ordinal))
+        {
+            return true;
+        }
+
+        return origin.StartsWith("http://localhost", StringComparison.OrdinalIgnoreCase)
+               || origin.StartsWith("http://127.0.0.1", StringComparison.Ordinal)
+               || origin.StartsWith("http://[::1]", StringComparison.Ordinal);
     }
 
     /// <summary>
@@ -654,9 +906,9 @@ file static class Extensions
         /// <summary>
         /// 设置 CORS 相关的响应头。
         /// </summary>
-        internal void SetCorsHeaders()
+        internal void SetCorsHeaders(string? origin)
         {
-            response.Headers.Add("Access-Control-Allow-Origin", "*");
+            response.Headers.Add("Access-Control-Allow-Origin", origin ?? "*");
             response.Headers.Add("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS");
             response.Headers.Add("Access-Control-Allow-Headers", "Content-Type, Mcp-Session-Id, Mcp-Protocol-Version");
             // 根据 MCP 协议，必须暴露这些头部供客户端访问

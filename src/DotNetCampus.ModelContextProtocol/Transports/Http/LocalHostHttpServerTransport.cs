@@ -6,6 +6,7 @@ using DotNetCampus.ModelContextProtocol.Hosting.Logging;
 using DotNetCampus.ModelContextProtocol.Hosting.Services;
 using DotNetCampus.ModelContextProtocol.Protocol;
 using DotNetCampus.ModelContextProtocol.Protocol.Messages.JsonRpc;
+using DotNetCampus.ModelContextProtocol.Transports.Http.Legacy;
 
 namespace DotNetCampus.ModelContextProtocol.Transports.Http;
 
@@ -24,6 +25,7 @@ public class LocalHostHttpServerTransport : IServerTransport
     private readonly LocalHostHttpServerTransportOptions _options;
     private readonly HttpListener _listener = new();
     private readonly ConcurrentDictionary<string, HttpServerTransportSession> _sessions = new();
+    private readonly ConcurrentDictionary<string, LegacySseServerTransportSession> _legacySessions = new();
 
     /// <summary>
     /// 初始化 <see cref="LocalHostHttpServerTransport"/> 类的新实例。
@@ -127,7 +129,12 @@ public class LocalHostHttpServerTransport : IServerTransport
 
         // 1. 路径检查
         var requestPath = request.Url?.AbsolutePath ?? "/";
-        if (!requestPath.Equals(_options.EndPoint, StringComparison.OrdinalIgnoreCase))
+        var isModernEndpoint = requestPath.Equals(_options.EndPoint, StringComparison.OrdinalIgnoreCase);
+        var isLegacySseEndpoint = _options.IsCompatibleWithSse
+                                  && requestPath.Equals(_options.SseEndPoint, StringComparison.OrdinalIgnoreCase);
+        var isLegacyMessageEndpoint = _options.IsCompatibleWithSse
+                                      && requestPath.Equals(_options.SseMessageEndPoint, StringComparison.OrdinalIgnoreCase);
+        if (!isModernEndpoint && !isLegacySseEndpoint && !isLegacyMessageEndpoint)
         {
             await context.RespondHttpError(HttpStatusCode.NotFound);
             return;
@@ -156,19 +163,219 @@ public class LocalHostHttpServerTransport : IServerTransport
         switch (request.HttpMethod)
         {
             case "POST":
-                await HandlePostRequestAsync(context, cancellationToken);
+                if (isLegacyMessageEndpoint)
+                {
+                    await HandleLegacyPostRequestAsync(context, cancellationToken);
+                }
+                else if (isModernEndpoint)
+                {
+                    await HandlePostRequestAsync(context, cancellationToken);
+                }
+                else
+                {
+                    response.AddHeader("Allow", "GET, OPTIONS");
+                    await context.RespondHttpError(HttpStatusCode.MethodNotAllowed);
+                }
                 break;
             case "GET":
-                await HandleGetRequestAsync(context, cancellationToken);
+                if (isLegacySseEndpoint)
+                {
+                    await HandleLegacyGetRequestAsync(context, cancellationToken);
+                }
+                else if (isModernEndpoint)
+                {
+                    await HandleGetRequestAsync(context, cancellationToken);
+                }
+                else
+                {
+                    response.AddHeader("Allow", "POST, DELETE, OPTIONS");
+                    await context.RespondHttpError(HttpStatusCode.MethodNotAllowed);
+                }
                 break;
             case "DELETE":
-                await HandleDeleteRequestAsync(context);
+                if (isModernEndpoint)
+                {
+                    await HandleDeleteRequestAsync(context);
+                }
+                else
+                {
+                    response.AddHeader("Allow", "POST, OPTIONS");
+                    await context.RespondHttpError(HttpStatusCode.MethodNotAllowed);
+                }
                 break;
             default:
                 response.AddHeader("Allow", "POST, GET, DELETE, OPTIONS");
                 await context.RespondHttpError(HttpStatusCode.MethodNotAllowed);
                 break;
         }
+    }
+
+    private async Task HandleLegacyGetRequestAsync(HttpListenerContext context, CancellationToken cancellationToken)
+    {
+        var newSessionId = _manager.MakeNewSessionId();
+        var session = new LegacySseServerTransportSession(_manager, newSessionId.Id, "[McpServer][LegacySse]");
+        if (!_legacySessions.TryAdd(session.SessionId, session))
+        {
+            await context.RespondHttpError(HttpStatusCode.InternalServerError, "Session ID collision");
+            return;
+        }
+
+        _manager.Add(session);
+
+        context.Response.StatusCode = (int)HttpStatusCode.OK;
+        context.Response.ContentType = "text/event-stream";
+        context.Response.Headers["Cache-Control"] = "no-cache";
+
+        var output = context.Response.OutputStream;
+        session.AttachSseStream(output);
+
+        try
+        {
+            await output.WriteAsync(PrimeEventBytes, cancellationToken);
+            await session.WriteEndpointEventAsync(output, BuildLegacyMessageEndpointUri(context.Request, session.SessionId), cancellationToken);
+
+            while (!cancellationToken.IsCancellationRequested)
+            {
+                await Task.Delay(SseKeepAliveIntervalMs, cancellationToken);
+                await output.WriteAsync(SseKeepAliveBytes, cancellationToken);
+                await output.FlushAsync(cancellationToken);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            Log.Info($"[McpServer][LegacySse] SSE connection ended. SessionId={session.SessionId}");
+        }
+        catch (Exception ex)
+        {
+            Log.Info($"[McpServer][LegacySse] SSE connection ended. SessionId={session.SessionId}, Error={ex.Message}");
+        }
+        finally
+        {
+            session.DetachSseStream(output);
+            _legacySessions.TryRemove(session.SessionId, out _);
+            await session.DisposeAsync();
+            context.Response.SafeClose();
+        }
+    }
+
+    private async Task HandleLegacyPostRequestAsync(HttpListenerContext context, CancellationToken cancellationToken)
+    {
+        JsonRpcMessage? message;
+        try
+        {
+            message = await _manager.ReadMessageAsync(context.Request.InputStream);
+        }
+        catch (JsonException)
+        {
+            await context.RespondHttpError(HttpStatusCode.BadRequest, "Invalid JSON");
+            return;
+        }
+        catch
+        {
+            await context.RespondHttpError(HttpStatusCode.BadRequest, "Failed to read request body");
+            return;
+        }
+
+        var sessionId = context.Request.QueryString["sessionId"];
+        if (message is not null)
+        {
+            _manager.LogRawIn("[LegacySse]", $"POST, SessionId={sessionId}", message);
+        }
+
+        switch (message)
+        {
+            case JsonRpcResponse jsonRpcResponse:
+                await HandleLegacyClientResponseAsync(context, sessionId, jsonRpcResponse);
+                return;
+            case JsonRpcNotification notification:
+                await HandleLegacyNotificationAsync(context, sessionId, notification, cancellationToken);
+                return;
+            case JsonRpcRequest jsonRpcRequest:
+                await HandleLegacyRpcRequestAsync(context, sessionId, jsonRpcRequest, cancellationToken);
+                return;
+            default:
+                await context.RespondHttpError(HttpStatusCode.BadRequest, "Invalid or unrecognized JSON-RPC message");
+                return;
+        }
+    }
+
+    private async Task HandleLegacyClientResponseAsync(HttpListenerContext context, string? sessionId, JsonRpcResponse response)
+    {
+        if (string.IsNullOrEmpty(sessionId))
+        {
+            await context.RespondHttpError(HttpStatusCode.BadRequest, "Missing sessionId query parameter");
+            return;
+        }
+
+        if (!_legacySessions.TryGetValue(sessionId, out var session))
+        {
+            await context.RespondHttpError(HttpStatusCode.NotFound, "Session not found");
+            return;
+        }
+
+        session.HandleResponseAsync(response);
+        context.RespondHttpSuccess(HttpStatusCode.Accepted);
+    }
+
+    private async Task HandleLegacyNotificationAsync(HttpListenerContext context, string? sessionId, JsonRpcNotification notification,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrEmpty(sessionId))
+        {
+            await context.RespondHttpError(HttpStatusCode.BadRequest, "Missing sessionId query parameter");
+            return;
+        }
+
+        if (!_legacySessions.TryGetValue(sessionId, out var session))
+        {
+            await context.RespondHttpError(HttpStatusCode.NotFound, "Session not found");
+            return;
+        }
+
+        await _manager.HandleRequestAsync(
+            new JsonRpcRequest { Method = notification.Method, Params = notification.Params },
+            s => s.AddTransportSession(session, Log),
+            cancellationToken);
+        context.RespondHttpSuccess(HttpStatusCode.Accepted);
+    }
+
+    private async Task HandleLegacyRpcRequestAsync(HttpListenerContext context, string? sessionId, JsonRpcRequest jsonRpcRequest,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrEmpty(sessionId))
+        {
+            await context.RespondHttpError(HttpStatusCode.BadRequest, "Missing sessionId query parameter");
+            return;
+        }
+
+        if (!_legacySessions.TryGetValue(sessionId, out var session))
+        {
+            await context.RespondHttpError(HttpStatusCode.NotFound, "Session not found");
+            return;
+        }
+
+        if (!session.HasActiveSseStream)
+        {
+            await context.RespondHttpError(HttpStatusCode.NotFound, "Session not connected");
+            return;
+        }
+
+        var response = await _manager.HandleRequestAsync(
+            jsonRpcRequest,
+            s => s.AddTransportSession(session, Log),
+            cancellationToken);
+
+        if (response is not null)
+        {
+            if (jsonRpcRequest.Method == RequestMethods.Initialize)
+            {
+                response = LegacySseInitializeResponseAdapter.Adapt(response);
+            }
+
+            await session.WriteMessageEventAsync(response, cancellationToken);
+        }
+
+        context.RespondHttpSuccess(HttpStatusCode.Accepted);
     }
 
     private async Task HandlePostRequestAsync(HttpListenerContext context, CancellationToken cancellationToken)
@@ -469,6 +676,17 @@ public class LocalHostHttpServerTransport : IServerTransport
             }
         }
         context.RespondHttpSuccess(HttpStatusCode.OK);
+    }
+
+    private string BuildLegacyMessageEndpointUri(HttpListenerRequest request, string sessionId)
+    {
+        var relativeEndpoint = $"{_options.SseMessageEndPoint}?sessionId={Uri.EscapeDataString(sessionId)}";
+        if (request.Url is { } requestUrl)
+        {
+            return new Uri(requestUrl, relativeEndpoint).AbsoluteUri;
+        }
+
+        return relativeEndpoint;
     }
 
     private static bool ValidateOrigin(string? origin)
