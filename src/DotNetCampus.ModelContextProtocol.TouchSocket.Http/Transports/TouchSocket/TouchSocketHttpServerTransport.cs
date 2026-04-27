@@ -215,13 +215,17 @@ public class TouchSocketHttpServerTransport : PluginBase, IHttpPlugin, IServerTr
         var sessionId = request.Headers.Get(SessionIdHeader).First;
         if (string.IsNullOrEmpty(sessionId))
         {
+            // 按照 MCP 协议规范 §2.5.2：若服务端要求会话 ID，收到不含 Mcp-Session-Id 的请求时应返回 400。
+            // Servers that require a session ID SHOULD respond to requests without an Mcp-Session-Id header with HTTP 400 Bad Request.
             Log.Warn($"[McpServer][TouchSocket] GET request rejected: Missing Mcp-Session-Id header.");
-            await context.RespondHttpError(HttpStatusCode.NotFound, "Missing Mcp-Session-Id header");
+            await context.RespondHttpError(HttpStatusCode.BadRequest, "Missing Mcp-Session-Id header");
             return;
         }
 
         if (!_sessions.TryGetValue(sessionId, out var session))
         {
+            // 按照 MCP 协议规范 §2.5.3：当会话 ID 过期或不存在时，返回 404。
+            // The server MUST respond to requests containing that session ID with HTTP 404 Not Found.
             Log.Warn($"[McpServer][TouchSocket] GET request rejected: Session not found. SessionId={sessionId}");
             await context.RespondHttpError(HttpStatusCode.NotFound, "Session not found");
             return;
@@ -275,11 +279,13 @@ public class TouchSocketHttpServerTransport : PluginBase, IHttpPlugin, IServerTr
         var request = context.Request;
 
         // 协议版本检查
+        // 按照 MCP 协议规范 §2.7：Streamable HTTP 传输层最低支持版本为 2025-03-26（该版本引入了 Streamable HTTP 传输层）。
+        // If the server receives a request with an invalid or unsupported MCP-Protocol-Version, it MUST respond with 400 Bad Request.
         var protocolVersion = request.Headers.Get(ProtocolVersionHeader).First;
-        if (!string.IsNullOrEmpty(protocolVersion) && (ProtocolVersion)protocolVersion < ProtocolVersion.Minimum)
+        if (!string.IsNullOrEmpty(protocolVersion) && (ProtocolVersion)protocolVersion < ProtocolVersion.StreamableHttpMinimum)
         {
             Log.Warn($"[McpServer][TouchSocket] POST request rejected: Unsupported protocol version. Version={protocolVersion}");
-            await context.RespondHttpError(HttpStatusCode.BadRequest, $"Unsupported protocol version. Minimum required: {ProtocolVersion.Minimum}");
+            await context.RespondHttpError(HttpStatusCode.BadRequest, $"Unsupported protocol version. Minimum required: {ProtocolVersion.StreamableHttpMinimum}");
             return;
         }
 

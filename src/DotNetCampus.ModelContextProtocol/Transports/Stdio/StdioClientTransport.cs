@@ -42,6 +42,10 @@ public class StdioClientTransport : IClientTransport
         if (process is { } stdio)
         {
             _ = RunLoopAsync(stdio, cancellationToken);
+            // 按照 MCP 协议规范对 STDIO 传输层的要求：
+            // 客户端不应假设 stderr 输出表示错误条件，但必须持续消耗 stderr，
+            // 否则当 stderr 管道缓冲区填满后，服务器进程会因写入 stderr 而阻塞。
+            _ = RunStderrLoopAsync(stdio, cancellationToken);
         }
 
         _stdio = process;
@@ -130,6 +134,23 @@ public class StdioClientTransport : IClientTransport
                     Log.Warn($"[McpClient][Stdio] Unrecognized server message received.");
                     break;
             }
+        }
+    }
+
+    private async Task RunStderrLoopAsync(StdioProcessInfo stdio, CancellationToken cancellationToken)
+    {
+        // 持续消耗服务器进程的 stderr 输出，防止管道缓冲区填满导致服务器进程阻塞。
+        // 按照 MCP 协议规范对 STDIO 传输层的要求：
+        // 客户端不应假设 stderr 输出表示错误条件。
+        // The client SHOULD NOT assume stderr output indicates error conditions.
+        while (!cancellationToken.IsCancellationRequested)
+        {
+            var line = await stdio.StandardError.ReadLineAsync(cancellationToken);
+            if (line is null)
+            {
+                break;
+            }
+            Log.Debug($"[McpClient][Stdio] Server stderr: {line}");
         }
     }
 

@@ -79,6 +79,13 @@ public class HttpClientTransport : IClientTransport
                 using var request = new HttpRequestMessage(HttpMethod.Delete, _options.ServerUrl);
                 request.Headers.Add("Mcp-Session-Id", _sessionId);
 
+                // 按照 MCP 协议规范 §2.7：客户端必须在所有后续请求中携带 MCP-Protocol-Version 头。
+                // The client MUST include the MCP-Protocol-Version header on all subsequent requests.
+                if (!string.IsNullOrEmpty(_protocolVersion))
+                {
+                    request.Headers.TryAddWithoutValidation("Mcp-Protocol-Version", _protocolVersion);
+                }
+
                 // 设置较短的超时，避免长时间卡住断开流程
                 using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
                 var response = await _httpClient.SendAsync(request, cts.Token);
@@ -232,7 +239,7 @@ public class HttpClientTransport : IClientTransport
             var version = pv.GetString();
             if (!string.IsNullOrEmpty(version))
             {
-                _logger.Info($"[McpClient][Http] Server protocol version extracted. Source={source}, Version={_protocolVersion}");
+                _logger.Info($"[McpClient][Http] Server protocol version extracted. Source={source}, Version={version}");
                 return version;
             }
         }
@@ -282,6 +289,13 @@ public class HttpClientTransport : IClientTransport
                 using var request = new HttpRequestMessage(HttpMethod.Get, _options.ServerUrl);
                 request.Headers.Add("Mcp-Session-Id", _sessionId);
                 request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("text/event-stream"));
+
+                // 按照 MCP 协议规范 §2.7：客户端必须在所有后续请求中携带 MCP-Protocol-Version 头。
+                // The client MUST include the MCP-Protocol-Version header on all subsequent requests.
+                if (!string.IsNullOrEmpty(_protocolVersion))
+                {
+                    request.Headers.TryAddWithoutValidation("Mcp-Protocol-Version", _protocolVersion);
+                }
 
                 HttpResponseMessage response;
                 try

@@ -81,14 +81,15 @@
 1.  **协商检查**：检查 `Accept` header 是否包含 `text/event-stream`。若不包含，**必须**返回 `405 Method Not Allowed`（参考官方规范 §2.2.3）。
 2.  **Session 关联**：
     *   **必须**要求 Header `Mcp-Session-Id`。
-    *   如果 ID 不存在，返回 `404 Not Found`。
-    *   如果 ID 存在，获取对应的 Session 对象。
+    *   如果 Header 不存在（未提供 ID），**必须**返回 `400 Bad Request`（参考官方规范 §2.5.2：服务端应返回 400 而非 404）。
+    *   如果 ID 存在，获取对应的 Session 对象。如果 Session 不存在，返回 `404 Not Found`（参考官方规范 §2.5.3）。
 3.  **建立连接**：
     *   设置响应 Header `Content-Type: text/event-stream`。
     *   设置 `Cache-Control: no-cache`。
     *   返回 `200 OK`（此时不要关闭 Response 流）。
 4.  **发送 Prime Event**：
-    *   立即发送一个空注释 `:\n\n` 以保活连接。
+    *   按照官方规范 §2.1.6 的 SHOULD 建议，应立即发送一个包含事件 ID 和空 data 字段的 SSE 事件，以便客户端设置 `Last-Event-ID` 用于断线重连。
+    *   当前实现发送一个空注释 `:\n\n` 作为简化版保活信号（不含事件 ID，不支持断线续传）。如需支持 Resumability，应改为发送带 ID 的真实事件。
 5.  **保持循环**：
     *   进入 `await Task.Delay(-1)` 等待，保持 SSE 连接存活（此通路用于未来扩展服务端主动推送，当前暂不发送任何业务消息）。
     *   在循环中捕获异常，如果连接断开则正常退出。

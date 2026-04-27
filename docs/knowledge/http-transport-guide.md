@@ -94,6 +94,9 @@ HandlePostRequestAsync（入口）
 - [x] 新协议：GET `/mcp` 建立 SSE 保活连接
 - [x] 新协议：DELETE `/mcp` 成功终止会话
 - [x] 采样（Sampling）：服务端通过 POST 响应 SSE 流发起采样请求，客户端 POST 回采样结果
+- [x] POST/GET 请求缺少 `Mcp-Session-Id` 时返回 400（而非 404）
+- [x] HTTP 客户端 GET/DELETE 请求均携带 `MCP-Protocol-Version` 头
+- [x] Streamable HTTP 协议版本低于 `2025-03-26` 时 POST 返回 400
 - [ ] 路径大小写不敏感
 - [ ] 会话不存在时 DELETE 返回 200 OK（幂等性）
 

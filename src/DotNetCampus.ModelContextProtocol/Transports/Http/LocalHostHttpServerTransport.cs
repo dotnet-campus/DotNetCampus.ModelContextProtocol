@@ -176,10 +176,12 @@ public class LocalHostHttpServerTransport : IServerTransport
         var request = context.Request;
 
         // 协议版本检查
+        // 按照 MCP 协议规范 §2.7：Streamable HTTP 传输层最低支持版本为 2025-03-26（该版本引入了 Streamable HTTP 传输层）。
+        // If the server receives a request with an invalid or unsupported MCP-Protocol-Version, it MUST respond with 400 Bad Request.
         var protocolVersion = request.Headers[ProtocolVersionHeader];
-        if (!string.IsNullOrEmpty(protocolVersion) && protocolVersion < ProtocolVersion.Minimum)
+        if (!string.IsNullOrEmpty(protocolVersion) && (ProtocolVersion)protocolVersion < ProtocolVersion.StreamableHttpMinimum)
         {
-            await context.RespondHttpError(HttpStatusCode.BadRequest, $"Unsupported protocol version. Minimum required: {ProtocolVersion.Minimum}");
+            await context.RespondHttpError(HttpStatusCode.BadRequest, $"Unsupported protocol version. Minimum required: {ProtocolVersion.StreamableHttpMinimum}");
             return;
         }
 
@@ -405,12 +407,16 @@ public class LocalHostHttpServerTransport : IServerTransport
         var sessionId = request.Headers[SessionIdHeader];
         if (string.IsNullOrEmpty(sessionId))
         {
-            await context.RespondHttpError(HttpStatusCode.NotFound, "Missing Mcp-Session-Id header");
+            // 按照 MCP 协议规范 §2.5.2：若服务端要求会话 ID，收到不含 Mcp-Session-Id 的请求时应返回 400。
+            // Servers that require a session ID SHOULD respond to requests without an Mcp-Session-Id header with HTTP 400 Bad Request.
+            await context.RespondHttpError(HttpStatusCode.BadRequest, "Missing Mcp-Session-Id header");
             return;
         }
 
         if (!_sessions.TryGetValue(sessionId, out var session))
         {
+            // 按照 MCP 协议规范 §2.5.3：当会话 ID 过期或不存在时，返回 404。
+            // The server MUST respond to requests containing that session ID with HTTP 404 Not Found.
             await context.RespondHttpError(HttpStatusCode.NotFound, "Session not found");
             return;
         }

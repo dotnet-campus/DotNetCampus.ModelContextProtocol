@@ -40,7 +40,7 @@
     *   **关键限制**：在纯监听的 GET SSE 流上，**绝不能**发送 JSON-RPC Response（除非是 Resumability 恢复场景），只能发送 Server 端的 Request 或 Notification。
 5.  **会话管理**：
     *   在 `InitializeResult` 响应中分配并返回 `Mcp-Session-Id` header。
-    *   验证后续请求中的 `Mcp-Session-Id`。如果 ID 无效或过期，返回 404。
+    *   验证后续请求中的 `Mcp-Session-Id`。**缺少** ID 时返回 `400 Bad Request`，ID **无效或过期**时返回 `404 Not Found`（参考官方规范 §2.5.2-3）。
     *   处理 `DELETE` 请求以终止会话。
 6.  **协议版本**：检查 `MCP-Protocol-Version` header。
 
@@ -58,13 +58,14 @@
     *   所有 JSON-RPC 消息必须通过 POST 发送到端点。
     *   Headers 必须包含：
         *   `Accept: application/json, text/event-stream`
-        *   `MCP-Protocol-Version: 2025-11-25` (或协商版本)
+        *   `MCP-Protocol-Version: 2025-11-25` (或协商版本，初始化后携带)
         *   `Mcp-Session-Id: <ID>` (初始化后必带)
 2.  **接收响应**：
     *   必须能处理 `application/json`（直接 JSON 响应）。
     *   必须能处理 `text/event-stream`（SSE 流式响应）。
 3.  **会话管理**：
     *   保存初始化响应中的 `Mcp-Session-Id`。
+    *   后续所有请求（包括 GET 监听流和 DELETE 终止会话）都必须携带 `MCP-Protocol-Version` 和 `Mcp-Session-Id` 头（参考官方规范 §2.7）。
     *   在不再需要会话时，发送 `DELETE` 请求。
 
 #### 选做 (SHOULD / MAY)
