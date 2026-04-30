@@ -1,4 +1,5 @@
-﻿using System.Text.Json;
+﻿using System.Text.Encodings.Web;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.Json.Serialization.Metadata;
 using DotNetCampus.ModelContextProtocol.Exceptions;
@@ -66,7 +67,16 @@ internal sealed class McpServerToolCompositeJsonContext(JsonSerializerContext ex
 // 协议类型
 [JsonSerializable(typeof(CompiledJsonSchema))]
 [JsonSourceGenerationOptions(GenerationMode = JsonSourceGenerationMode.Serialization)]
-public partial class CompiledSchemaJsonContext : JsonSerializerContext;
+public partial class CompiledSchemaJsonContext : JsonSerializerContext
+{
+    static CompiledSchemaJsonContext()
+    {
+        Default = new CompiledSchemaJsonContext(new JsonSerializerOptions(s_defaultOptions)
+        {
+            Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+        });
+    }
+}
 
 /// <summary>
 /// 与业务自己定义的 MCP 工具一起合并成 <see cref="McpServerToolJsonSerializer"/> 以序列化和反序列化业务定义的 MCP 工具参数、返回值和相关类型。
@@ -109,7 +119,16 @@ public partial class CompiledSchemaJsonContext : JsonSerializerContext;
     NumberHandling = JsonNumberHandling.AllowReadingFromString,
     UseStringEnumConverter = true,
     WriteIndented = false)]
-internal partial class McpServerToolJsonContext : JsonSerializerContext;
+internal partial class McpServerToolJsonContext : JsonSerializerContext
+{
+    static McpServerToolJsonContext()
+    {
+        Default = new McpServerToolJsonContext(new JsonSerializerOptions(s_defaultOptions)
+        {
+            Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+        });
+    }
+}
 
 /// <summary>
 /// MCP 协议内部使用的统一 JSON 序列化上下文，涵盖所有请求参数类型和响应结果类型。
@@ -161,4 +180,13 @@ internal partial class McpServerToolJsonContext : JsonSerializerContext;
     PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,
     UseStringEnumConverter = true,
     WriteIndented = false)]
-internal partial class McpInternalJsonContext : JsonSerializerContext;
+internal partial class McpInternalJsonContext : JsonSerializerContext
+{
+    static McpInternalJsonContext()
+    {
+        Default = new McpInternalJsonContext(new JsonSerializerOptions(s_defaultOptions)
+        {
+            Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+        });
+    }
+}
