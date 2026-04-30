@@ -2,6 +2,7 @@
 using DotNetCampus.ModelContextProtocol.Protocol.Messages;
 using DotNetCampus.ModelContextProtocol.Transports;
 using DotNetCampus.ModelContextProtocol.Transports.Http;
+using DotNetCampus.ModelContextProtocol.Transports.InProcess;
 using DotNetCampus.ModelContextProtocol.Transports.Stdio;
 using DotNetCampus.ModelContextProtocol.Utils;
 
@@ -94,6 +95,16 @@ public class McpClientBuilder
     public McpClientBuilder WithStdio(StdioClientTransportOptions options)
     {
         return WithTransport(m => new StdioClientTransport(m, options));
+    }
+
+    /// <summary>
+    /// 使用 In-Process 传输层连接到同进程内的 MCP 服务器。
+    /// </summary>
+    /// <param name="transportPair">In-Process 传输层连接对。</param>
+    /// <returns>用于链式调用的 MCP 客户端生成器。</returns>
+    public McpClientBuilder WithInProcess(InProcessTransportPair transportPair)
+    {
+        return WithTransport(m => new InProcessClientTransport(m, transportPair));
     }
 
     /// <summary>

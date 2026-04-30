@@ -48,6 +48,14 @@ public class TestMcpFactory
     }
 
     /// <summary>
+    /// 创建一个简单的 In-Process 传输 MCP 测试包（仅包含 SimpleTool）。
+    /// </summary>
+    public async ValueTask<McpTestingPackage> CreateSimpleInProcessAsync()
+    {
+        return await CreateInProcessCoreAsync(builder => builder.WithTools(t => t.WithTool(() => new SimpleTool())));
+    }
+
+    /// <summary>
     /// 创建一个启用 2024-11-05 HTTP+SSE 兼容模式的 HTTP 服务端测试包。
     /// </summary>
     public async ValueTask<LegacyHttpTestingPackage> CreateLegacyHttpAsync(HttpTransportType httpTransportType)
@@ -111,6 +119,27 @@ public class TestMcpFactory
             },
             TestToolJsonContext.Default,
             CreateDefaultServices());
+    }
+
+    /// <summary>
+    /// 创建一个完整的 In-Process 传输 MCP 测试包（包含所有测试工具）。
+    /// </summary>
+    public async ValueTask<McpTestingPackage> CreateFullInProcessAsync()
+    {
+        return await CreateInProcessCoreAsync(
+            builder => builder
+                .WithServices(CreateDefaultServices())
+                .WithJsonSerializer(TestToolJsonContext.Default)
+                .WithTools(t =>
+                {
+                    t.WithTool(() => new SimpleTool());
+                    t.WithTool(() => new CalculatorTool());
+                    t.WithTool(() => new EchoTool());
+                    t.WithTool(() => new ExceptionTool());
+                    t.WithTool(() => new LongTextTool());
+                    t.WithTool(() => new StatefulCounterTool());
+                    t.WithTool<InjectedConstructorTool>();
+                }));
     }
 
     /// <summary>
@@ -218,6 +247,32 @@ public class TestMcpFactory
         var builtClient = mcpClientBuilder.Build();
 
         return new McpTestingPackage(mcpServer, builtClient, endpoint);
+    }
+
+    /// <summary>
+    /// 核心方法：创建一个完全自定义的 In-Process 传输 MCP 测试包，支持同时配置服务端和客户端。
+    /// </summary>
+    public async ValueTask<McpTestingPackage> CreateInProcessCoreAsync(
+        Action<McpServerBuilder> configureBuilder,
+        Action<McpClientBuilder>? configureClient = null)
+    {
+        var mcpServerBuilder = new McpServerBuilder("TestMcpServer", "1.0.0")
+            .WithLogger(DefaultLogger);
+
+        configureBuilder(mcpServerBuilder);
+        mcpServerBuilder.WithInProcess(out var transportPair);
+
+        var mcpServer = mcpServerBuilder.Build();
+        mcpServer.EnableDebugMode();
+        await mcpServer.StartAsync(CancellationToken.None);
+
+        var mcpClientBuilder = new McpClientBuilder()
+            .WithLogger(DefaultLogger)
+            .WithInProcess(transportPair);
+        configureClient?.Invoke(mcpClientBuilder);
+        var builtClient = mcpClientBuilder.Build();
+
+        return new McpTestingPackage(mcpServer, builtClient, new Uri("inprocess://localhost/mcp", UriKind.Absolute));
     }
 
     private static IServiceProvider CreateDefaultServices()

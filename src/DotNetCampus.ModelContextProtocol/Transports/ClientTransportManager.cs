@@ -45,6 +45,20 @@ internal class ClientTransportManager(IClientTransportContext context) : IClient
         _samplingHandler = handler;
     }
 
+    /// <summary>
+    /// 取消所有正在等待响应的客户端请求。
+    /// </summary>
+    internal void CancelAllPendingRequests()
+    {
+        foreach (var pendingRequest in _pendingRequests)
+        {
+            if (_pendingRequests.TryRemove(pendingRequest.Key, out var taskCompletionSource))
+            {
+                taskCompletionSource.TrySetCanceled();
+            }
+        }
+    }
+
     /// <inheritdoc />
     public RequestId MakeNewRequestId()
     {
