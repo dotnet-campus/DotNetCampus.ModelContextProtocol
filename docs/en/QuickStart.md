@@ -51,6 +51,14 @@ internal class Program
 internal partial class McpToolJsonContext : JsonSerializerContext;
 ```
 
+## In-Process Transport (Embedded Use)
+
+The In-Process transport is designed for embedding an MCP server in the same process or writing integration tests without a network server. See the [In-Process Transport Guide](InProcessTransport.md) for the full documentation.
+
+## Sampling (Server-Initiated Requests)
+
+MCP server tools can send a `sampling/createMessage` request to the client during execution, asking the client to call a language model and return the result. See the [Sampling Guide](Sampling.md) for details.
+
 ## Declaring MCP Tool Methods
 
 ```csharp

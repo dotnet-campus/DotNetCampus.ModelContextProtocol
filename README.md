@@ -76,6 +76,8 @@ internal class Program
 internal partial class McpToolJsonContext : JsonSerializerContext;
 ```
 
+For embedding an MCP server in the same process or writing integration tests without a network server, see the [In-Process Transport Guide](/docs/en/InProcessTransport.md).
+
 ### Declaring MCP Tool Methods
 
 ```csharp

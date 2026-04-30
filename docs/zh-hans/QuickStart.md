@@ -50,6 +50,14 @@ internal class Program
 internal partial class McpToolJsonContext : JsonSerializerContext;
 ```
 
+## In-Process 传输层（同进程嵌入）
+
+In-Process 传输层适用于同进程嵌入 MCP 服务或集成测试场景，详见 [In-Process 传输层使用指南](InProcessTransport.md)。
+
+## Sampling（服务端主动请求）
+
+MCP 服务端工具可在执行期间向客户端发起 `sampling/createMessage` 请求，由客户端调用大语言模型后返回结果，详见 [Sampling 使用指南](Sampling.md)。
+
 ## MCP 工具方法声明
 
 ```csharp
