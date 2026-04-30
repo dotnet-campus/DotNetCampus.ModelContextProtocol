@@ -119,6 +119,7 @@
 *   **插件机制**：继承 `HttpPluginBase`。
 *   **请求拦截**：在 `OnHttpRequest` 中判断 `e.Context.Request.Url` 是否匹配。
 *   **SSE 支持**：需要确保 TouchSocket 支持类似 `Chunked` 传输或长连接保持。通常需要将处理模式设置为不要立即关闭连接，并持续向 `HttpResponse` 写入数据。
+*   **实现限制与调试入口**：TouchSocket 的插件层看到的是“已经解析完成”的 `HttpContext`，而不是原始字节流。涉及空白 header、重复 header、SSE 生命周期等问题时，需等待上游合并 [Discussion: Preserving Empty HTTP Header Values vs. Dropping Them](https://github.com/RRQM/TouchSocket/pull/133)。
 
 
 ## 4. 关键数据结构：Session Store
