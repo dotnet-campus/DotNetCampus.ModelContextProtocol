@@ -1,3 +1,6 @@
+using System.Buffers;
+using System.Text;
+using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using DotNetCampus.ModelContextProtocol.CompilerServices;
@@ -71,12 +74,29 @@ public record CallToolResult : Result
     /// <returns>表示当前实例的字符串。</returns>
     public override string ToString()
     {
-        return Content switch
+        if (StructuredContent is { } structuredContent)
         {
-            [] => "",
-            [TextContentBlock { Text: var text }] => text,
-            _ => $"CallToolResult with {Content.Count} content blocks.",
-        };
+            var buffer = new ArrayBufferWriter<byte>();
+            using var writer = new Utf8JsonWriter(buffer, new JsonWriterOptions
+            {
+                Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+            });
+            structuredContent.WriteTo(writer);
+            writer.Flush();
+            return Encoding.UTF8.GetString(buffer.WrittenSpan);
+        }
+
+        if (Content.Count == 0)
+        {
+            return IsError == true ? "{\"error\":\"Call tool failed.\"}" : string.Empty;
+        }
+
+        if (Content is [TextContentBlock { Text: var text }])
+        {
+            return text;
+        }
+
+        return string.Join("\n", Content.Select(x => x.ToString()));
     }
 
     /// <summary>
