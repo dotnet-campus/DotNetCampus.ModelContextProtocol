@@ -1,5 +1,6 @@
 ﻿using DotNetCampus.ModelContextProtocol.Hosting.Logging;
 using DotNetCampus.ModelContextProtocol.Protocol.Messages;
+using DotNetCampus.ModelContextProtocol.Servers;
 using DotNetCampus.ModelContextProtocol.Transports;
 using DotNetCampus.ModelContextProtocol.Transports.Http;
 using DotNetCampus.ModelContextProtocol.Transports.InProcess;
@@ -100,11 +101,18 @@ public class McpClientBuilder
     /// <summary>
     /// 使用 In-Process 传输层连接到同进程内的 MCP 服务器。
     /// </summary>
-    /// <param name="transportPair">In-Process 传输层连接对。</param>
+    /// <param name="server">要连接的 MCP 服务器实例。服务器必须已配置 In-Process 传输层（通过 <see cref="McpServerBuilder.WithInProcess()"/> 方法）。</param>
     /// <returns>用于链式调用的 MCP 客户端生成器。</returns>
-    public McpClientBuilder WithInProcess(InProcessTransportPair transportPair)
+    public McpClientBuilder WithInProcess(McpServer server)
     {
-        return WithTransport(m => new InProcessClientTransport(m, transportPair));
+        return WithTransport(m =>
+        {
+            var transport = server.Transports.OfType<InProcessServerTransport>().FirstOrDefault()
+                ?? throw new InvalidOperationException(
+                    "MCP 服务器未配置 In-Process 传输层。请在构建服务器时调用 McpServerBuilder.WithInProcess() 方法。");
+            var pair = transport.Connect();
+            return new InProcessClientTransport(m, pair);
+        });
     }
 
     /// <summary>

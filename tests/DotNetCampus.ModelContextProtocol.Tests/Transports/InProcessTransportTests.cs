@@ -124,26 +124,103 @@ public class InProcessTransportTests
         CollectionAssert.AreEqual(Enumerable.Range(0, 20).Select(index => index + index + 1).ToArray(), results);
     }
 
-    [TestMethod("InProcess Connect: 服务端未启动时可取消等待")]
-    public async Task Connect_CancelWhenServerNotStarted()
+    [TestMethod("InProcess MultiClient: 多个客户端同时连接同一服务器并独立调用工具")]
+    public async Task MultiClient_IndependentToolCalls()
     {
-        await using var transportPair = new InProcessTransportPair();
-        await using var client = new McpClientBuilder()
-            .WithInProcess(transportPair)
+        var server = new McpServerBuilder("TestMcpServer", "1.0.0")
+            .WithLogger(TestMcpFactory.DefaultLogger)
+            .WithInProcess()
+            .WithTools(t => t.WithTool(() => new CalculatorTool()))
             .Build();
-        using var cancellationTokenSource = new CancellationTokenSource(TimeSpan.FromMilliseconds(100));
+        server.EnableDebugMode();
+        await server.StartAsync();
 
-        var canceled = false;
         try
         {
-            await client.ListToolsAsync(cancellationToken: cancellationTokenSource.Token);
-        }
-        catch (OperationCanceledException)
-        {
-            canceled = true;
-        }
+            // 创建两个独立的客户端。
+            await using var client1 = new McpClientBuilder()
+                .WithLogger(TestMcpFactory.DefaultLogger)
+                .WithInProcess(server)
+                .Build();
+            await using var client2 = new McpClientBuilder()
+                .WithLogger(TestMcpFactory.DefaultLogger)
+                .WithInProcess(server)
+                .Build();
 
-        Assert.IsTrue(canceled, "服务端未启动时，客户端连接等待应能被取消。");
+            // 两个客户端独立调用工具。
+            var args1 = JsonSerializer.SerializeToElement(new { a = 10, b = 20 });
+            var args2 = JsonSerializer.SerializeToElement(new { a = 100, b = 200 });
+
+            var result1Task = client1.CallToolAsync("add", args1);
+            var result2Task = client2.CallToolAsync("add", args2);
+
+            var result1 = await result1Task;
+            var result2 = await result2Task;
+
+            Assert.AreEqual("30", ((TextContentBlock)result1.Content[0]).Text);
+            Assert.AreEqual("300", ((TextContentBlock)result2.Content[0]).Text);
+        }
+        finally
+        {
+            await server.StopAsync();
+        }
+    }
+
+    [TestMethod("InProcess MultiClient: 一个客户端断开不影响其他客户端")]
+    public async Task MultiClient_DisconnectOneDoesNotAffectOthers()
+    {
+        var server = new McpServerBuilder("TestMcpServer", "1.0.0")
+            .WithLogger(TestMcpFactory.DefaultLogger)
+            .WithInProcess()
+            .WithTools(t => t.WithTool(() => new CalculatorTool()))
+            .Build();
+        server.EnableDebugMode();
+        await server.StartAsync();
+
+        try
+        {
+            var client1 = new McpClientBuilder()
+                .WithLogger(TestMcpFactory.DefaultLogger)
+                .WithInProcess(server)
+                .Build();
+            await using var client2 = new McpClientBuilder()
+                .WithLogger(TestMcpFactory.DefaultLogger)
+                .WithInProcess(server)
+                .Build();
+
+            // 确认两个客户端都能正常调用。
+            var args = JsonSerializer.SerializeToElement(new { a = 1, b = 2 });
+            await client1.CallToolAsync("add", args);
+            await client2.CallToolAsync("add", args);
+
+            // 断开客户端 1。
+            await client1.DisposeAsync();
+
+            // 客户端 2 仍然可以正常调用。
+            var result = await client2.CallToolAsync("add", args);
+            Assert.AreEqual("3", ((TextContentBlock)result.Content[0]).Text);
+        }
+        finally
+        {
+            await server.StopAsync();
+        }
+    }
+
+    [TestMethod("InProcess Connect: 服务端未启动时客户端会抛出异常")]
+    public void Connect_ThrowsWhenServerNotStarted()
+    {
+        var server = new McpServerBuilder("TestMcpServer", "1.0.0")
+            .WithInProcess()
+            .WithTools(t => t.WithTool(() => new SimpleTool()))
+            .Build();
+        // 没有调用 server.StartAsync()，因此 InProcess 传输层尚未启动。
+
+        Assert.ThrowsException<InvalidOperationException>(() =>
+        {
+            new McpClientBuilder()
+                .WithInProcess(server)
+                .Build();
+        });
     }
 
     [TestMethod("InProcess ServerStops: 服务端停止后客户端请求不会永久挂起")]

@@ -4,6 +4,7 @@ using dotnetCampus.Ipc.Messages;
 using dotnetCampus.Ipc.Pipes;
 using dotnetCampus.Ipc.Utils.Extensions;
 using DotNetCampus.ModelContextProtocol.Hosting.Logging;
+using DotNetCampus.ModelContextProtocol.Hosting.Services;
 using DotNetCampus.ModelContextProtocol.Protocol.Messages.JsonRpc;
 
 namespace DotNetCampus.ModelContextProtocol.Transports.Ipc;
@@ -82,6 +83,7 @@ public class IpcServerTransport : IServerTransport
         var session = new IpcServerTransportSession(_manager, e.Peer.PeerName);
         session.SetPeer(e.Peer);
         _sessions[e.Peer.PeerName] = session;
+        _manager.Add(session);
         e.Peer.PeerConnectionBroken += OnPeerConnectionBroken;
         e.Peer.PeerReconnected += OnPeerReconnected;
         e.Peer.MessageReceived += OnMessageReceived;
@@ -90,15 +92,23 @@ public class IpcServerTransport : IServerTransport
     private void OnPeerConnectionBroken(object? sender, IPeerConnectionBrokenArgs e)
     {
         var peer = (PeerProxy)sender!;
-        _sessions.TryRemove(peer.PeerName, out _);
+        if (_sessions.TryRemove(peer.PeerName, out var oldSession))
+        {
+            _ = oldSession.DisposeAsync();
+        }
     }
 
     private void OnPeerReconnected(object? sender, IPeerReconnectedArgs e)
     {
         var peer = (PeerProxy)sender!;
+        if (_sessions.TryRemove(peer.PeerName, out var oldSession))
+        {
+            _ = oldSession.DisposeAsync();
+        }
         var session = new IpcServerTransportSession(_manager, peer.PeerName);
         session.SetPeer(peer);
         _sessions[peer.PeerName] = session;
+        _manager.Add(session);
     }
 
     private void OnMessageReceived(object? sender, IPeerMessageArgs e)
@@ -153,14 +163,24 @@ public class IpcServerTransport : IServerTransport
 
             case JsonRpcNotification notification:
                 // 通知，路由到处理器，无需回复。
-                await _manager.HandleRequestAsync(
-                    new JsonRpcRequest { Method = notification.Method, Params = notification.Params },
-                    null, _runningCancellationToken);
+                if (_sessions.TryGetValue(peer.PeerName, out var notificationSession))
+                {
+                    await _manager.HandleRequestAsync(
+                        new JsonRpcRequest { Method = notification.Method, Params = notification.Params },
+                        services => services.AddTransportSession(notificationSession, Log),
+                        _runningCancellationToken);
+                }
                 return;
 
             case JsonRpcRequest request:
             {
-                var response2 = await _manager.HandleRequestAsync(request, null, _runningCancellationToken);
+                if (!_sessions.TryGetValue(peer.PeerName, out var requestSession))
+                {
+                    return;
+                }
+                var response2 = await _manager.HandleRequestAsync(request,
+                    services => services.AddTransportSession(requestSession, Log),
+                    _runningCancellationToken);
                 if (response2 is null)
                 {
                     // 按照 MCP 协议规范，本次请求仅需响应而无需回复。

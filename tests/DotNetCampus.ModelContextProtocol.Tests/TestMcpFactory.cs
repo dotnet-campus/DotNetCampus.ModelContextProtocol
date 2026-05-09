@@ -260,7 +260,7 @@ public class TestMcpFactory
             .WithLogger(DefaultLogger);
 
         configureBuilder(mcpServerBuilder);
-        mcpServerBuilder.WithInProcess(out var transportPair);
+        mcpServerBuilder.WithInProcess();
 
         var mcpServer = mcpServerBuilder.Build();
         mcpServer.EnableDebugMode();
@@ -268,7 +268,7 @@ public class TestMcpFactory
 
         var mcpClientBuilder = new McpClientBuilder()
             .WithLogger(DefaultLogger)
-            .WithInProcess(transportPair);
+            .WithInProcess(mcpServer);
         configureClient?.Invoke(mcpClientBuilder);
         var builtClient = mcpClientBuilder.Build();
 

@@ -39,37 +39,24 @@ public class McpServerBuilder(string serverName, string serverVersion)
     }
 
     /// <summary>
-    /// 允许此 MCP 服务器通过 In-Process 传输层在同进程内提供服务。
+    /// 允许此 MCP 服务器通过 In-Process 传输层在同进程内提供服务，支持多个客户端同时连接。
     /// </summary>
-    /// <param name="transportPair">In-Process 传输层连接对。</param>
     /// <returns>用于链式调用的 MCP 服务器生成器。</returns>
-    public McpServerBuilder WithInProcess(InProcessTransportPair transportPair)
+    public McpServerBuilder WithInProcess()
     {
-        _transportFactories.Add(m => new InProcessServerTransport(m, transportPair));
+        _transportFactories.Add(m => new InProcessServerTransport(m));
         return this;
     }
 
     /// <summary>
-    /// 创建 In-Process 传输层连接对，并允许此 MCP 服务器通过该连接对在同进程内提供服务。
-    /// </summary>
-    /// <param name="transportPair">创建出的 In-Process 传输层连接对。</param>
-    /// <returns>用于链式调用的 MCP 服务器生成器。</returns>
-    public McpServerBuilder WithInProcess(out InProcessTransportPair transportPair)
-    {
-        transportPair = new InProcessTransportPair();
-        return WithInProcess(transportPair);
-    }
-
-    /// <summary>
-    /// 创建 In-Process 传输层连接对，并允许此 MCP 服务器通过该连接对在同进程内提供服务。
+    /// 允许此 MCP 服务器通过 In-Process 传输层在同进程内提供服务，支持多个客户端同时连接。
     /// </summary>
     /// <param name="options">In-Process 传输层选项。</param>
-    /// <param name="transportPair">创建出的 In-Process 传输层连接对。</param>
     /// <returns>用于链式调用的 MCP 服务器生成器。</returns>
-    public McpServerBuilder WithInProcess(InProcessTransportOptions options, out InProcessTransportPair transportPair)
+    public McpServerBuilder WithInProcess(InProcessTransportOptions options)
     {
-        transportPair = new InProcessTransportPair(options);
-        return WithInProcess(transportPair);
+        _transportFactories.Add(m => new InProcessServerTransport(m, options));
+        return this;
     }
 
     /// <summary>
