@@ -30,9 +30,71 @@ public class SampleTools
 - 如果参数是复杂的数据类型或枚举，不必详细在参数注释中详细描述每个内部属性或字段，因为本库会自动递归地提取注释，并将它们包含在 MCP 协议中发送给客户端
 - 工具的名称默认使用 snake_case 命名法转换方法名，本例中，你会得到 `echo_tool`
 
-### 完整示例
+### 自定义工具属性
 
-实际上，你可以对工具方法进行丰富而详细的自定义。以下是一个能体现大量功能的复杂示例：
+`[McpServerTool]` 特性支持多个属性，让你精细控制工具在 MCP 协议中的行为和元数据：
+
+```csharp
+/// <summary>
+/// 用于给 AI 调试使用的工具，原样返回一些信息
+/// </summary>
+/// <param name="text">要原样返回的字符串</param>
+[McpServerTool(
+    Name = "echo_tool",          // 指定工具名称，避免方法名与工具名强绑定（例如避免 Async 后缀影响工具名）
+    Title = "原样输出",          // 给人类阅读的工具名称，AI 看不到，可用于 UI 展示
+    Description = "用于给 AI 调试使用的工具，原样返回一些信息",  // 覆盖方法注释中的描述
+    Idempotent = true,           // 标记为幂等工具，客户端可以安全地重试调用
+    OpenWorld = false,           // 标记此工具不会与外部开放世界交互
+    ReadOnly = true              // 标记为只读工具，调用时不会修改其环境
+)]
+public string EchoCustomized(string text)
+{
+    return text;
+}
+```
+
+各属性说明：
+
+- **Name**：工具在 MCP 协议中的名称。不指定时使用方法的 snake_case 命名。
+- **Title**：人类可读的工具标题，AI 看不到，可用于 UI 展示。
+- **Description**：工具描述，会覆盖方法 XML 注释中的描述。
+- **Idempotent**：标记工具是否幂等。幂等工具在网络异常时可由客户端安全重试。
+- **OpenWorld**：标记工具是否会与外部开放世界交互（如访问网络 API）。
+- **ReadOnly**：标记工具是否只读。只读工具在调用时不会修改其所在环境。
+
+### 参数与上下文
+
+#### 隐式参数类型
+
+工具方法可以接收以下隐式参数，按需添加在方法签名中即可：
+
+- 任意可被 JSON 反序列化的类型（基本类型、数组、对象等）—— 由 MCP 客户端传入
+- `CancellationToken` —— 当客户端取消工具调用时触发，推荐总是作为最后一个参数声明
+- `IMcpServerCallToolContext` —— 提供当前工具调用的上下文信息
+- `JsonElement` —— 接收任意 JSON 数据，适合参数结构不确定的场景
+
+#### 显式参数类型（`[ToolParameter]` 特性）
+
+通过 `[ToolParameter]` 特性标记特殊参数行为：
+
+- `[ToolParameter(Type = ToolParameterType.InputObject)]`：此参数负责接收整个工具调用的输入对象（反序列化到一个类型）。使用此标记后**不允许**再有其他普通参数。
+- `[ToolParameter(Type = ToolParameterType.Injected)]`：此参数由依赖注入框架自动注入，不由 MCP 协议层传入。需要已在服务器初始化时配置 `IServiceProvider`。
+
+#### IMcpServerCallToolContext 上下文
+
+`IMcpServerCallToolContext` 提供工具方法执行时的上下文信息，包括：
+
+- 当前工具名称（`context.Name`）
+- 原始 JSON 入参（`context.InputJsonArguments`）
+- 请求中的 `_meta` 元数据（`context.Meta`），可用于分布式追踪等场景
+- MCP 服务器信息（`context.McpServer.ServerName`）
+- HTTP 传输层上下文（`context.HttpTransportContext`，含 SessionId、Headers 等）
+
+> **⚠ 重要**：`IMcpServerCallToolContext` 实例**仅在当前工具方法执行期间有效**。不要将其存储到静态字段或跨异步边界传递，因为工具调用结束后上下文即失效。
+
+#### 完整参数示例
+
+以下示例展示了 `IMcpServerCallToolContext`、带默认值的参数、可为 null 的参数的综合用法：
 
 ```csharp
 /// <summary>
@@ -42,29 +104,19 @@ public class SampleTools
 /// <param name="options">如何返回字符串</param>
 /// <param name="count">要返回的字符串次数</param>
 /// <param name="extraData">无意义的额外信息</param>
-/// <param name="isError">如果希望工具直接报告错误，则传入 true</param>
-/// <returns></returns>
-[McpServerTool(
-    Name = "echo_tool", // 通过在 Name 属性中指定工具名称，可以避免方法名与工具名的强绑定（例如避免 C# 惯用的 Async 后缀影响工具名）
-    Title = "原样输出", // 这里的标题是给人类阅读的工具名称，AI 看不到
-    Description = "用于给 AI 调试使用的工具，原样返回一些信息", // 这里的描述会覆盖方法注释中的描述
-    Idempotent = true, // 标记此工具为幂等工具，客户端可以安全地重试调用
-    OpenWorld = false, // 标记此工具不会与外部开放世界交互
-    ReadOnly = true // 标记此工具为只读工具，调用时不会修改其环境
-    )]
+[McpServerTool(Name = "echo_tool")]
 public Task<EchoResult> EchoAsync(
     IMcpServerCallToolContext context,
     string text,
     EchoOptions options = EchoOptions.JsonObject,
     int count = 1,
-    EchoExtraData? extraData = null,
-    bool isError = false)
+    EchoExtraData? extraData = null)
 {
     var info = $"""
-        Server name: {context.McpServer.ServerName},
-        SessionId: {context.HttpTransportContext?.SessionId},
-        Headers: {string.Join(", ", context.HttpTransportContext?.Headers)},
-        InputJsonArguments: {context.InputJsonArguments},
+        Server name: {context.McpServer.ServerName}
+        SessionId: {context.HttpTransportContext?.SessionId}
+        Headers: {string.Join(", ", context.HttpTransportContext?.Headers)}
+        InputJsonArguments: {context.InputJsonArguments}
         """;
     var result = $"""
         Echoing text: {text}
@@ -72,49 +124,78 @@ public Task<EchoResult> EchoAsync(
         Count: {count}
         ExtraData: {extraData}
         """;
-    if (isError)
-    {
-        throw new McpToolUsageException("这是你要求我报错的。");
-    }
-    return Task.FromResult(new EchoResult
-    {
-        Info = info,
-        Result = result
-    });
+    return Task.FromResult(new EchoResult { Info = info, Result = result });
 }
 ```
 
-### 参数和返回值说明
+（示例中 `EchoOptions`、`EchoExtraData`、`EchoResult` 的定义见下方 [辅助类型](#辅助类型)。）
 
-方法参数可以是任意数量的，支持带默认值，支持以下类型：
-
-- 隐式类型：
-    - 任意可被 JSON 反序列化的类型（包括基本类型、数组和对象等）
-    - `CancellationToken`: 表示取消令牌
-    - `IMcpServerCallToolContext`: 表示当前工具方法的上下文信息
-    - `JsonElement`：表示任意 JSON 数据
-- 显式类型：
-    - `[ToolParameter(Type = ToolParameterType.InputObject)]`：表示此参数负责接收整个工具调用的输入对象，此时不允许再有其他普通参数
-    - `[ToolParameter(Type = ToolParameterType.Injected)]`：表示此参数由依赖注入框架自动注入，不由 MCP 协议层传入
+### 返回值类型
 
 方法的返回值可以是以下类型：
 
-- `string`: 表示返回给 AI 的字符串（通常是可被 AI 理解的自然语言）
-- `void`: 表示没有返回值 **请注意，虽然这是 MCP 协议支持的类型，但有些 MCP 客户端会在 MCP 服务器返回空结果时出现异常；此时建议改为 `string` 返回值，并返回空字符串**
+- `string`：返回给 AI 的字符串（通常是可被 AI 理解的自然语言）
+- `void`：没有返回值。**请注意**，虽然这是 MCP 协议支持的类型，但有些 MCP 客户端会在服务器返回空结果时出现异常；此时建议改为 `string` 返回值，返回空字符串
 - 任意可被 JSON 序列化的类型（根据 MCP 协议规范，**返回值只能是对象类型**，不能是数组或原始类型）
-- `CallToolResult`: 通用的工具调用结果，这就是最终 MCP 协议层的数据结构；使用此返回值类型，你可以直接在 MCP 协议层控制返回给 AI 的数据
-- `CallToolResult<T>`: 带有结构化数据类型的工具调用结果，通过 `CallToolResult.FromResult(result)` 方法创建实例，`T` 是任意可被 JSON 序列化的类型；使用此返回值类型，你可以在保证不破坏结构化返回值功能的同时，仍然具备在 MCP 协议层控制返回给 AI 的数据的能力
+- `CallToolResult`：通用的工具调用结果，即 MCP 协议层的最终数据结构。使用此返回值类型，你可以直接在协议层控制返回给 AI 的数据
+- `CallToolResult<T>`：带有结构化数据类型的工具调用结果，通过 `CallToolResult<T>.FromResult(result)` 方法创建实例。`T` 是任意可被 JSON 序列化的类型。使用此返回值类型，你在保持结构化返回值功能的同时，仍然具备协议层控制返回数据的能力
 
 **特别的**，当返回值是可被 JSON 序列化的对象时，按 MCP 协议规范，我们会返回结构化数据，并在普通字符串返回值中也包含此数据的 JSON 序列化字符串（以供兼容）。同时此工具还会被标记为「具有结构化返回值」。
 
+### 同步与异步
+
 方法可以是同步或异步的：
 
-- 支持上述所有种类的同步返回值
-- 支持 `Task`、`Task<T>`、`ValueTask` 和 `ValueTask<T>` 的异步返回值
+- 同步：支持上述所有种类的返回值类型
+- 异步：支持 `Task`、`Task<T>`、`ValueTask` 和 `ValueTask<T>` 的异步返回值
+
+### 工具如何报告错误
+
+工具可以通过两种方式向客户端报告错误，选择哪种取决于你的场景：
+
+#### 方式一：抛出 `McpToolUsageException`
+
+适合"用户用错了这个工具"的场景，例如参数不合法。抛出后 MCP 协议层会自动向客户端返回 `isError: true`，无需改变返回值类型：
+
+```csharp
+[McpServerTool]
+public string Echo(string text)
+{
+    if (string.IsNullOrWhiteSpace(text))
+    {
+        throw new McpToolUsageException("text 参数不能为空。");
+    }
+    return text;
+}
+```
+
+#### 方式二：返回 `CallToolResult.FromError()`
+
+适合需要精确控制返回内容或返回结构化错误信息的场景：
+
+```csharp
+[McpServerTool]
+public CallToolResult SafeEcho(string text)
+{
+    if (string.IsNullOrWhiteSpace(text))
+    {
+        return CallToolResult.FromError("text 参数不能为空。");
+    }
+    return text;
+}
+```
+
+两种方式的区别：
+
+| | `McpToolUsageException` | `CallToolResult.FromError()` |
+|---|---|---|
+| 返回值类型 | 任意类型（不改变签名） | 必须为 `CallToolResult` |
+| 适用场景 | 快速失败，不继续执行 | 需要结构化错误信息或精确控制返回格式 |
+| 优点 | 简单直接，代码改动最小 | 灵活性最高 |
 
 ### 辅助类型
 
-如果你希望上述复杂示例可正常工作，你可以参考下方定义的辅助类型：
+以下是上文中复杂示例用到的辅助类型定义：
 
 ```csharp
 /// <summary>
@@ -162,75 +243,47 @@ public record EchoResult
 }
 ```
 
-### 高级初始化示例
+## 服务端高级初始化
 
-有时应用程序更加复杂，初始化时需要使用更多功能：
+### JSON 序列化与依赖注入
+
+当你的工具参数或返回值使用自定义类型时，需要传入 JSON 序列化上下文以支持 AOT 编译。如果你希望工具类支持依赖注入，则传入 `IServiceProvider` 实例：
 
 ```csharp
-internal class Program
-{
-    private static async Task Main(string[] args)
-    {
-        var mcpServer = new McpServerBuilder("示例服务器", "1.0.0")
-            // 如果你的 MCP 工具参数和返回值存在自定义类型，需要传入 JSON 序列化上下文
-            // .WithJsonSerializer(McpToolJsonContext.Default)
+var mcpServer = new McpServerBuilder("示例服务器", "1.0.0")
+    // 传入 JSON 序列化上下文（AOT 兼容）
+    .WithJsonSerializer(McpToolJsonContext.Default)
 
-            // 如果你希望 MCP 工具可被依赖注入，则在此传入 IServiceProvider 实例
-            // 支持构造函数注入（直接支持），支持 MCP 工具方法参数注入（需要在方法参数上标记 `[ToolParameter(Type = ToolParameterType.Injected)]`）。
-            .WithServices(appServiceProvider)
+    // 传入 IServiceProvider，支持工具类的构造函数注入
+    // 以及工具方法参数上的 [ToolParameter(Type = ToolParameterType.Injected)] 注入
+    .WithServices(appServiceProvider)
 
-            // 将 MCP 服务器内部日志桥接到自己的日志系统中，以便能了解到 MCP 服务器的工作健康状况，方便调试。
-            // 第二个参数可以指定 MCP 传输层原始消息的详细级别，默认不指定时不记录原始消息。
-            .WithLogger(new McpLoggerBridge(/* 自己的日志接口 */), McpTransportRawMessageLoggingDetailLevel.Trimmed)
+    .WithTools(t => t
+        // 普通注册：每次调用创建新实例
+        .WithTool(() => new SampleTools())
+        // 依赖注入注册：由 IServiceProvider 管理生命周期（必须已配置 WithServices）
+        .WithTool<SampleTools2>()
+    )
 
-            // 包含大量拦截方法，可以拦截法向此 MCP 服务器的所有请求，进行统一处理或分不同功能处理。
-            .WithRequestHandlers(s => new CustomRequestHandlers(s))
+    .WithLocalHostHttp(5943, "mcp")
+    .Build();
+```
 
-            // 注册各种 MCP 工具
-            .WithTools(t => t
-                // 注册各种 MCP 工具
-                .WithTool(() => new SampleTools())
-                // 只有指定了 IServiceProvider 时，下面这种依赖注入写法才可用（SampleTools2 构造函数注入）。
-                // .WithTool<SampleTools2>()
-            )
+### 日志集成
 
-            // 如果你额外安装了 TouchSocket.Http 包，则本库会自动生成一个基于 TouchSocket.Http 的传输层实现，你可以直接启用它。
-            // .WithTouchSocketHttp(new TouchSocketHttpServerTransportOptions
-            // {
-            //     Listen = ["0.0.0.0:5943", "[::]:5943"],
-            //     EndPoint = "mcp",
-            //     IsCompatibleWithSse = true,
-            // })
+将 MCP 服务器的内部日志桥接到你自己的日志系统，以便了解服务器的工作健康状况：
 
-            // 如果你只想使用本库内置的 Streamable HTTP 传输层，可以这样初始化，但本库自带的传输层只支持 localhost 监听。
-            .WithLocalHostHttp(new LocalHostHttpServerTransportOptions
-            {
-                Port = 5943,
-                EndPoint = "mcp",
-                IsCompatibleWithSse = true,
-            })
+```csharp
+var mcpServer = new McpServerBuilder("示例服务器", "1.0.0")
+    // 第二个参数控制传输层原始消息的日志详细级别，默认不记录
+    .WithLogger(new McpLoggerBridge(myLogger), McpTransportRawMessageLoggingDetailLevel.Trimmed)
+    // ... 其他配置
+    .Build();
+```
 
-            // 传输层也可使用 stdio（标准输入输出），这是 MCP 协议建议所有 MCP 服务器都支持的传输层
-            // .WithStdio()
+日志桥接实现参考：
 
-            // 如果你额外安装了 dotnetCampus.Ipc 包，则本库会自动生成一个基于 dotnetCampus.Ipc 的传输层实现，你可以直接启用它，并复用已有的 IPC 服务。
-            // .WithDotNetCampusIpc(ipcProvider)
-            // 或者如果你没有线程的 IPC 服务，可以使用另一个重载创建一个独立的 IPC 服务。
-            // .WithDotNetCampusIpc("McpIpcServer")
-
-            .Build();
-
-#if DEBUG
-        // 启用调试模式，这样当 MCP 服务遇到异常时，会把异常信息返回给客户端，方便调试
-        // 通常不建议在发布环境启用此模式，否则会暴露服务器的内部实现细节
-        mcpServer.EnableDebugMode();
-#endif
-
-        // 运行 MCP 服务器
-        await mcpServer.RunAsync();
-    }
-}
-
+```csharp
 internal class McpLoggerBridge(ILogger logger) : IMcpLogger
 {
     public bool IsEnabled(LoggingLevel loggingLevel)
@@ -238,12 +291,28 @@ internal class McpLoggerBridge(ILogger logger) : IMcpLogger
         return logger.IsEnabled(loggingLevel.ToLogLevel());
     }
 
-    public void Log<TState>(LoggingLevel loggingLevel, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
+    public void Log<TState>(LoggingLevel loggingLevel, TState state, Exception? exception,
+        Func<TState, Exception?, string> formatter)
     {
         logger.Log(loggingLevel.ToLogLevel(), default, state, exception, formatter);
     }
 }
+```
 
+### 请求拦截
+
+通过继承 `McpServerRequestHandlers` 并重写方法，你可以拦截发往此 MCP 服务器的所有请求，进行统一处理：
+
+```csharp
+var mcpServer = new McpServerBuilder("示例服务器", "1.0.0")
+    .WithRequestHandlers(s => new CustomRequestHandlers(s))
+    // ... 其他配置
+    .Build();
+```
+
+拦截器实现参考：
+
+```csharp
 internal class CustomRequestHandlers(McpServer server) : McpServerRequestHandlers(server)
 {
     public override async ValueTask<CallToolResult> CallToolAsync(
@@ -253,138 +322,98 @@ internal class CustomRequestHandlers(McpServer server) : McpServerRequestHandler
         var result = await base.CallToolAsync(rawRequest, toolName, tool, context);
         if (result.RawException is { } exception)
         {
-            Log.Error("额外的异常记录", exception);
+            // 在工具调用异常时做额外的日志记录或告警
+            Log.Error("工具调用异常", exception);
         }
         return result;
     }
 }
 ```
 
+### 传输层选择
+
+本库支持多种传输层。选择哪种取决于你的部署场景：
+
+| 传输层 | 方法 | 适用场景 |
+|--------|------|---------|
+| Streamable HTTP（内置） | `.WithLocalHostHttp()` | 本机通信，轻量零依赖 |
+| Streamable HTTP（TouchSocket） | `.WithTouchSocketHttp()` | 需要公网监听，高性能 HTTP |
+| stdio | `.WithStdio()` | 标准输入输出，MCP 官方推荐 |
+| dotnetCampus.Ipc | `.WithDotNetCampusIpc()` | 本机高性能 IPC |
+
+详细说明和配置方法请参阅 [选择传输层](Transport.md)。
+
 ## 客户端调用工具
 
-一般来说，单独连接一个服务器的 MCP 客户端没有什么作用。通常是一个智能体程序，连接众多 MCP 服务器。
+### 客户端构建器重载
 
-因此，大多数时候，我们要编写的都是一个 MCP 客户端管理器。
+`McpClientBuilder` 的 `WithHttp` 和 `WithStdio` 方法各有两个重载：简单重载适合快速体验，选项重载适合需要自定义配置的生产场景。
 
-下面是一个极简的 MCP 客户端管理器，用于同时管理多个 MCP 服务器，并给每个工具生成一个 `{serverName}.{toolName}` 形式的暴露名称：
-
-```csharp
-public sealed class McpServerManager : IAsyncDisposable
-{
-    private readonly Dictionary<string, McpClient> _clients = new(StringComparer.OrdinalIgnoreCase);
-    private readonly Dictionary<string, McpToolEndpoint> _tools = new(StringComparer.OrdinalIgnoreCase);
-
-    public async Task AddHttpAsync(string serverName, string serverUrl, CancellationToken cancellationToken = default)
-    {
-        var client = new McpClientBuilder($"示例客户端/{serverName}", "1.0.0")
-            .WithHttp(serverUrl)
-            .Build();
-
-        await AddClientAsync(serverName, client, cancellationToken);
-    }
-
-    public async Task AddStdioAsync(string serverName, string command, IReadOnlyList<string> arguments, CancellationToken cancellationToken = default)
-    {
-        var client = new McpClientBuilder($"示例客户端/{serverName}", "1.0.0")
-            .WithStdio(command, arguments)
-            .Build();
-
-        await AddClientAsync(serverName, client, cancellationToken);
-    }
-
-    public IReadOnlyList<string> ListToolNames()
-    {
-        return _tools.Keys
-            .OrderBy(x => x, StringComparer.OrdinalIgnoreCase)
-            .ToList();
-    }
-
-    public async Task<CallToolResult> CallToolAsync(string exposedToolName, JsonElement? arguments = null, CancellationToken cancellationToken = default)
-    {
-        if (!_tools.TryGetValue(exposedToolName, out var endpoint))
-        {
-            throw new InvalidOperationException($"未找到 MCP 工具：{exposedToolName}");
-        }
-
-        return await endpoint.Client.CallToolAsync(endpoint.Tool.Name, arguments, cancellationToken);
-    }
-
-    public async ValueTask DisposeAsync()
-    {
-        foreach (var client in _clients.Values)
-        {
-            await client.DisposeAsync();
-        }
-
-        _clients.Clear();
-        _tools.Clear();
-    }
-
-    private async Task AddClientAsync(string serverName, McpClient client, CancellationToken cancellationToken)
-    {
-        if (_clients.ContainsKey(serverName))
-        {
-            throw new InvalidOperationException($"MCP 服务器已存在：{serverName}");
-        }
-
-        McpClient? clientToDispose = client;
-        try
-        {
-            // 提前连接并列出工具，这样可以在添加服务器时就发现连接错误。
-            await client.EnsureConnectedAsync(cancellationToken);
-            var tools = await client.ListToolsAsync(cancellationToken: cancellationToken);
-
-            var endpoints = new List<(string ExposedName, Tool Tool)>();
-            foreach (var tool in tools.Tools)
-            {
-                var exposedName = $"{serverName}.{tool.Name}";
-                if (_tools.ContainsKey(exposedName))
-                {
-                    throw new InvalidOperationException($"MCP 工具已存在：{exposedName}");
-                }
-
-                endpoints.Add((exposedName, tool));
-            }
-
-            _clients.Add(serverName, client);
-            foreach (var (exposedName, tool) in endpoints)
-            {
-                _tools.Add(exposedName, new McpToolEndpoint(client, tool));
-            }
-
-            clientToDispose = null;
-        }
-        finally
-        {
-            if (clientToDispose is not null)
-            {
-                await clientToDispose.DisposeAsync();
-            }
-        }
-    }
-
-    private sealed record McpToolEndpoint(McpClient Client, Tool Tool);
-}
-```
-
-使用方式：
+**HTTP 传输层：**
 
 ```csharp
-await using var manager = new McpServerManager();
+// 简单重载：仅指定 URL
+var client = new McpClientBuilder("示例客户端", "1.0.0")
+    .WithHttp("http://localhost:3001/mcp")
+    .Build();
 
-await manager.AddStdioAsync(
-    "everything",
-    "npx",
-    ["-y", "@modelcontextprotocol/server-everything", "stdio"]);
+// 选项重载：可配置自定义 HttpClient、超时等
+var client = new McpClientBuilder("示例客户端", "1.0.0")
+    .WithHttp(new HttpClientTransportOptions
+    {
+        ServerUrl = "http://localhost:3001/mcp",
+        HttpClient = customHttpClient,  // 可注入带认证头的 HttpClient
+    })
+    .Build();
+```
 
-foreach (var toolName in manager.ListToolNames())
+**stdio 传输层：**
+
+```csharp
+// 简单重载：指定命令和参数
+var client = new McpClientBuilder("示例客户端", "1.0.0")
+    .WithStdio("npx", ["-y", "@modelcontextprotocol/server-everything", "stdio"])
+    .Build();
+
+// 选项重载：可配置环境变量
+var client = new McpClientBuilder("示例客户端", "1.0.0")
+    .WithStdio(new StdioClientTransportOptions
+    {
+        Command = "python",
+        Arguments = ["-m", "my_mcp_server"],
+        EnvironmentVariables = new Dictionary<string, string>
+        {
+            ["PYTHONPATH"] = "/path/to/modules",
+        },
+    })
+    .Build();
+```
+
+### 基础调用
+
+单个 MCP 客户端的典型调用流程：
+
+```csharp
+var client = new McpClientBuilder("示例客户端", "1.0.0")
+    .WithHttp("http://localhost:5943/mcp")
+    .Build();
+
+// 可选：提前连接，统一捕获异常
+await client.EnsureConnectedAsync();
+
+// 列出工具
+var tools = await client.ListToolsAsync();
+foreach (var tool in tools.Tools)
 {
-    Console.WriteLine(toolName);
+    Console.WriteLine($"{tool.Name}: {tool.Description}");
 }
 
-var result = await manager.CallToolAsync(
-    "everything.echo",
-    JsonSerializer.SerializeToElement(new { message = "Hello, MCP!" }));
-
-Console.WriteLine(result.Content.OfType<TextContentBlock>().FirstOrDefault()?.Text);
+// 调用工具
+var arguments = JsonSerializer.SerializeToElement(new { text = "Hello" });
+var result = await client.CallToolAsync("echo_tool", arguments);
+Console.WriteLine(result.Content);
 ```
+
+### 多服务器管理（智能体场景）
+
+在智能体程序中，通常需要同时管理多个 MCP 服务器（内置工具、外部服务、岗位程序等）。完整的 MCP 服务器管理器示例请参阅 [McpServerManager](McpServerManager.md)。

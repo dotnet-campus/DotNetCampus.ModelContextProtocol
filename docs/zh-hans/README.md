@@ -8,9 +8,12 @@
     - [Prompts](Prompts.md)
     - [Roots](Roots.md)
     - [Sampling](Sampling.md)
+- 智能体集成
+    - [McpServerManager](McpServerManager.md)
 - MCP 机制
     - [Authorization](Authorization.md)
     - [Elicitation](Elicitation.md)
     - [Utilities](Utilities.md)
+    - [Using _meta](UsingMeta.md)
 - MCP 传输层
     - [选择传输层](Transport.md)

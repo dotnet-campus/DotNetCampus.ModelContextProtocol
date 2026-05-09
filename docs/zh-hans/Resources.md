@@ -106,7 +106,7 @@ public class SampleResources
 - `IReadOnlyList<ResourceContents>`: 一次返回多个资源内容
 - `ReadResourceResult`: 直接控制 MCP 协议层的资源读取结果
 
-如果资源方法需要读取当前请求 URI，或需要在找不到资源时抛出 `McpResourceNotFoundException`，可在参数中声明 `IMcpServerReadResourceContext`。
+如果资源方法需要读取当前请求 URI、`_meta` 元数据，或需要在找不到资源时抛出 `McpResourceNotFoundException`，可在参数中声明 `IMcpServerReadResourceContext`。通过 `context.Meta` 可获取来自客户端请求的元数据（例如分布式追踪的 TraceId）。
 
 ## 客户端读取资源
 
@@ -161,3 +161,5 @@ foreach (var content in result.Contents)
     }
 }
 ```
+
+> 在智能体程序中，通常需要同时管理多个 MCP 服务器。完整的 MCP 服务器管理器示例请参阅 [McpServerManager](McpServerManager.md)。

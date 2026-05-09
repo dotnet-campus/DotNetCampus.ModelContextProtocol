@@ -30,19 +30,23 @@ dotnet add package DotNetCampus.ModelContextProtocol
 ### Server
 
 ```csharp
-var mcpServer = new McpServerBuilder("MinimalMcpServer", "1.0.0")
-    .WithTools(tools => tools.WithTool(() => new CalculatorTools()))
+var mcpServer = new McpServerBuilder("Sample Mcp Server", "1.0.0")
+    .WithTools(tools => tools.WithTool(() => new SampleTools()))
     .WithLocalHostHttp(5943, "mcp")
     .Build();
 
 await mcpServer.RunAsync();
 
-public class CalculatorTools
+public class SampleTools
 {
+    /// <summary>
+    /// 原样返回输入文本。
+    /// </summary>
+    /// <param name="text">要原样返回的字符串</param>
     [McpServerTool(ReadOnly = true)]
-    public int Add(int a, int b)
+    public string EchoTool(string text)
     {
-        return a + b;
+        return text;
     }
 }
 ```
@@ -50,13 +54,12 @@ public class CalculatorTools
 ### Client
 
 ```csharp
-await using var mcpClient = new McpClientBuilder()
-    .WithClientInfo("MinimalMcpClient", "1.0.0")
+var client = new McpClientBuilder("Sample Mcp Client", "1.0.0")
     .WithHttp("http://localhost:5943/mcp")
     .Build();
 
-var arguments = JsonSerializer.SerializeToElement(new { a = 10, b = 20 });
-var result = await mcpClient.CallToolAsync("add", arguments);
+var arguments = JsonSerializer.SerializeToElement(new { text = "Hello, MCP!" });
+var result = await client.CallToolAsync("echo_tool", arguments);
 
 Console.WriteLine(result.Content);
 ```

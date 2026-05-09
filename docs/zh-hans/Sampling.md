@@ -48,7 +48,11 @@ var mcpServer = new McpServerBuilder("示例服务器", "1.0.0")
 
 ## 客户端处理 Sampling 请求
 
-客户端通过 `WithSamplingHandler` 声明自己支持 Sampling，并处理服务端发来的 `sampling/createMessage` 请求：
+客户端通过 `WithSamplingHandler` 声明自己支持 Sampling，并处理服务端发来的 `sampling/createMessage` 请求。
+
+### 简单重载
+
+直接传入处理函数：
 
 ```csharp
 var mcpClient = new McpClientBuilder("示例客户端", "1.0.0")
@@ -77,13 +81,60 @@ var mcpClient = new McpClientBuilder("示例客户端", "1.0.0")
     .Build();
 ```
 
+### 工厂重载（依赖注入场景）
+
+当处理函数依赖 `IServiceProvider` 中的服务时，可使用工厂重载：
+
+```csharp
+var mcpClient = new McpClientBuilder("示例客户端", "1.0.0")
+    .WithServices(serviceProvider)
+    .WithHttp("http://localhost:5943/mcp")
+    .WithSamplingHandler(services =>
+    {
+        var llmClient = services!.GetRequiredService<IMyLlmClient>();
+        var userConsent = services.GetRequiredService<IUserConsentService>();
+
+        return async (request, cancellationToken) =>
+        {
+            // 1. 请求用户确认
+            if (!await userConsent.RequestSamplingConsentAsync(request, cancellationToken))
+            {
+                return CreateMessageResult.FromRefusal("用户拒绝了 Sampling 请求。");
+            }
+
+            // 2. 调用自己的大语言模型
+            var prompt = request.Messages
+                .Select(x => x.Content)
+                .OfType<TextContentBlock>()
+                .FirstOrDefault()
+                ?.Text ?? string.Empty;
+            var response = await llmClient.GenerateAsync(prompt, cancellationToken);
+
+            // 3. 让用户确认是否允许返回结果
+            if (!await userConsent.RequestResultConsentAsync(response, cancellationToken))
+            {
+                return CreateMessageResult.FromRefusal("用户拒绝返回 Sampling 结果。");
+            }
+
+            return new CreateMessageResult
+            {
+                Role = Role.Assistant,
+                Content = new TextContentBlock { Text = response },
+                Model = response.Model,
+                StopReason = "endTurn",
+            };
+        };
+    })
+    .Build();
+```
+
 然后像调用普通工具一样调用服务端工具：
 
 ```csharp
 var arguments = JsonSerializer.SerializeToElement(new { question = "请用一句话介绍 MCP。" });
 var result = await mcpClient.CallToolAsync("ask_llm", arguments);
 
-Console.WriteLine(result.Content.OfType<TextContentBlock>().FirstOrDefault()?.Text);
+Console.WriteLine(result.Content);
 ```
 
 如果客户端没有调用 `WithSamplingHandler`，服务端工具中的 `context.Sampling.IsSupported` 会返回 `false`。
