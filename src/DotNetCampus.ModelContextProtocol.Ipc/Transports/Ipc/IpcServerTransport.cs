@@ -41,8 +41,8 @@ public class IpcServerTransport : IServerTransport
     /// 初始化 <see cref="IpcServerTransport"/> 类的新实例。
     /// </summary>
     /// <param name="manager">辅助管理 MCP 传输层的管理器。</param>
-    /// <param name="pipeName">本地服务名，将作为管道名，管道服务端名</param>
-    /// <param name="ipcConfiguration"></param>
+    /// <param name="pipeName">本地服务名，用作 IPC 管道名。</param>
+    /// <param name="ipcConfiguration">IPC 配置。</param>
     public IpcServerTransport(IServerTransportManager manager, string pipeName, IpcConfiguration? ipcConfiguration = null)
     {
         _manager = manager;

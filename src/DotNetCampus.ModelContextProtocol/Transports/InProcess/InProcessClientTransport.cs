@@ -30,11 +30,11 @@ public sealed class InProcessClientTransport : IClientTransport
     private IMcpLogger Log => _manager.Context.Logger;
 
     /// <inheritdoc />
-    public async ValueTask ConnectAsync(CancellationToken cancellationToken = default)
+    public ValueTask ConnectAsync(CancellationToken cancellationToken = default)
     {
         if (Interlocked.CompareExchange(ref _connected, 1, 0) != 0)
         {
-            return;
+            return ValueTask.CompletedTask;
         }
 
         try
@@ -42,17 +42,16 @@ public sealed class InProcessClientTransport : IClientTransport
             Log.Info($"[McpClient][InProcess] Transport started.");
 
             var pair = _serverTransport.Connect();
-            pair.AttachClient();
             _transportPair = pair;
 
-            await pair.WaitForServerStartedAsync(cancellationToken).ConfigureAwait(false);
             _disconnectCancellationTokenSource = new CancellationTokenSource();
             _runLoopTask = RunLoopAsync(_disconnectCancellationTokenSource.Token);
+            return ValueTask.CompletedTask;
         }
-        catch
+        catch (Exception ex)
         {
             Interlocked.Exchange(ref _connected, 0);
-            throw;
+            return ValueTask.FromException(ex);
         }
     }
 

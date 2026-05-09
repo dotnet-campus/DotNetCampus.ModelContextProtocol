@@ -7,7 +7,7 @@ namespace DotNetCampus.ModelContextProtocol.Transports.InProcess;
 /// <summary>
 /// In-Process 传输层的服务端会话。
 /// </summary>
-public sealed class InProcessServerTransportSession : ServerTransportSession
+internal sealed class InProcessServerTransportSession : ServerTransportSession
 {
     private readonly IServerTransportManager _manager;
     private readonly InProcessTransportPair _transportPair;
@@ -18,7 +18,7 @@ public sealed class InProcessServerTransportSession : ServerTransportSession
     /// </summary>
     /// <param name="manager">辅助管理 MCP 传输层的管理器。</param>
     /// <param name="transportPair">In-Process 传输层连接对。</param>
-    public InProcessServerTransportSession(IServerTransportManager manager, InProcessTransportPair transportPair)
+    internal InProcessServerTransportSession(IServerTransportManager manager, InProcessTransportPair transportPair)
     {
         _manager = manager;
         _transportPair = transportPair;

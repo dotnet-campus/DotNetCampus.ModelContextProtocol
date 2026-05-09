@@ -40,7 +40,7 @@ public sealed class InProcessServerTransport : IServerTransport
     private IMcpLogger Log => _manager.Context.Logger;
 
     /// <summary>
-    /// 创建一个新的 In-Process 客户端连接。由客户端在构建时调用。
+    /// 创建一个新的 In-Process 客户端连接。由客户端在连接时调用。
     /// </summary>
     /// <returns>用于连接的 <see cref="InProcessTransportPair"/>。</returns>
     internal InProcessTransportPair Connect()
@@ -51,13 +51,11 @@ public sealed class InProcessServerTransport : IServerTransport
         }
 
         var pair = new InProcessTransportPair(_options);
-        pair.AttachServer();
         var session = new InProcessServerTransportSession(_manager, pair);
         var connectionId = _manager.MakeNewSessionId().Id;
 
         _manager.Add(session);
         _connections[connectionId] = new ClientConnection(pair, session);
-        pair.MarkServerStarted();
 
         Log.Info($"[McpServer][InProcess] New client connected. ConnectionId={connectionId}");
 

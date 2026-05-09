@@ -66,7 +66,11 @@ internal sealed class McpServerToolCompositeJsonContext(JsonSerializerContext ex
 [JsonSerializable(typeof(string[]))]
 // 协议类型
 [JsonSerializable(typeof(CompiledJsonSchema))]
-[JsonSourceGenerationOptions(GenerationMode = JsonSourceGenerationMode.Serialization)]
+// CompiledJsonSchema 内部引用的集合类型
+[JsonSerializable(typeof(IReadOnlyDictionary<string, CompiledJsonSchema>))]
+[JsonSerializable(typeof(IReadOnlyList<string>))]
+[JsonSerializable(typeof(IReadOnlyList<CompiledJsonSchema>))]
+[JsonSourceGenerationOptions(GenerationMode = JsonSourceGenerationMode.Default)]
 public partial class CompiledSchemaJsonContext : JsonSerializerContext
 {
     static CompiledSchemaJsonContext()
