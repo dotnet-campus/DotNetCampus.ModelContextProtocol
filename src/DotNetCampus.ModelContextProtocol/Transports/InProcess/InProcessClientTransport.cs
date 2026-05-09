@@ -10,7 +10,8 @@ namespace DotNetCampus.ModelContextProtocol.Transports.InProcess;
 public sealed class InProcessClientTransport : IClientTransport
 {
     private readonly IClientTransportManager _manager;
-    private readonly InProcessTransportPair _transportPair;
+    private readonly InProcessServerTransport _serverTransport;
+    private InProcessTransportPair? _transportPair;
     private CancellationTokenSource? _disconnectCancellationTokenSource;
     private Task? _runLoopTask;
     private int _connected;
@@ -19,12 +20,11 @@ public sealed class InProcessClientTransport : IClientTransport
     /// 初始化 <see cref="InProcessClientTransport"/> 类的新实例。
     /// </summary>
     /// <param name="manager">辅助管理 MCP 传输层的管理器。</param>
-    /// <param name="transportPair">In-Process 传输层连接对。</param>
-    public InProcessClientTransport(IClientTransportManager manager, InProcessTransportPair transportPair)
+    /// <param name="serverTransport">In-Process 服务端传输层，连接将在 <see cref="ConnectAsync"/> 中建立。</param>
+    internal InProcessClientTransport(IClientTransportManager manager, InProcessServerTransport serverTransport)
     {
         _manager = manager;
-        _transportPair = transportPair;
-        _transportPair.AttachClient();
+        _serverTransport = serverTransport;
     }
 
     private IMcpLogger Log => _manager.Context.Logger;
@@ -41,7 +41,11 @@ public sealed class InProcessClientTransport : IClientTransport
         {
             Log.Info($"[McpClient][InProcess] Transport started.");
 
-            await _transportPair.WaitForServerStartedAsync(cancellationToken).ConfigureAwait(false);
+            var pair = _serverTransport.Connect();
+            pair.AttachClient();
+            _transportPair = pair;
+
+            await pair.WaitForServerStartedAsync(cancellationToken).ConfigureAwait(false);
             _disconnectCancellationTokenSource = new CancellationTokenSource();
             _runLoopTask = RunLoopAsync(_disconnectCancellationTokenSource.Token);
         }
@@ -60,7 +64,7 @@ public sealed class InProcessClientTransport : IClientTransport
             return;
         }
 
-        _transportPair.CompleteClient();
+        _transportPair?.CompleteClient();
 
         var cancellationTokenSource = _disconnectCancellationTokenSource;
         if (cancellationTokenSource is not null)
@@ -103,7 +107,7 @@ public sealed class InProcessClientTransport : IClientTransport
 
         var line = _manager.WriteMessageAsync(message);
         _manager.LogRawOut("[InProcess]", line);
-        await _transportPair.SendToServerAsync(line, cancellationToken).ConfigureAwait(false);
+        await _transportPair!.SendToServerAsync(line, cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -116,7 +120,7 @@ public sealed class InProcessClientTransport : IClientTransport
     {
         try
         {
-            await foreach (var line in _transportPair.ReadServerMessagesAsync(cancellationToken).ConfigureAwait(false))
+            await foreach (var line in _transportPair!.ReadServerMessagesAsync(cancellationToken).ConfigureAwait(false))
             {
                 if (string.IsNullOrWhiteSpace(line))
                 {

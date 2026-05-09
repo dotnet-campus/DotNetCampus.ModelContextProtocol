@@ -110,8 +110,7 @@ public class McpClientBuilder
             var transport = server.Transports.OfType<InProcessServerTransport>().FirstOrDefault()
                 ?? throw new InvalidOperationException(
                     "MCP 服务器未配置 In-Process 传输层。请在构建服务器时调用 McpServerBuilder.WithInProcess() 方法。");
-            var pair = transport.Connect();
-            return new InProcessClientTransport(m, pair);
+            return new InProcessClientTransport(m, transport);
         });
     }
 

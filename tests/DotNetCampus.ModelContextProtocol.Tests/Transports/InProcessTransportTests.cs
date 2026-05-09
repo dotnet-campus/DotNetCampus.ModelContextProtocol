@@ -206,8 +206,82 @@ public class InProcessTransportTests
         }
     }
 
-    [TestMethod("InProcess Connect: 服务端未启动时客户端会抛出异常")]
-    public void Connect_ThrowsWhenServerNotStarted()
+    [TestMethod("InProcess BuildBeforeConnect: 先创建客户端再启动服务器后可正常调用")]
+    public async Task BuildBeforeConnect_CanCallAfterServerStarts()
+    {
+        var server = new McpServerBuilder("TestMcpServer", "1.0.0")
+            .WithLogger(TestMcpFactory.DefaultLogger)
+            .WithInProcess()
+            .WithTools(t => t.WithTool(() => new CalculatorTool()))
+            .Build();
+
+        // 在服务器启动之前就创建客户端。
+        await using var client = new McpClientBuilder()
+            .WithLogger(TestMcpFactory.DefaultLogger)
+            .WithInProcess(server)
+            .Build();
+
+        // 此时服务器尚未启动，客户端已经存在。
+        // 启动服务器。
+        server.EnableDebugMode();
+        await server.StartAsync();
+
+        try
+        {
+            // 现在客户端可以正常调用工具。
+            var args = JsonSerializer.SerializeToElement(new { a = 42, b = 58 });
+            var result = await client.CallToolAsync("add", args);
+            Assert.AreEqual("100", ((TextContentBlock)result.Content[0]).Text);
+        }
+        finally
+        {
+            await server.StopAsync();
+        }
+    }
+
+    [TestMethod("InProcess BuildBeforeConnect: 多个客户端先创建再启动服务器后可并发调用")]
+    public async Task BuildBeforeConnect_MultipleClientsCanCallAfterServerStarts()
+    {
+        var server = new McpServerBuilder("TestMcpServer", "1.0.0")
+            .WithLogger(TestMcpFactory.DefaultLogger)
+            .WithInProcess()
+            .WithTools(t => t.WithTool(() => new CalculatorTool()))
+            .Build();
+
+        // 在服务器启动之前创建多个客户端——这是全异步请求的关键场景。
+        await using var client1 = new McpClientBuilder()
+            .WithLogger(TestMcpFactory.DefaultLogger)
+            .WithInProcess(server)
+            .Build();
+        await using var client2 = new McpClientBuilder()
+            .WithLogger(TestMcpFactory.DefaultLogger)
+            .WithInProcess(server)
+            .Build();
+
+        // 启动服务器。
+        server.EnableDebugMode();
+        await server.StartAsync();
+
+        try
+        {
+            // 两个客户端并发调用。
+            var args1 = JsonSerializer.SerializeToElement(new { a = 1, b = 2 });
+            var args2 = JsonSerializer.SerializeToElement(new { a = 10, b = 20 });
+            var task1 = client1.CallToolAsync("add", args1);
+            var task2 = client2.CallToolAsync("add", args2);
+            var result1 = await task1;
+            var result2 = await task2;
+            Assert.AreEqual("3", ((TextContentBlock)result1.Content[0]).Text);
+            Assert.AreEqual("30", ((TextContentBlock)result2.Content[0]).Text);
+        }
+        finally
+        {
+            await server.StopAsync();
+        }
+    }
+
+    [TestMethod("InProcess Connect: 服务端未启动时客户端首次请求会抛出异常")]
+    public async Task Connect_ThrowsWhenServerNotStarted()
     {
         var server = new McpServerBuilder("TestMcpServer", "1.0.0")
             .WithInProcess()
@@ -215,12 +289,91 @@ public class InProcessTransportTests
             .Build();
         // 没有调用 server.StartAsync()，因此 InProcess 传输层尚未启动。
 
-        Assert.ThrowsException<InvalidOperationException>(() =>
+        // Build 不再抛出异常，客户端可以在服务器启动前创建。
+        await using var client = new McpClientBuilder()
+            .WithInProcess(server)
+            .Build();
+
+        // 首次 API 调用时触发连接，此时服务器未启动，应抛出异常。
+        await Assert.ThrowsExceptionAsync<InvalidOperationException>(async () =>
         {
-            new McpClientBuilder()
-                .WithInProcess(server)
-                .Build();
+            await client.CallToolAsync("add", default);
         });
+    }
+
+    [TestMethod("InProcess EnsureConnectedAsync: 可提前验证连接并过滤不可用服务")]
+    public async Task EnsureConnectedAsync_CanFilterUnavailableServers()
+    {
+        var goodServer = new McpServerBuilder("GoodServer", "1.0.0")
+            .WithLogger(TestMcpFactory.DefaultLogger)
+            .WithInProcess()
+            .WithTools(t => t.WithTool(() => new CalculatorTool()))
+            .Build();
+        var badServer = new McpServerBuilder("BadServer", "1.0.0")
+            .WithInProcess()
+            .Build();
+
+        // 只启动 goodServer，badServer 保持未启动。
+        goodServer.EnableDebugMode();
+        await goodServer.StartAsync();
+
+        try
+        {
+            var goodClient = new McpClientBuilder()
+                .WithLogger(TestMcpFactory.DefaultLogger)
+                .WithInProcess(goodServer)
+                .Build();
+            var badClient = new McpClientBuilder()
+                .WithInProcess(badServer)
+                .Build();
+
+            // 使用 EnsureConnectedAsync 提前过滤不可用的服务。
+            var clients = new[] { goodClient, badClient };
+            var available = new List<McpClient>();
+            foreach (var client in clients)
+            {
+                try
+                {
+                    await client.EnsureConnectedAsync();
+                    available.Add(client);
+                }
+                catch
+                {
+                    await client.DisposeAsync();
+                }
+            }
+
+            // 只有 goodClient 可用。
+            Assert.AreEqual(1, available.Count);
+            Assert.IsTrue(available[0].IsConnected);
+
+            // 可用的客户端能正常调用工具。
+            var args = JsonSerializer.SerializeToElement(new { a = 7, b = 8 });
+            var result = await available[0].CallToolAsync("add", args);
+            Assert.AreEqual("15", ((TextContentBlock)result.Content[0]).Text);
+
+            await available[0].DisposeAsync();
+        }
+        finally
+        {
+            await goodServer.StopAsync();
+        }
+    }
+
+    [TestMethod("InProcess EnsureConnectedAsync: 多次调用是幂等的")]
+    public async Task EnsureConnectedAsync_IsIdempotent()
+    {
+        await using var package = await TestMcpFactory.Shared.CreateFullInProcessAsync();
+
+        // EnsureConnectedAsync 多次调用不会报错，也不会重复连接。
+        await package.Client.EnsureConnectedAsync();
+        await package.Client.EnsureConnectedAsync();
+        Assert.IsTrue(package.Client.IsConnected);
+
+        // 调用后仍能正常使用。
+        var args = JsonSerializer.SerializeToElement(new { a = 3, b = 4 });
+        var result = await package.Client.CallToolAsync("add", args);
+        Assert.AreEqual("7", ((TextContentBlock)result.Content[0]).Text);
     }
 
     [TestMethod("InProcess ServerStops: 服务端停止后客户端请求不会永久挂起")]

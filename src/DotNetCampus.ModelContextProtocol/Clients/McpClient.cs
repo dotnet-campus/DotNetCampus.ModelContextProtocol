@@ -67,10 +67,14 @@ public class McpClient : IAsyncDisposable
     }
 
     /// <summary>
-    /// 确保客户端已连接到服务器。如果未连接，则自动连接并初始化。
+    /// 确保客户端已连接到服务器。如果未连接，则自动连接并完成 MCP 协议初始化握手。
+    /// <para>
+    /// 此方法是幂等的，多次调用不会重复连接。所有 API 方法（如 <see cref="CallToolAsync"/>）在内部也会自动调用此方法，
+    /// 因此通常不需要显式调用。但如果希望在正式使用前提前验证连接可用性（例如过滤掉不可用的服务），可以主动调用此方法。
+    /// </para>
     /// </summary>
     /// <param name="cancellationToken">取消令牌。</param>
-    private async Task EnsureConnectedAsync(CancellationToken cancellationToken = default)
+    public async Task EnsureConnectedAsync(CancellationToken cancellationToken = default)
     {
         if (IsConnected)
         {
