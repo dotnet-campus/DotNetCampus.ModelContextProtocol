@@ -240,7 +240,7 @@ public class TestMcpFactory
 
         var endpoint = new Uri($"http://127.0.0.1:{port}/mcp", UriKind.Absolute);
 
-        var mcpClientBuilder = new McpClientBuilder()
+        var mcpClientBuilder = new McpClientBuilder("test-client", "1.0.0")
             .WithLogger(DefaultLogger)
             .WithHttp(endpoint.AbsoluteUri);
         configureClient?.Invoke(mcpClientBuilder);
@@ -266,7 +266,7 @@ public class TestMcpFactory
         mcpServer.EnableDebugMode();
         await mcpServer.StartAsync(CancellationToken.None);
 
-        var mcpClientBuilder = new McpClientBuilder()
+        var mcpClientBuilder = new McpClientBuilder("test-client", "1.0.0")
             .WithLogger(DefaultLogger)
             .WithInProcess(mcpServer);
         configureClient?.Invoke(mcpClientBuilder);

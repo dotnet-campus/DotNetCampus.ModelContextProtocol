@@ -11,7 +11,7 @@ public sealed class McpClientTests
     public async Task ServerEverything_Stdio()
     {
         // Arrange & Act
-        await using var client = new McpClientBuilder()
+        await using var client = new McpClientBuilder("test-client", "1.0.0")
             .WithStdio("npx", ["-y", "@modelcontextprotocol/server-everything", "stdio"])
             .Build();
 
@@ -52,7 +52,7 @@ public sealed class McpClientTests
             Assert.IsFalse(process.HasExited, "npx process exited unexpectedly.");
 
             // Act
-            await using var client = new McpClientBuilder()
+            await using var client = new McpClientBuilder("test-client", "1.0.0")
                 .WithLogger(TestMcpFactory.DefaultLogger)
                 .WithHttp($"http://localhost:{port}/mcp")
                 .Build();

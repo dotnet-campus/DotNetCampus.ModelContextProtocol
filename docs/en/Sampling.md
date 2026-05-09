@@ -1,60 +1,75 @@
-# Sampling (Server-Initiated Requests)
+# Sampling
 
-Sampling is an MCP protocol feature that lets a server tool send a `sampling/createMessage` request to the client while executing, asking the client (the AI host) to call a language model and return the result. All transports (HTTP, stdio, In-Process, etc.) support this feature.
+Sampling lets a server tool send a `sampling/createMessage` request to the client while the tool is running. The client decides whether to call a model, which model to call, and whether to return the result to the server.
 
-## Client: register a handler
-
-Register a handler via `WithSamplingHandler` when building the client:
+## Complete example
 
 ```csharp
-var mcpClient = new McpClientBuilder()
-    .WithLocalHostHttp(5943, "mcp")   // any transport works the same way
-    .WithSamplingHandler(async (parameters, cancellationToken) =>
-    {
-        // Call your actual AI model here
-        var response = await myAiModel.CompleteAsync(parameters.Messages);
-        return new CreateMessageResult
-        {
-            Role = Role.Assistant,
-            Content = new TextContentBlock { Text = response },
-            Model = "my-model",
-            StopReason = "endTurn",
-        };
-    })
+using System.Text.Json;
+using DotNetCampus.ModelContextProtocol.Clients;
+using DotNetCampus.ModelContextProtocol.CompilerServices;
+using DotNetCampus.ModelContextProtocol.Protocol.Messages;
+using DotNetCampus.ModelContextProtocol.Servers;
+
+var mcpServer = new McpServerBuilder("SamplingServer", "1.0.0")
+    .WithTools(tools => tools.WithTool(() => new SamplingTools()))
+    .WithInProcess()
     .Build();
-```
 
-## Server: initiate a request from a tool
+await mcpServer.StartAsync();
+try
+{
+    await using var mcpClient = new McpClientBuilder()
+        .WithClientInfo("SamplingClient", "1.0.0")
+        .WithInProcess(mcpServer)
+        .WithSamplingHandler((request, cancellationToken) =>
+        {
+            var prompt = request.Messages
+                .Select(message => message.Content)
+                .OfType<TextContentBlock>()
+                .FirstOrDefault()
+                ?.Text ?? string.Empty;
 
-Tool methods send the request via `IMcpServerCallToolContext.Sampling`:
+            return Task.FromResult(new CreateMessageResult
+            {
+                Role = Role.Assistant,
+                Content = new TextContentBlock { Text = $"Client model received: {prompt}" },
+                Model = "demo-model",
+                StopReason = "endTurn",
+            });
+        })
+        .Build();
 
-```csharp
-public class MyTool
+    var arguments = JsonSerializer.SerializeToElement(new { question = "Hello, MCP." });
+    var result = await mcpClient.CallToolAsync("ask_model", arguments);
+
+    Console.WriteLine(result.Content.OfType<TextContentBlock>().FirstOrDefault()?.Text);
+}
+finally
+{
+    await mcpServer.StopAsync();
+}
+
+public class SamplingTools
 {
     [McpServerTool]
-    public async Task<string> AskAI(
-        string question,
-        IMcpServerCallToolContext context,
-        CancellationToken cancellationToken)
+    public async Task<string> AskModel(IMcpServerCallToolContext context, string question)
     {
+        if (!context.Sampling.IsSupported)
+        {
+            return "The current client did not declare Sampling support.";
+        }
+
         var result = await context.Sampling.CreateMessageAsync(
-            new CreateMessageRequestParams
-            {
-                Messages =
-                [
-                    new SamplingMessage
-                    {
-                        Role = Role.User,
-                        Content = new TextContentBlock { Text = question },
-                    },
-                ],
-                MaxTokens = 1024,
-            },
-            cancellationToken);
+            question,
+            maxTokens: 256,
+            cancellationToken: context.CancellationToken);
 
         return result.Content is TextContentBlock text ? text.Text : string.Empty;
     }
 }
 ```
 
-`IMcpServerCallToolContext` is an implicit parameter type — just declare it in the tool method's parameter list and the framework injects it automatically (see [Supported Types](QuickStart.md#supported-types)).
+## Handling Sampling requests
+
+The client declares and handles Sampling requests with `WithSamplingHandler`. A server tool starts a request through `IMcpServerCallToolContext.Sampling`; check `IsSupported` before calling it.

@@ -138,11 +138,11 @@ public class InProcessTransportTests
         try
         {
             // 创建两个独立的客户端。
-            await using var client1 = new McpClientBuilder()
+            await using var client1 = new McpClientBuilder("test-client-1", "1.0.0")
                 .WithLogger(TestMcpFactory.DefaultLogger)
                 .WithInProcess(server)
                 .Build();
-            await using var client2 = new McpClientBuilder()
+            await using var client2 = new McpClientBuilder("test-client-2", "1.0.0")
                 .WithLogger(TestMcpFactory.DefaultLogger)
                 .WithInProcess(server)
                 .Build();
@@ -179,11 +179,11 @@ public class InProcessTransportTests
 
         try
         {
-            var client1 = new McpClientBuilder()
+            var client1 = new McpClientBuilder("test-client-1", "1.0.0")
                 .WithLogger(TestMcpFactory.DefaultLogger)
                 .WithInProcess(server)
                 .Build();
-            await using var client2 = new McpClientBuilder()
+            await using var client2 = new McpClientBuilder("test-client-2", "1.0.0")
                 .WithLogger(TestMcpFactory.DefaultLogger)
                 .WithInProcess(server)
                 .Build();
@@ -216,7 +216,7 @@ public class InProcessTransportTests
             .Build();
 
         // 在服务器启动之前就创建客户端。
-        await using var client = new McpClientBuilder()
+        await using var client = new McpClientBuilder("test-client", "1.0.0")
             .WithLogger(TestMcpFactory.DefaultLogger)
             .WithInProcess(server)
             .Build();
@@ -249,11 +249,11 @@ public class InProcessTransportTests
             .Build();
 
         // 在服务器启动之前创建多个客户端——这是全异步请求的关键场景。
-        await using var client1 = new McpClientBuilder()
+        await using var client1 = new McpClientBuilder("test-client-1", "1.0.0")
             .WithLogger(TestMcpFactory.DefaultLogger)
             .WithInProcess(server)
             .Build();
-        await using var client2 = new McpClientBuilder()
+        await using var client2 = new McpClientBuilder("test-client-2", "1.0.0")
             .WithLogger(TestMcpFactory.DefaultLogger)
             .WithInProcess(server)
             .Build();
@@ -290,7 +290,7 @@ public class InProcessTransportTests
         // 没有调用 server.StartAsync()，因此 InProcess 传输层尚未启动。
 
         // Build 不再抛出异常，客户端可以在服务器启动前创建。
-        await using var client = new McpClientBuilder()
+        await using var client = new McpClientBuilder("test-client", "1.0.0")
             .WithInProcess(server)
             .Build();
 
@@ -319,11 +319,11 @@ public class InProcessTransportTests
 
         try
         {
-            var goodClient = new McpClientBuilder()
+            var goodClient = new McpClientBuilder("test-client-good", "1.0.0")
                 .WithLogger(TestMcpFactory.DefaultLogger)
                 .WithInProcess(goodServer)
                 .Build();
-            var badClient = new McpClientBuilder()
+            var badClient = new McpClientBuilder("test-client-bad", "1.0.0")
                 .WithInProcess(badServer)
                 .Build();
 

@@ -15,8 +15,7 @@ public class HttpClientNegotiationTests
     {
         var handler = new RecordingMcpServerHandler();
         using var httpClient = new HttpClient(handler);
-        await using var client = new McpClientBuilder()
-            .WithClientInfo("test-client", "1.0.0")
+        await using var client = new McpClientBuilder("test-client", "1.0.0")
             .WithHttp(new HttpClientTransportOptions
             {
                 ServerUrl = "http://localhost/mcp",
@@ -37,8 +36,7 @@ public class HttpClientNegotiationTests
     {
         var handler = new SessionRecoveryHandler();
         using var httpClient = new HttpClient(handler);
-        await using var client = new McpClientBuilder()
-            .WithClientInfo("test-client", "1.0.0")
+        await using var client = new McpClientBuilder("test-client", "1.0.0")
             .WithHttp(new HttpClientTransportOptions
             {
                 ServerUrl = "http://localhost/mcp",
@@ -58,8 +56,7 @@ public class HttpClientNegotiationTests
     {
         var handler = new UnsupportedVersionHandler();
         using var httpClient = new HttpClient(handler);
-        await using var client = new McpClientBuilder()
-            .WithClientInfo("test-client", "1.0.0")
+        await using var client = new McpClientBuilder("test-client", "1.0.0")
             .WithHttp(new HttpClientTransportOptions
             {
                 ServerUrl = "http://localhost/mcp",

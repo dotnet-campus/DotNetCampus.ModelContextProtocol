@@ -12,10 +12,10 @@ namespace DotNetCampus.ModelContextProtocol.Clients;
 /// <summary>
 /// 用于构建 MCP 客户端的生成器。
 /// </summary>
-public class McpClientBuilder
+/// <param name="clientName">MCP 客户端名称。</param>
+/// <param name="clientVersion">MCP 客户端版本。</param>
+public class McpClientBuilder(string clientName, string clientVersion)
 {
-    private string _clientName = "<Unknown>";
-    private string _clientVersion = "0.0.0";
     private IMcpLogger? _logger;
     private McpTransportRawMessageLoggingDetailLevel _rawMessageLoggingDetailLevel = McpTransportRawMessageLoggingDetailLevel.None;
     private IServiceProvider? _serviceProvider;
@@ -23,19 +23,6 @@ public class McpClientBuilder
     private ClientCapabilities _capabilities = new();
     private Func<CreateMessageRequestParams, CancellationToken, Task<CreateMessageResult>>? _samplingHandler;
     private Func<McpClient, McpClientRequestHandlers>? _requestHandlers;
-
-    /// <summary>
-    /// 设置客户端名称和版本。
-    /// </summary>
-    /// <param name="clientName">客户端名称。</param>
-    /// <param name="clientVersion">客户端版本。</param>
-    /// <returns>用于链式调用的 MCP 客户端生成器。</returns>
-    public McpClientBuilder WithClientInfo(string clientName, string clientVersion)
-    {
-        _clientName = clientName;
-        _clientVersion = clientVersion;
-        return this;
-    }
 
     /// <summary>
     /// 配置 MCP 客户端的日志记录器。
@@ -249,8 +236,8 @@ public class McpClientBuilder
 
         var client = new McpClient(context)
         {
-            ClientName = _clientName,
-            ClientVersion = _clientVersion,
+            ClientName = clientName,
+            ClientVersion = clientVersion,
             Capabilities = _capabilities,
         };
 

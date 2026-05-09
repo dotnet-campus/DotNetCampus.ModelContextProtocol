@@ -1,6 +1,10 @@
-# 快速使用
+# 快速开始
 
-## 初始化
+关于 MCP 协议的详细说明，请参阅 [MCP 官方文档](https://modelcontextprotocol.io/docs/getting-started/intro)。
+
+## 服务端
+
+### 初始化
 
 一个典型的 MCP 服务器程序如下所示：
 
@@ -16,7 +20,7 @@ internal class Program
             .WithTools(t => t
                 // 注册各种 MCP 工具
                 .WithTool(() => new SampleTools())
-                .WithTool(() => new SampleTools2())
+                // .WithTool(() => new SampleTools2())
             )
             // 传输层使用 Streamable HTTP，监听 http://localhost:5943/mcp
             .WithLocalHostHttp(5943, "mcp")
@@ -24,11 +28,7 @@ internal class Program
             // 不过通常不建议同时启用 http 和 stdio，因为前者通常要求单例运行，后者则必须支持多实例运行
             // .WithStdio()
             .Build();
-#if DEBUG
-        // 启用调试模式，这样当 MCP 服务遇到异常时，会把异常信息返回给客户端，方便调试
-        // 通常不建议在发布环境启用此模式，否则会暴露服务器的内部实现细节
-        mcpServer.EnableDebugMode();
-#endif
+
         // 运行 MCP 服务器
         await mcpServer.RunAsync();
     }
@@ -50,15 +50,7 @@ internal class Program
 internal partial class McpToolJsonContext : JsonSerializerContext;
 ```
 
-## In-Process 传输层（同进程嵌入）
-
-In-Process 传输层适用于同进程嵌入 MCP 服务或集成测试场景，详见 [In-Process 传输层使用指南](InProcessTransport.md)。
-
-## Sampling（服务端主动请求）
-
-MCP 服务端工具可在执行期间向客户端发起 `sampling/createMessage` 请求，由客户端调用大语言模型后返回结果，详见 [Sampling 使用指南](Sampling.md)。
-
-## MCP 工具方法声明
+### MCP 工具方法声明
 
 ```csharp
 public class SampleTools
@@ -76,9 +68,7 @@ public class SampleTools
 }
 ```
 
-### 支持的类型
-
-方法参数可以是任意数量的，支持以下类型：
+方法参数可以是任意数量的，支持带默认值，支持以下类型：
 
 - 隐式类型：
     - 任意可被 JSON 反序列化的类型（包括基本类型、数组和对象等）
@@ -104,42 +94,60 @@ public class SampleTools
 - 支持上述所有种类的同步返回值
 - 支持 `Task`、`Task<T>`、`ValueTask` 和 `ValueTask<T>` 的异步返回值
 
-### 类型多态
+## 客户端
 
-允许方法参数和返回值使用接口或抽象类类型，但需要标注全部可能的具体实现类型：
+### 准备 MCP 服务器
+
+1. 你可以准备 stdio 传输层的 MCP 服务器
+    - 如 `npx -y @modelcontextprotocol/server-everything stdio`（无需提前运行）
+2. 也可以准备 http 传输层的 MCP 服务器
+    - 如 `npx -y @modelcontextprotocol/server-everything streamableHttp`（需提前运行）
+
+```powershell
+npx -y @modelcontextprotocol/server-everything streamableHttp
+Starting Streamable HTTP server...
+MCP Streamable HTTP Server listening on port 3001
+```
+
+你也可以使用本库编写的 MCP 服务器，例如本文档前面章节示例代码创建的 MCP 服务器。
+
+### 初始化
+
+一个典型的 MCP 客户端代码如下所示：
 
 ```csharp
-[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
-[JsonDerivedType(typeof(Foo), typeDiscriminator: "foo")]
-[JsonDerivedType(typeof(Bar), typeDiscriminator: "bar")]
-public interface IFooBar
+/// <summary>
+/// MCP 主机程序中，用来管理 MCP 客户端的类
+/// </summary>
+internal class McpManager
 {
-    [JsonPropertyName("name")]
-    string? Name { get; init; }
-}
-
-public class Foo : IFooBar
-{
-    public string? Name { get; init; }
-
-    [JsonPropertyName("fooValue")]
-    public int FooValue { get; init; }
-}
-
-public class Bar : IFooBar
-{
-    public string? Name { get; init; }
-
-    [JsonPropertyName("barValue")]
-    public string? BarValue { get; init; }
+    public McpClient CreateMcpClient()
+    {
+        // 此客户端名和版本号会在 MCP 协议中发送给服务器
+        var mcpClient = new McpClientBuilder("示例客户端", "1.0.0")
+            // 连接 stdio 服务器（无需提前运行）
+            .WithStdio("npx", ["-y", "@modelcontextprotocol/server-everything", "stdio"])
+            // 或者连接 http 服务器（需提前运行）
+            // .WithHttp("http://localhost:3001/mcp")
+            // 按照 MCP 官方协议要求，一个客户端只能连接一个 MCP 服务器
+            .Build();
+        return mcpClient;
+    }
 }
 ```
 
-请注意，Json 序列化器必须标注 `AllowOutOfOrderMetadataProperties`，因为 AI 不一定会按顺序传：
-
 ```csharp
-[JsonSerializable(typeof(IFooBar))]
-[JsonSourceGenerationOptions(
-    AllowOutOfOrderMetadataProperties = true)]
-internal partial class McpToolJsonContext : JsonSerializerContext;
+// 可选调用，确保客户端已连接到服务器。如果不调用，客户端会在首次 API 调用时自动连接。
+// 提前调用的好处是可以统一捕获连接异常，提前过滤掉坏掉的 MCP 服务器，避免影响后续业务逻辑。
+await mcpClient.EnsureConnectedAsync();
+
+var tools = await mcpClient.ListToolsAsync();
+foreach (var tool in tools.Tools)
+{
+    Console.WriteLine(tool.Name);
+}
+
+// 调用工具，传入工具名和参数。如果开启了 AOT，后面的参数可以传入自己定义的 JsonSerializerContext 生成的 JsonElement。
+var result = await mcpClient.CallToolAsync("echo", JsonSerializer.SerializeToElement(new { text = "Hello, World!" }));
+Console.WriteLine(result.Content);
 ```
