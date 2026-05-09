@@ -1,4 +1,4 @@
-# Using _meta
+# _meta
 
 MCP 协议的 [`_meta`](https://modelcontextprotocol.io/specification/2025-11-25/basic#_meta) 字段允许在 MCP 请求中携带额外的元数据。一个典型用途是**分布式追踪**：客户端将 TraceId 注入 `_meta`，服务端提取后进行埋点。
 

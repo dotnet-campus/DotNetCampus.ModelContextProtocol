@@ -2,11 +2,12 @@
 
 [![.NET Build and Test](https://github.com/dotnet-campus/DotNetCampus.ModelContextProtocol/actions/workflows/dotnet-build.yml/badge.svg)](https://github.com/dotnet-campus/DotNetCampus.ModelContextProtocol/actions/workflows/dotnet-build.yml) [![NuGet](https://img.shields.io/nuget/v/DotNetCampus.ModelContextProtocol.svg?label=DotNetCampus.ModelContextProtocol)](https://www.nuget.org/packages/DotNetCampus.ModelContextProtocol)
 
-| [English][en] | [简体中文][zh-hans] |
-| ------------- | ------------------- |
+| [English][en] | [简体中文][zh-hans] | [繁體中文][zh-hant] |
+| ------------- | ------------------- | ------------------- |
 
 [en]: /docs/en/README.md
 [zh-hans]: /docs/zh-hans/README.md
+[zh-hant]: /docs/zh-hant/README.md
 
 A lightweight, zero-dependency yet full-featured MCP protocol implementation built with .NET. It can be easily integrated into your application, regardless of its architecture.
 

@@ -1,5 +1,5 @@
 # Prompts
 
-MCP Prompts let a server provide reusable prompt templates that a client can list and request by name.
+MCP Prompts allows the server to provide reusable prompt templates. The client can list templates and fetch prompt content by name.
 
-DotNetCampus.ModelContextProtocol does not implement Prompts yet.
+> The current version has not yet implemented Prompts (planned).

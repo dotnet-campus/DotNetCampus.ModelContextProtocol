@@ -1,5 +1,5 @@
 # Roots
 
-MCP Roots let a client declare the workspace roots that are available to the server.
+MCP Roots allows the client to declare the currently accessible workspace root directories to the server.
 
-DotNetCampus.ModelContextProtocol does not implement Roots yet.
+> The current version has not yet implemented Roots (planned).

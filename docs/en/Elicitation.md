@@ -1,5 +1,5 @@
 # Elicitation
 
-MCP Elicitation lets a server ask a client for more information, and lets the client collect that information from the user.
+MCP Elicitation allows the server to request additional information from the client, which the client then collects from the user.
 
-DotNetCampus.ModelContextProtocol does not implement Elicitation yet.
+> The current version has not yet implemented Elicitation (planned).

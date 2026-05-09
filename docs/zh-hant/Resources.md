@@ -1,23 +1,23 @@
 # Resources
 
-Resources allow an MCP server to expose contextual data to clients. Resources are typically read-only, such as file contents, configuration, database schemas, images, or runtime state.
+Resources 用於讓 MCP 伺服器向用戶端暴露內容資料。資源通常是唯讀的，例如檔案內容、組態、資料庫結構、圖片或執行時期狀態。
 
-We assume you have already completed the MCP server and client setup described in [Quick Start](QuickStart.md) before reading this guide.
+我們假設你在閱讀本文前，已經完成了 [快速開始](QuickStart.md) 中 MCP 伺服器和用戶端的建置。
 
-## Server-Side Resource Provision
+## 伺服器端提供資源
 
-### Initialization
+### 初始化
 
-Resources must be registered with the MCP server via `WithResources`:
+資源需要透過 `WithResources` 註冊到 MCP 伺服器中：
 
 ```csharp
 internal class Program
 {
     private static async Task Main(string[] args)
     {
-        var mcpServer = new McpServerBuilder("Example Server", "1.0.0")
+        var mcpServer = new McpServerBuilder("示例服务器", "1.0.0")
             .WithResources(r => r
-                // Register various MCP resources
+                // 注册各种 MCP 资源
                 .WithResource(() => new SampleResources())
             )
             .WithLocalHostHttp(5943, "mcp")
@@ -28,31 +28,31 @@ internal class Program
 }
 ```
 
-### MCP Resource Method Declaration
+### MCP 資源方法宣告
 
-A typical MCP resource implementation looks like this:
+一個典型的 MCP 資源實作如下：
 
 ```csharp
 public class SampleResources
 {
     /// <summary>
-    /// A text resource with a fixed URI.
+    /// 一个固定 URI 的文本资源。
     /// </summary>
     [McpServerResource(
         UriTemplate = "sample://welcome",
         Name = "Welcome Text",
-        Description = "A welcome text message")]
+        Description = "一段欢迎文本")]
     public string WelcomeText()
     {
         return "Hello from MCP Resources.";
     }
 
     /// <summary>
-    /// A JSON resource with a URI template parameter.
+    /// 一个带 URI 模板参数的 JSON 资源。
     /// </summary>
-    /// <param name="context">The current resource read context.</param>
-    /// <param name="userId">The user ID.</param>
-    /// <returns>A user profile in JSON.</returns>
+    /// <param name="context">当前资源读取上下文。</param>
+    /// <param name="userId">用户 ID。</param>
+    /// <returns>用户资料 JSON。</returns>
     [McpServerResource(
         UriTemplate = "sample://users/{userId}/profile",
         Name = "User Profile",
@@ -73,7 +73,7 @@ public class SampleResources
     }
 
     /// <summary>
-    /// A binary resource. Binary content must be Base64-encoded.
+    /// 一个二进制资源。二进制内容需要用 Base64 编码。
     /// </summary>
     [McpServerResource(
         UriTemplate = "sample://hello.bin",
@@ -92,47 +92,47 @@ public class SampleResources
 }
 ```
 
-In this example:
+在這個範例中：
 
-- `UriTemplate` is the URI or URI template used by clients when reading the resource
-- Fixed URI resources appear in the `resources/list` result
-- Resources with template parameters like `{userId}` appear in the `resources/templates/list` result, and clients can read them using the actual URI
-- If a resource does not exist, you can throw `McpResourceNotFoundException`
+- `UriTemplate` 是用戶端讀取資源時使用的 URI 或 URI 範本
+- 固定 URI 資源會出現在 `resources/list` 結果中
+- 帶 `{userId}` 這類範本參數的資源會出現在 `resources/templates/list` 結果中，用戶端可按實際 URI 讀取
+- 如果資源不存在，可以擲出 `McpResourceNotFoundException`
 
-Resource methods can return the following types:
+資源方法可以傳回以下型別：
 
-- `string`: A text resource
-- `ResourceContents`: A single resource content, such as `TextResourceContents` or `BlobResourceContents`
-- `IReadOnlyList<ResourceContents>`: Multiple resource contents returned at once
-- `ReadResourceResult`: Direct control over the resource read result at the MCP protocol layer
+- `string`: 文字資源
+- `ResourceContents`: 單一資源內容，例如 `TextResourceContents` 或 `BlobResourceContents`
+- `IReadOnlyList<ResourceContents>`: 一次傳回多個資源內容
+- `ReadResourceResult`: 直接控制 MCP 協定層的資源讀取結果
 
-If a resource method needs to read the current request URI, `_meta` metadata, or needs to throw `McpResourceNotFoundException` when a resource is not found, declare `IMcpServerReadResourceContext` as a parameter. Metadata from the client request (e.g. TraceId for distributed tracing) can be accessed via `context.Meta`.
+如果資源方法需要讀取目前要求 URI、`_meta` 中繼資料，或需要在找不到資源時擲出 `McpResourceNotFoundException`，可在參數中宣告 `IMcpServerReadResourceContext`。透過 `context.Meta` 可取得來用戶端要求的中繼資料（例如分散式追蹤的 TraceId）。
 
-## Client-Side Resource Reading
+## 用戶端讀取資源
 
-Typical code for an MCP client reading resources:
+一個典型的 MCP 用戶端讀取資源的程式碼如下：
 
 ```csharp
-var mcpClient = new McpClientBuilder("Example Client", "1.0.0")
+var mcpClient = new McpClientBuilder("示例客户端", "1.0.0")
     .WithHttp("http://localhost:5943/mcp")
     .Build();
 
-// List fixed URI resources.
+// 列出固定 URI 资源。
 var resources = await mcpClient.ListResourcesAsync();
 foreach (var resource in resources.Resources)
 {
     Console.WriteLine($"{resource.Uri} {resource.MimeType}");
 }
 
-// Read a fixed URI resource.
+// 读取固定 URI 资源。
 var welcome = await mcpClient.ReadResourceAsync("sample://welcome");
 Console.WriteLine(welcome.Contents.OfType<TextResourceContents>().FirstOrDefault()?.Text);
 
-// Read a template URI resource.
+// 读取模板 URI 资源。
 var profile = await mcpClient.ReadResourceAsync("sample://users/42/profile");
 Console.WriteLine(profile.Contents.OfType<TextResourceContents>().FirstOrDefault()?.Text);
 
-// Read a binary resource.
+// 读取二进制资源。
 var binary = await mcpClient.ReadResourceAsync("sample://hello.bin");
 var blob = binary.Contents.OfType<BlobResourceContents>().FirstOrDefault();
 if (blob is not null)
@@ -142,7 +142,7 @@ if (blob is not null)
 }
 ```
 
-If you need to handle all resource contents uniformly, dispatch by resource content type:
+如果你需要統一處理所有資源內容，可以按資源內容型別分派：
 
 ```csharp
 var result = await mcpClient.ReadResourceAsync("sample://users/42/profile");
@@ -162,4 +162,4 @@ foreach (var content in result.Contents)
 }
 ```
 
-> In agent programs, you typically need to manage multiple MCP servers simultaneously. For a complete MCP server manager example, see [McpServerManager](McpServerManager.md).
+> 在智慧型代理人程式中，通常需要同時管理多個 MCP 伺服器。完整的 MCP 伺服器管理器範例請參閱 [McpServerManager](McpServerManager.md)。

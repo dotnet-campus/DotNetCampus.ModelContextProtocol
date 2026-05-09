@@ -1,5 +1,5 @@
 # Authorization
 
-MCP Authorization lets the client and server authenticate and authorize a connection before or during protocol use.
+MCP Authorization enables the client and server to complete authentication and authorization before or during a connection.
 
-DotNetCampus.ModelContextProtocol does not implement Authorization yet.
+> The current version does not yet provide built-in Authorization support (planned). In the meantime, you can implement authentication logic yourself using custom HTTP headers (via `HttpClientTransportOptions`'s `HttpClient`) or `WithRequestHandlers` interceptors.

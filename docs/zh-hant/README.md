@@ -1,19 +1,19 @@
 # DotNetCampus.ModelContextProtocol
 
-- 快速开始
-    - [快速开始](QuickStart.md)
-- MCP 工具与资源
+- 快速開始
+    - [快速開始](QuickStart.md)
+- MCP 工具與資源
     - [Tools](Tools.md)
     - [Resources](Resources.md)
     - [Prompts](Prompts.md)
     - [Roots](Roots.md)
     - [Sampling](Sampling.md)
-- 智能体集成
+- 智能體整合
     - [McpServerManager](McpServerManager.md)
-- MCP 机制
+- MCP 機制
     - [Authorization](Authorization.md)
     - [Elicitation](Elicitation.md)
     - [Utilities](Utilities.md)
     - [_meta](Meta.md)
-- MCP 传输层
-    - [选择传输层](Transport.md)
+- MCP 傳輸層
+    - [選擇傳輸層](Transport.md)

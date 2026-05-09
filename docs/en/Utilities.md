@@ -1,5 +1,5 @@
 # Utilities
 
-MCP Utilities include Cancellation, Progress, Tasks, Completion, Logging, Pagination, and other shared capabilities.
+MCP Utilities includes general capabilities such as Cancellation, Progress, Tasks, Completion, Logging, and Pagination.
 
-DotNetCampus.ModelContextProtocol does not implement Utilities yet.
+> In the current version, the `CancellationToken` parameter is natively supported (simply declare it in your tool method). The remaining capabilities (Progress, Tasks, Completion, Logging, Pagination) have not yet been implemented (planned).
