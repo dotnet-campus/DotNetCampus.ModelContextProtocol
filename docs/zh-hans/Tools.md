@@ -266,11 +266,125 @@ internal class CustomRequestHandlers(McpServer server) : McpServerRequestHandler
 
 因此，大多数时候，我们要编写的都是一个 MCP 客户端管理器。
 
-// 注：请参考工作区里「希沃白板小助手」文件夹这个仓库里的 `McpServerManager`，编写一个示例用的 MCP 客户端管理器。
+下面是一个极简的 MCP 客户端管理器，用于同时管理多个 MCP 服务器，并给每个工具生成一个 `{serverName}.{toolName}` 形式的暴露名称：
 
 ```csharp
-// 注：修改这里
-// 请完善这个管理器，目标是让智能体开发者复制此类型后，能轻松管理多个 MCP 服务器，并且能方便地调用工具。
-// 去掉大量不重要的代码，专注于极简示例。
-// 在关键的地方添加注释，就像前面人类提供的代码和示例一样。
+public sealed class McpServerManager : IAsyncDisposable
+{
+    private readonly Dictionary<string, McpClient> _clients = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, McpToolEndpoint> _tools = new(StringComparer.OrdinalIgnoreCase);
+
+    public async Task AddHttpAsync(string serverName, string serverUrl, CancellationToken cancellationToken = default)
+    {
+        var client = new McpClientBuilder($"示例客户端/{serverName}", "1.0.0")
+            .WithHttp(serverUrl)
+            .Build();
+
+        await AddClientAsync(serverName, client, cancellationToken);
+    }
+
+    public async Task AddStdioAsync(string serverName, string command, IReadOnlyList<string> arguments, CancellationToken cancellationToken = default)
+    {
+        var client = new McpClientBuilder($"示例客户端/{serverName}", "1.0.0")
+            .WithStdio(command, arguments)
+            .Build();
+
+        await AddClientAsync(serverName, client, cancellationToken);
+    }
+
+    public IReadOnlyList<string> ListToolNames()
+    {
+        return _tools.Keys
+            .OrderBy(x => x, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    public async Task<CallToolResult> CallToolAsync(string exposedToolName, JsonElement? arguments = null, CancellationToken cancellationToken = default)
+    {
+        if (!_tools.TryGetValue(exposedToolName, out var endpoint))
+        {
+            throw new InvalidOperationException($"未找到 MCP 工具：{exposedToolName}");
+        }
+
+        return await endpoint.Client.CallToolAsync(endpoint.Tool.Name, arguments, cancellationToken);
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        foreach (var client in _clients.Values)
+        {
+            await client.DisposeAsync();
+        }
+
+        _clients.Clear();
+        _tools.Clear();
+    }
+
+    private async Task AddClientAsync(string serverName, McpClient client, CancellationToken cancellationToken)
+    {
+        if (_clients.ContainsKey(serverName))
+        {
+            throw new InvalidOperationException($"MCP 服务器已存在：{serverName}");
+        }
+
+        McpClient? clientToDispose = client;
+        try
+        {
+            // 提前连接并列出工具，这样可以在添加服务器时就发现连接错误。
+            await client.EnsureConnectedAsync(cancellationToken);
+            var tools = await client.ListToolsAsync(cancellationToken: cancellationToken);
+
+            var endpoints = new List<(string ExposedName, Tool Tool)>();
+            foreach (var tool in tools.Tools)
+            {
+                var exposedName = $"{serverName}.{tool.Name}";
+                if (_tools.ContainsKey(exposedName))
+                {
+                    throw new InvalidOperationException($"MCP 工具已存在：{exposedName}");
+                }
+
+                endpoints.Add((exposedName, tool));
+            }
+
+            _clients.Add(serverName, client);
+            foreach (var (exposedName, tool) in endpoints)
+            {
+                _tools.Add(exposedName, new McpToolEndpoint(client, tool));
+            }
+
+            clientToDispose = null;
+        }
+        finally
+        {
+            if (clientToDispose is not null)
+            {
+                await clientToDispose.DisposeAsync();
+            }
+        }
+    }
+
+    private sealed record McpToolEndpoint(McpClient Client, Tool Tool);
+}
+```
+
+使用方式：
+
+```csharp
+await using var manager = new McpServerManager();
+
+await manager.AddStdioAsync(
+    "everything",
+    "npx",
+    ["-y", "@modelcontextprotocol/server-everything", "stdio"]);
+
+foreach (var toolName in manager.ListToolNames())
+{
+    Console.WriteLine(toolName);
+}
+
+var result = await manager.CallToolAsync(
+    "everything.echo",
+    JsonSerializer.SerializeToElement(new { message = "Hello, MCP!" }));
+
+Console.WriteLine(result.Content.OfType<TextContentBlock>().FirstOrDefault()?.Text);
 ```
