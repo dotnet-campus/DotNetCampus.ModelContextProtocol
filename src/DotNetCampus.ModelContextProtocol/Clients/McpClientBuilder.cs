@@ -22,6 +22,7 @@ public class McpClientBuilder
     private Func<IClientTransportManager, IClientTransport>? _transportFactory;
     private ClientCapabilities _capabilities = new();
     private Func<CreateMessageRequestParams, CancellationToken, Task<CreateMessageResult>>? _samplingHandler;
+    private Func<McpClient, McpClientRequestHandlers>? _requestHandlers;
 
     /// <summary>
     /// 设置客户端名称和版本。
@@ -202,6 +203,20 @@ public class McpClientBuilder
     }
 
     /// <summary>
+    /// 配置自定义的 MCP 请求处理器。<br/>
+    /// 通过继承 <see cref="McpClientRequestHandlers"/> 并重写方法，可以在请求发送前拦截、修改请求参数（如注入 <c>_meta</c>），或对响应做后处理。<br/>
+    /// </summary>
+    /// <typeparam name="THandlers">自定义 MCP 请求处理器的类型。</typeparam>
+    /// <param name="factory">请求处理器工厂方法。</param>
+    /// <returns>用于链式调用的 MCP 客户端生成器。</returns>
+    public McpClientBuilder WithRequestHandlers<THandlers>(Func<McpClient, THandlers> factory)
+        where THandlers : McpClientRequestHandlers
+    {
+        _requestHandlers = factory;
+        return this;
+    }
+
+    /// <summary>
     /// 构建 MCP 客户端实例。
     /// </summary>
     /// <returns>构建好的 MCP 客户端。</returns>
@@ -232,11 +247,17 @@ public class McpClientBuilder
         var transport = _transportFactory(transportManager);
         transportManager.SetTransport(transport);
 
-        return new McpClient(context)
+        var client = new McpClient(context)
         {
             ClientName = _clientName,
             ClientVersion = _clientVersion,
             Capabilities = _capabilities,
         };
+
+        context.Handlers = _requestHandlers is { } requestHandlers
+            ? requestHandlers(client)
+            : new McpClientRequestHandlers(client);
+
+        return client;
     }
 }

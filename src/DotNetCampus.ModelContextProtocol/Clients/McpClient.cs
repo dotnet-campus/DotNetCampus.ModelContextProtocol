@@ -1,10 +1,5 @@
 using System.Text.Json;
-using System.Text.Json.Serialization.Metadata;
-using DotNetCampus.ModelContextProtocol.CompilerServices;
-using DotNetCampus.ModelContextProtocol.Exceptions;
-using DotNetCampus.ModelContextProtocol.Protocol;
 using DotNetCampus.ModelContextProtocol.Protocol.Messages;
-using DotNetCampus.ModelContextProtocol.Protocol.Messages.JsonRpc;
 using DotNetCampus.ModelContextProtocol.Transports;
 
 namespace DotNetCampus.ModelContextProtocol.Clients;
@@ -33,9 +28,19 @@ public class McpClient : IAsyncDisposable
     public bool IsConnected { get; private set; }
 
     /// <summary>
+    /// 获取 MCP 客户端的上下文信息。
+    /// </summary>
+    internal McpClientContext Context => _context;
+
+    /// <summary>
     /// 获取 MCP 客户端传输层管理器的实现。
     /// </summary>
     private ClientTransportManager Transport => (ClientTransportManager)_context.Transport;
+
+    /// <summary>
+    /// 获取请求处理器。
+    /// </summary>
+    private McpClientRequestHandlers Handlers => _context.Handlers;
 
     /// <summary>
     /// 获取或初始化客户端名称。
@@ -110,21 +115,11 @@ public class McpClient : IAsyncDisposable
     {
         await EnsureConnectedAsync(cancellationToken).ConfigureAwait(false);
 
-        var request = new JsonRpcRequest
-        {
-            Id = Transport.MakeNewRequestId().ToJsonElement(),
-            Method = RequestMethods.ToolsList,
-            Params = cursor is null
-                ? EmptyObject.JsonElement
-                : JsonSerializer.SerializeToElement(new ListToolsRequestParams
-                {
-                    Cursor = cursor,
-                }, McpInternalJsonContext.Default.ListToolsRequestParams),
-        };
+        var requestParams = cursor is null
+            ? null
+            : new ListToolsRequestParams { Cursor = cursor };
 
-        var response = await Transport.SendRequestAsync(request, cancellationToken).ConfigureAwait(false);
-        response.ThrowClientExceptionIfError();
-        return DeserializeResult<ListToolsResult>(response, McpInternalJsonContext.Default.ListToolsResult);
+        return await Handlers.ListToolsAsync(requestParams, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -138,20 +133,13 @@ public class McpClient : IAsyncDisposable
     {
         await EnsureConnectedAsync(cancellationToken).ConfigureAwait(false);
 
-        var request = new JsonRpcRequest
+        var requestParams = new CallToolRequestParams
         {
-            Id = Transport.MakeNewRequestId().ToJsonElement(),
-            Method = RequestMethods.ToolsCall,
-            Params = JsonSerializer.SerializeToElement(new CallToolRequestParams
-            {
-                Name = toolName,
-                Arguments = arguments,
-            }, McpInternalJsonContext.Default.CallToolRequestParams),
+            Name = toolName,
+            Arguments = arguments,
         };
 
-        var response = await Transport.SendRequestAsync(request, cancellationToken).ConfigureAwait(false);
-        response.ThrowClientExceptionIfError();
-        return DeserializeResult<CallToolResult>(response, McpInternalJsonContext.Default.CallToolResult);
+        return await Handlers.CallToolAsync(requestParams, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -164,21 +152,11 @@ public class McpClient : IAsyncDisposable
     {
         await EnsureConnectedAsync(cancellationToken).ConfigureAwait(false);
 
-        var request = new JsonRpcRequest
-        {
-            Id = Transport.MakeNewRequestId().ToJsonElement(),
-            Method = RequestMethods.ResourcesList,
-            Params = cursor is null
-                ? EmptyObject.JsonElement
-                : JsonSerializer.SerializeToElement(new ListResourcesRequestParams
-                {
-                    Cursor = cursor,
-                }, McpInternalJsonContext.Default.ListResourcesRequestParams),
-        };
+        var requestParams = cursor is null
+            ? null
+            : new ListResourcesRequestParams { Cursor = cursor };
 
-        var response = await Transport.SendRequestAsync(request, cancellationToken).ConfigureAwait(false);
-        response.ThrowClientExceptionIfError();
-        return DeserializeResult<ListResourcesResult>(response, McpInternalJsonContext.Default.ListResourcesResult);
+        return await Handlers.ListResourcesAsync(requestParams, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -191,19 +169,12 @@ public class McpClient : IAsyncDisposable
     {
         await EnsureConnectedAsync(cancellationToken).ConfigureAwait(false);
 
-        var request = new JsonRpcRequest
+        var requestParams = new ReadResourceRequestParams
         {
-            Id = Transport.MakeNewRequestId().ToJsonElement(),
-            Method = RequestMethods.ResourcesRead,
-            Params = JsonSerializer.SerializeToElement(new ReadResourceRequestParams
-            {
-                Uri = uri,
-            }, McpInternalJsonContext.Default.ReadResourceRequestParams),
+            Uri = uri,
         };
 
-        var response = await Transport.SendRequestAsync(request, cancellationToken).ConfigureAwait(false);
-        response.ThrowClientExceptionIfError();
-        return DeserializeResult<ReadResourceResult>(response, McpInternalJsonContext.Default.ReadResourceResult);
+        return await Handlers.ReadResourceAsync(requestParams, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -216,21 +187,11 @@ public class McpClient : IAsyncDisposable
     {
         await EnsureConnectedAsync(cancellationToken).ConfigureAwait(false);
 
-        var request = new JsonRpcRequest
-        {
-            Id = Transport.MakeNewRequestId().ToJsonElement(),
-            Method = RequestMethods.PromptsList,
-            Params = cursor is null
-                ? EmptyObject.JsonElement
-                : JsonSerializer.SerializeToElement(new ListPromptsRequestParams
-                {
-                    Cursor = cursor,
-                }, McpInternalJsonContext.Default.ListPromptsRequestParams),
-        };
+        var requestParams = cursor is null
+            ? null
+            : new ListPromptsRequestParams { Cursor = cursor };
 
-        var response = await Transport.SendRequestAsync(request, cancellationToken).ConfigureAwait(false);
-        response.ThrowClientExceptionIfError();
-        return DeserializeResult<ListPromptsResult>(response, McpInternalJsonContext.Default.ListPromptsResult);
+        return await Handlers.ListPromptsAsync(requestParams, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -244,38 +205,13 @@ public class McpClient : IAsyncDisposable
     {
         await EnsureConnectedAsync(cancellationToken).ConfigureAwait(false);
 
-        var request = new JsonRpcRequest
+        var requestParams = new GetPromptRequestParams
         {
-            Id = Transport.MakeNewRequestId().ToJsonElement(),
-            Method = RequestMethods.PromptsGet,
-            Params = JsonSerializer.SerializeToElement(new GetPromptRequestParams
-            {
-                Name = name,
-                Arguments = arguments,
-            }, McpInternalJsonContext.Default.GetPromptRequestParams),
+            Name = name,
+            Arguments = arguments,
         };
 
-        var response = await Transport.SendRequestAsync(request, cancellationToken).ConfigureAwait(false);
-        response.ThrowClientExceptionIfError();
-        return DeserializeResult<GetPromptResult>(response, McpInternalJsonContext.Default.GetPromptResult);
-    }
-
-    /// <summary>
-    /// 从 JSON-RPC 响应中反序列化结果。
-    /// </summary>
-    private static T DeserializeResult<T>(JsonRpcResponse response, JsonTypeInfo<T> jsonTypeInfo) where T : Result
-    {
-        if (response.Error is not null)
-        {
-            throw new McpClientException($"请求失败: {response.Error.Message}");
-        }
-
-        if (response.Result is not { } result)
-        {
-            throw new McpClientException("响应格式不正确");
-        }
-
-        return result.Deserialize(jsonTypeInfo) ?? throw new McpClientException("无法解析响应结果");
+        return await Handlers.GetPromptAsync(requestParams, cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
