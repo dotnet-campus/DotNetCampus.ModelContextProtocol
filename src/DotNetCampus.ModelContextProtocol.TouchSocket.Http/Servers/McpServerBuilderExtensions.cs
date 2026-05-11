@@ -1,4 +1,6 @@
-﻿using System.Diagnostics.CodeAnalysis;
+﻿using System;
+using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using DotNetCampus.ModelContextProtocol.Transports.TouchSocket;
 using TouchSocket.Core;
 using TouchSocket.Http;
@@ -30,7 +32,7 @@ public static class McpServerBuilderTouchSocketHttpExtensions
         /// <param name="serverVersion">MCP 服务器版本。</param>
         /// <param name="endPoint">要监听的 MCP 服务端点。</param>
         /// <param name="builder">MCP 服务器的生成器。</param>
-        public void UseMcpServer(string serverName, string serverVersion, [StringSyntax("Route")] string endPoint, Action<McpServerBuilder> builder)
+        public void UseMcpServer(string serverName, string serverVersion, string endPoint, Action<McpServerBuilder> builder)
         {
             var mcpServerBuilder = new McpServerBuilder(serverName, serverVersion);
             mcpServerBuilder.WithTransport(m =>
@@ -60,7 +62,7 @@ public static class McpServerBuilderTouchSocketHttpExtensions
         /// </param>
         /// <param name="port">MCP 服务器将监听 http://localhost:{port} 上的请求。</param>
         /// <returns>用于链式调用的 MCP 服务器生成器。</returns>
-        public McpServerBuilder WithTouchSocketHttp(int port, [StringSyntax("Route")] string? endPoint = null)
+        public McpServerBuilder WithTouchSocketHttp(int port, string? endPoint = null)
         {
             builder.WithTouchSocketHttp(new TouchSocketHttpServerTransportOptions
             {
@@ -87,7 +89,7 @@ public static class McpServerBuilderTouchSocketHttpExtensions
         /// MCP 服务器将监听的路由端点，例如指定为 mcp 时，完整的 URL 为 http://localhost:{port}/mcp。
         /// </param>
         /// <returns>用于链式调用的 MCP 服务器生成器。</returns>
-        public McpServerBuilder WithTouchSocketHttp(IReadOnlyList<string> listen, [StringSyntax("Route")] string? endPoint = null)
+        public McpServerBuilder WithTouchSocketHttp(IReadOnlyList<string> listen, string? endPoint = null)
         {
             builder.WithTouchSocketHttp(new TouchSocketHttpServerTransportOptions
             {
