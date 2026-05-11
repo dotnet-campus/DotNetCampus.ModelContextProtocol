@@ -142,6 +142,8 @@ The method return value can be one of the following types:
 
 **Notably**, when the return value is a JSON-serializable object, per the MCP protocol specification we return structured data and also include the JSON-serialized string in the plain text return value (for compatibility). The tool will also be marked as "having structured return values".
 
+**Notably**, the MCP protocol specification does not allow collection types as return values. The analyzer will check whether an MCP tool has a collection return value, and if so, will report a DM0101 error.
+
 ### Synchronous vs. Asynchronous
 
 Methods can be synchronous or asynchronous:
