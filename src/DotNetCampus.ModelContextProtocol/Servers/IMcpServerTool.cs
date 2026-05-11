@@ -26,3 +26,22 @@ public interface IMcpServerTool
     /// <returns>表示工具调用结果的 JSON 元素。</returns>
     ValueTask<CallToolResult> CallTool(IMcpServerCallToolContext context);
 }
+
+/// <summary>
+/// 提供 <see cref="IMcpServerTool"/> 的扩展方法。
+/// </summary>
+public static class McpServerToolExtensions
+{
+    /// <param name="mcpServerTool">MCP 服务器工具</param>
+    extension(IMcpServerTool mcpServerTool)
+    {
+        /// <summary>
+        /// 获取工具的定义信息，这些信息将被 AI 查看，以了解工具的功能和使用方法。
+        /// </summary>
+        /// <returns>工具的定义信息。</returns>
+        public Tool GetToolDefinition()
+        {
+            return mcpServerTool.GetToolDefinition(CompiledSchemaJsonContext.Default);
+        }
+    }
+}
