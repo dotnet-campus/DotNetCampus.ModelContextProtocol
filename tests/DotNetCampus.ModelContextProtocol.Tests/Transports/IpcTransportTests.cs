@@ -5,6 +5,7 @@ using DotNetCampus.ModelContextProtocol.Protocol.Messages;
 using DotNetCampus.ModelContextProtocol.Protocol.Messages.JsonRpc;
 using DotNetCampus.ModelContextProtocol.Servers;
 using DotNetCampus.ModelContextProtocol.Tests.McpTools;
+using dotnetCampus.Ipc.Pipes;
 
 namespace DotNetCampus.ModelContextProtocol.Tests.Transports;
 
@@ -403,6 +404,104 @@ public class IpcTransportTests
         }
 
         Assert.IsTrue(failed, "服务端停止后，客户端请求应快速失败或被取消，而不是永久挂起。");
+    }
+
+    [TestMethod("Ipc ExternalProvider: 服务端使用外部 IpcProvider（未预启动）")]
+    public async Task ServerExternalProvider_NotPreStarted()
+    {
+        var pipeName = $"McpTest-{Guid.NewGuid():N}";
+        var externalIpcProvider = new IpcProvider(pipeName);
+
+        var server = new McpServerBuilder("TestMcpServer", "1.0.0")
+            .WithLogger(TestMcpFactory.DefaultLogger)
+            .WithDotNetCampusIpc(externalIpcProvider)
+            .WithTools(t => t.WithTool(() => new CalculatorTool()))
+            .Build();
+
+        server.EnableDebugMode();
+        await server.StartAsync();
+
+        try
+        {
+            await using var client = new McpClientBuilder("test-client", "1.0.0")
+                .WithLogger(TestMcpFactory.DefaultLogger)
+                .WithDotNetCampusIpc(pipeName)
+                .Build();
+
+            var args = JsonSerializer.SerializeToElement(new { a = 10, b = 20 });
+            var result = await client.CallToolAsync("add", args);
+            Assert.AreEqual("30", ((TextContentBlock)result.Content[0]).Text);
+        }
+        finally
+        {
+            await server.StopAsync();
+        }
+    }
+
+    [TestMethod("Ipc ExternalProvider: 服务端使用外部 IpcProvider（已预启动）")]
+    public async Task ServerExternalProvider_PreStarted()
+    {
+        var pipeName = $"McpTest-{Guid.NewGuid():N}";
+        var externalIpcProvider = new IpcProvider(pipeName);
+        externalIpcProvider.StartServer();
+
+        var server = new McpServerBuilder("TestMcpServer", "1.0.0")
+            .WithLogger(TestMcpFactory.DefaultLogger)
+            .WithDotNetCampusIpc(externalIpcProvider)
+            .WithTools(t => t.WithTool(() => new CalculatorTool()))
+            .Build();
+
+        server.EnableDebugMode();
+        await server.StartAsync();
+
+        try
+        {
+            await using var client = new McpClientBuilder("test-client", "1.0.0")
+                .WithLogger(TestMcpFactory.DefaultLogger)
+                .WithDotNetCampusIpc(pipeName)
+                .Build();
+
+            var args = JsonSerializer.SerializeToElement(new { a = 42, b = 58 });
+            var result = await client.CallToolAsync("add", args);
+            Assert.AreEqual("100", ((TextContentBlock)result.Content[0]).Text);
+        }
+        finally
+        {
+            await server.StopAsync();
+        }
+    }
+
+    [TestMethod("Ipc ExternalProvider: 客户端使用外部 IpcProvider")]
+    public async Task ClientExternalProvider()
+    {
+        var pipeName = $"McpTest-{Guid.NewGuid():N}";
+        var server = new McpServerBuilder("TestMcpServer", "1.0.0")
+            .WithLogger(TestMcpFactory.DefaultLogger)
+            .WithDotNetCampusIpc(pipeName)
+            .WithTools(t => t.WithTool(() => new CalculatorTool()))
+            .Build();
+
+        server.EnableDebugMode();
+        await server.StartAsync();
+
+        try
+        {
+            var clientIpcProvider = new IpcProvider();
+            clientIpcProvider.StartServer();
+
+            await using var client = new McpClientBuilder("test-client", "1.0.0")
+                .WithLogger(TestMcpFactory.DefaultLogger)
+                .WithDotNetCampusIpc(clientIpcProvider, pipeName)
+                .Build();
+
+            var args = JsonSerializer.SerializeToElement(new { a = 7, b = 8 });
+            var result = await client.CallToolAsync("add", args);
+            Assert.AreEqual("15", ((TextContentBlock)result.Content[0]).Text);
+        }
+        finally
+        {
+            await server.StopAsync();
+        }
     }
 
     private sealed class InitializedTrackingRequestHandlers(
