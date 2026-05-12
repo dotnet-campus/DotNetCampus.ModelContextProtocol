@@ -62,7 +62,7 @@ public class IpcServerTransport : IServerTransport
         Log.Info($"[McpServer][Ipc] Transport started.");
 
         _server.StartServer();
-        _server.PeerConnected += OnPeerConnected;
+        _server.IpcServerService.MessageReceived += OnMessageReceived;
 
         _runningCancellationToken = runningCancellationToken;
         runningCancellationToken.Register(() => _taskCompletionSource.TrySetResult());
@@ -82,48 +82,26 @@ public class IpcServerTransport : IServerTransport
         return ValueTask.CompletedTask;
     }
 
-    private void OnPeerConnected(object? sender, PeerConnectedArgs e)
+    private void OnMessageReceived(object? sender, PeerMessageArgs e)
     {
-        var session = new IpcServerTransportSession(_manager, e.Peer.PeerName);
-        session.SetPeer(e.Peer);
-        _sessions[e.Peer.PeerName] = session;
-        _manager.Add(session);
-        e.Peer.PeerConnectionBroken += OnPeerConnectionBroken;
-        e.Peer.PeerReconnected += OnPeerReconnected;
-        e.Peer.MessageReceived += OnMessageReceived;
-    }
+        _sessions.AddOrUpdate(e.PeerName,
+            peerName => new IpcServerTransportSession(_manager, _server, peerName),
+            (_, existedSession) => existedSession);
+        _ = OnMessageReceivedCore(e.PeerName, e.Message);
 
-    private void OnPeerConnectionBroken(object? sender, IPeerConnectionBrokenArgs e)
-    {
-        var peer = (PeerProxy)sender!;
-        if (_sessions.TryRemove(peer.PeerName, out var oldSession))
-        {
-            _ = oldSession.DisposeAsync();
-        }
-    }
-
-    private void OnPeerReconnected(object? sender, IPeerReconnectedArgs e)
-    {
-        var peer = (PeerProxy)sender!;
-        if (_sessions.TryRemove(peer.PeerName, out var oldSession))
-        {
-            _ = oldSession.DisposeAsync();
-        }
-        var session = new IpcServerTransportSession(_manager, peer.PeerName);
-        session.SetPeer(peer);
-        _sessions[peer.PeerName] = session;
-        _manager.Add(session);
-    }
-
-    private void OnMessageReceived(object? sender, IPeerMessageArgs e)
-    {
-        _ = OnMessageReceivedCore((PeerProxy)sender!, e.Message);
-
-        async Task OnMessageReceivedCore(PeerProxy peer, IpcMessage message)
+        async Task OnMessageReceivedCore(string peerName, IpcMessage message)
         {
             try
             {
-                await HandleMessageAsync(peer, message);
+                var result = await _server.TryConnectToExistingPeerAsync(peerName, true);
+                if (result.IsSuccess)
+                {
+                    await HandleMessageAsync(result.PeerProxy, message);
+                }
+                else
+                {
+                    Log.Error($"[McpServer][Ipc] Error handling IPC peer message because the peer {peerName} may be existed.");
+                }
             }
             catch (Exception ex)
             {
