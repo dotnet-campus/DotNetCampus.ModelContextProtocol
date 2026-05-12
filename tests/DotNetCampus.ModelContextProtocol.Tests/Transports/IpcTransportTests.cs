@@ -407,7 +407,8 @@ public class IpcTransportTests
     }
 
     [TestMethod("Ipc ExternalProvider: 服务端使用外部 IpcProvider（未预启动）")]
-    public async Task ServerExternalProvider_NotPreStarted()
+    [Timeout(5_000)]
+    public async Task ServerExternalProvider_NotPreConnected()
     {
         var pipeName = $"McpTest-{Guid.NewGuid():N}";
         var externalIpcProvider = new IpcProvider(pipeName);
@@ -438,16 +439,20 @@ public class IpcTransportTests
         }
     }
 
-    [TestMethod("Ipc ExternalProvider: 服务端使用外部 IpcProvider（已预启动）")]
-    public async Task ServerExternalProvider_PreStarted()
+    [TestMethod("Ipc ExternalProvider: 服务端使用外部 IpcProvider（已预连接）")]
+    [Timeout(5_000)]
+    public async Task ServerExternalProvider_PreConnected()
     {
-        var pipeName = $"McpTest-{Guid.NewGuid():N}";
-        var externalIpcProvider = new IpcProvider(pipeName);
-        externalIpcProvider.StartServer();
+        var serverPeerName = $"McpTest-{Guid.NewGuid():N}";
+        var serverIpcProvider = new IpcProvider(serverPeerName);
+        serverIpcProvider.StartServer();
+        var clientIpcProvider = new IpcProvider(serverPeerName + "_Client");
+        clientIpcProvider.StartServer();
+        await clientIpcProvider.GetAndConnectToPeerAsync(serverPeerName);
 
         var server = new McpServerBuilder("TestMcpServer", "1.0.0")
             .WithLogger(TestMcpFactory.DefaultLogger)
-            .WithDotNetCampusIpc(externalIpcProvider)
+            .WithDotNetCampusIpc(serverIpcProvider)
             .WithTools(t => t.WithTool(() => new CalculatorTool()))
             .Build();
 
@@ -458,7 +463,7 @@ public class IpcTransportTests
         {
             await using var client = new McpClientBuilder("test-client", "1.0.0")
                 .WithLogger(TestMcpFactory.DefaultLogger)
-                .WithDotNetCampusIpc(pipeName)
+                .WithDotNetCampusIpc(clientIpcProvider, serverPeerName)
                 .Build();
 
             var args = JsonSerializer.SerializeToElement(new { a = 42, b = 58 });
@@ -472,6 +477,7 @@ public class IpcTransportTests
     }
 
     [TestMethod("Ipc ExternalProvider: 客户端使用外部 IpcProvider")]
+    [Timeout(5_000)]
     public async Task ClientExternalProvider()
     {
         var pipeName = $"McpTest-{Guid.NewGuid():N}";
