@@ -275,6 +275,62 @@ public class TestMcpFactory
         return new McpTestingPackage(mcpServer, builtClient, new Uri("inprocess://localhost/mcp", UriKind.Absolute));
     }
 
+    /// <summary>
+    /// 创建一个简单的 IPC 传输 MCP 测试包（仅包含 SimpleTool）。
+    /// </summary>
+    public async ValueTask<McpTestingPackage> CreateSimpleIpcAsync()
+    {
+        return await CreateIpcCoreAsync(builder => builder.WithTools(t => t.WithTool(() => new SimpleTool())));
+    }
+
+    /// <summary>
+    /// 创建一个完整的 IPC 传输 MCP 测试包（包含所有测试工具）。
+    /// </summary>
+    public async ValueTask<McpTestingPackage> CreateFullIpcAsync()
+    {
+        return await CreateIpcCoreAsync(
+            builder => builder
+                .WithServices(CreateDefaultServices())
+                .WithJsonSerializer(TestToolJsonContext.Default)
+                .WithTools(t =>
+                {
+                    t.WithTool(() => new SimpleTool());
+                    t.WithTool(() => new CalculatorTool());
+                    t.WithTool(() => new EchoTool());
+                    t.WithTool(() => new ExceptionTool());
+                    t.WithTool(() => new LongTextTool());
+                    t.WithTool(() => new StatefulCounterTool());
+                    t.WithTool<InjectedConstructorTool>();
+                }));
+    }
+
+    /// <summary>
+    /// 核心方法：创建一个完全自定义的 IPC 传输 MCP 测试包，支持同时配置服务端和客户端。
+    /// </summary>
+    public async ValueTask<McpTestingPackage> CreateIpcCoreAsync(
+        Action<McpServerBuilder> configureBuilder,
+        Action<McpClientBuilder>? configureClient = null)
+    {
+        var pipeName = $"McpTest-{Guid.NewGuid():N}";
+        var mcpServerBuilder = new McpServerBuilder("TestMcpServer", "1.0.0")
+            .WithLogger(DefaultLogger);
+
+        configureBuilder(mcpServerBuilder);
+        mcpServerBuilder.WithDotNetCampusIpc(pipeName);
+
+        var mcpServer = mcpServerBuilder.Build();
+        mcpServer.EnableDebugMode();
+        await mcpServer.StartAsync(CancellationToken.None);
+
+        var mcpClientBuilder = new McpClientBuilder("test-client", "1.0.0")
+            .WithLogger(DefaultLogger)
+            .WithDotNetCampusIpc(pipeName);
+        configureClient?.Invoke(mcpClientBuilder);
+        var builtClient = mcpClientBuilder.Build();
+
+        return new McpTestingPackage(mcpServer, builtClient, new Uri($"ipc://{pipeName}", UriKind.Absolute));
+    }
+
     private static IServiceProvider CreateDefaultServices()
     {
         return new TestServiceProvider()
