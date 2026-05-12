@@ -78,7 +78,7 @@ Tool methods can receive the following implicit parameters — just add them to 
 Use the `[ToolParameter]` attribute to mark special parameter behavior:
 
 - `[ToolParameter(Type = ToolParameterType.InputObject)]`: This parameter receives the entire input object of the tool call (deserialized into a type). After using this attribute, **no other** plain parameters are allowed.
-- `[ToolParameter(Type = ToolParameterType.Injected)]`: This parameter is automatically injected by the dependency injection framework, not passed through the MCP protocol layer. Requires `IServiceProvider` to be configured during server initialization.
+- `[ToolParameter(Type = ToolParameterType.Injected)]`: This parameter is automatically injected by the dependency injection framework, not passed through the MCP protocol layer. Requires `IServiceProvider` to be configured during server initialization. See [Dependency Injection](DependencyInjection.md) for details.
 
 #### IMcpServerCallToolContext
 
@@ -249,7 +249,7 @@ public record EchoResult
 
 ### JSON Serialization and Dependency Injection
 
-When your tool parameters or return values use custom types, you need to provide a JSON serialization context to support AOT compilation. If you want your tool classes to support dependency injection, provide an `IServiceProvider` instance:
+When your tool parameters or return values use custom types, you need to provide a JSON serialization context to support AOT compilation. If you want your tool classes to support dependency injection, provide an `IServiceProvider` instance. The MCP library's DI is implemented by compile-time source generators with zero reflection. See [Dependency Injection](DependencyInjection.md) for details.
 
 ```csharp
 var mcpServer = new McpServerBuilder("Example Server", "1.0.0")

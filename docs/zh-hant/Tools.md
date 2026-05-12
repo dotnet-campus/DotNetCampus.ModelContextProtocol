@@ -78,7 +78,7 @@ public string EchoCustomized(string text)
 透過 `[ToolParameter]` 特性標記特殊參數行為：
 
 - `[ToolParameter(Type = ToolParameterType.InputObject)]`：此參數負責接收整個工具呼叫的輸入物件（還原序列化到一個型別）。使用此標記後**不允許**再有其他一般參數。
-- `[ToolParameter(Type = ToolParameterType.Injected)]`：此參數由相依性注入架構自動注入，不由 MCP 協定層傳入。需要已在伺服器初始化時組態 `IServiceProvider`。
+- `[ToolParameter(Type = ToolParameterType.Injected)]`：此參數由相依性注入架構自動注入，不由 MCP 協定層傳入。需要已在伺服器初始化時組態 `IServiceProvider`。詳見[相依性注入](DependencyInjection.md)。
 
 #### IMcpServerCallToolContext 內容
 
@@ -249,7 +249,7 @@ public record EchoResult
 
 ### JSON 序列化與相依性注入
 
-當你的工具參數或回傳值使用自訂型別時，需要傳入 JSON 序列化內容以支援 AOT 編譯。如果你希望工具類別支援相依性注入，則傳入 `IServiceProvider` 執行個體：
+當你的工具參數或回傳值使用自訂型別時，需要傳入 JSON 序列化內容以支援 AOT 編譯。如果你希望工具類別支援相依性注入，則傳入 `IServiceProvider` 執行個體。MCP 程式庫的相依性注入由編譯期原始碼產生器實作，零反射。詳見[相依性注入](DependencyInjection.md)。
 
 ```csharp
 var mcpServer = new McpServerBuilder("示例服务器", "1.0.0")

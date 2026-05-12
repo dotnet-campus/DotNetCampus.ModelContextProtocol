@@ -87,7 +87,7 @@ When the handler function depends on services from `IServiceProvider`, use the f
 
 ```csharp
 var mcpClient = new McpClientBuilder("Example Client", "1.0.0")
-    .WithServices(serviceProvider)
+    .WithServices(serviceProvider)  // See [Dependency Injection](DependencyInjection.md)
     .WithHttp("http://localhost:5943/mcp")
     .WithSamplingHandler(services =>
     {

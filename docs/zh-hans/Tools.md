@@ -78,7 +78,7 @@ public string EchoCustomized(string text)
 通过 `[ToolParameter]` 特性标记特殊参数行为：
 
 - `[ToolParameter(Type = ToolParameterType.InputObject)]`：此参数负责接收整个工具调用的输入对象（反序列化到一个类型）。使用此标记后**不允许**再有其他普通参数。
-- `[ToolParameter(Type = ToolParameterType.Injected)]`：此参数由依赖注入框架自动注入，不由 MCP 协议层传入。需要已在服务器初始化时配置 `IServiceProvider`。
+- `[ToolParameter(Type = ToolParameterType.Injected)]`：此参数由依赖注入框架自动注入，不由 MCP 协议层传入。需要已在服务器初始化时配置 `IServiceProvider`。详见[依赖注入](DependencyInjection.md)。
 
 #### IMcpServerCallToolContext 上下文
 
@@ -249,7 +249,7 @@ public record EchoResult
 
 ### JSON 序列化与依赖注入
 
-当你的工具参数或返回值使用自定义类型时，需要传入 JSON 序列化上下文以支持 AOT 编译。如果你希望工具类支持依赖注入，则传入 `IServiceProvider` 实例：
+当你的工具参数或返回值使用自定义类型时，需要传入 JSON 序列化上下文以支持 AOT 编译。如果你希望工具类支持依赖注入，则传入 `IServiceProvider` 实例。MCP 库的依赖注入由编译期源生成器实现，零反射。详见[依赖注入](DependencyInjection.md)。
 
 ```csharp
 var mcpServer = new McpServerBuilder("示例服务器", "1.0.0")

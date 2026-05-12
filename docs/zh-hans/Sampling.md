@@ -87,7 +87,7 @@ var mcpClient = new McpClientBuilder("示例客户端", "1.0.0")
 
 ```csharp
 var mcpClient = new McpClientBuilder("示例客户端", "1.0.0")
-    .WithServices(serviceProvider)
+    .WithServices(serviceProvider)  // 详见[依赖注入](DependencyInjection.md)
     .WithHttp("http://localhost:5943/mcp")
     .WithSamplingHandler(services =>
     {

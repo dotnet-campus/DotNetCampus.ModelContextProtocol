@@ -15,5 +15,6 @@
     - [Elicitation](Elicitation.md)
     - [Utilities](Utilities.md)
     - [_meta](Meta.md)
+    - [依赖注入](DependencyInjection.md)
 - MCP 传输层
     - [选择传输层](Transport.md)
