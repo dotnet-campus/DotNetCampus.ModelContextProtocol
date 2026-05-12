@@ -1,6 +1,6 @@
 # DotNetCampus.ModelContextProtocol
 
-[![.NET Build and Test](https://github.com/dotnet-campus/DotNetCampus.ModelContextProtocol/actions/workflows/dotnet-build.yml/badge.svg)](https://github.com/dotnet-campus/DotNetCampus.ModelContextProtocol/actions/workflows/dotnet-build.yml) [![NuGet](https://img.shields.io/nuget/v/DotNetCampus.ModelContextProtocol.svg?label=DotNetCampus.ModelContextProtocol)](https://www.nuget.org/packages/DotNetCampus.ModelContextProtocol)
+[![.NET Build and Test](https://github.com/dotnet-campus/DotNetCampus.ModelContextProtocol/actions/workflows/dotnet-build.yml/badge.svg)](https://github.com/dotnet-campus/DotNetCampus.ModelContextProtocol/actions/workflows/dotnet-build.yml) [![NuGet](https://img.shields.io/nuget/v/DotNetCampus.ModelContextProtocol.svg?label=DotNetCampus.ModelContextProtocol)](https://www.nuget.org/packages/DotNetCampus.ModelContextProtocol) [![NuGet](https://img.shields.io/nuget/v/DotNetCampus.ModelContextProtocol.Ipc.svg?label=DotNetCampus.ModelContextProtocol.Ipc)](https://www.nuget.org/packages/DotNetCampus.ModelContextProtocol.Ipc) [![NuGet](https://img.shields.io/nuget/v/DotNetCampus.ModelContextProtocol.TouchSocket.Http.svg?label=DotNetCampus.ModelContextProtocol.TouchSocket.Http)](https://www.nuget.org/packages/DotNetCampus.ModelContextProtocol.TouchSocket.Http)
 
 | [English][en] | [简体中文][zh-hans] | [繁體中文][zh-hant] |
 | ------------- | ------------------- | ------------------- |

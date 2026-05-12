@@ -2,6 +2,20 @@
 
 MCP 传输层只负责收发 JSON-RPC 消息。业务代码通常只需要在服务端和客户端选择同一种传输层。
 
+## 速览
+
+| 传输层           | 核心库内置 | 监听地址            | 适用场景             |
+| ---------------- | ---------- | ------------------- | -------------------- |
+| HTTP（内置）     | ✅          | 仅限 `localhost`    | 本地开发、单机部署   |
+| TouchSocket HTTP | ❌ 需扩展   | 可监听 `0.0.0.0` 等 | 局域网/公网部署      |
+| stdio            | ✅          | -                   | 客户端启动服务端进程 |
+| In-Process       | ✅          | -                   | 同进程嵌入、集成测试 |
+| IPC              | ❌ 需扩展   | -                   | 同机跨进程高速通信   |
+
+> 核心库内置的 HTTP 传输层仅监听本机回环地址，是出于安全和尽可能少引入依赖的考虑。如果需要监听 `0.0.0.0` 等非回环地址，请使用 [TouchSocket HTTP](#touchsocket-http扩展)；如果需要 IPC 传输层，请使用 [IPC](#ipc)。这两种传输层的具体获取方式见 [扩展传输层的两种获取方式](#扩展传输层的两种获取方式)。
+
+---
+
 我们假设你在阅读本文前，已经完成了 [快速开始](QuickStart.md) 中 MCP 服务器和客户端的搭建。
 
 > **核心原则**：`McpClientBuilder.Build()` 只创建客户端对象，**不触发任何 I/O 或网络连接**。连接在首次 API 调用时由 `EnsureConnectedAsync` 惰性触发。详细说明见 [客户端"先创建后连接"原则](../knowledge/client-build-before-connect.md)。
@@ -38,7 +52,75 @@ var mcpClient = new McpClientBuilder("示例客户端", "1.0.0")
     .Build();
 ```
 
-本库内置的 HTTP 服务端传输层只监听 localhost。如果你需要监听其他地址，可使用 `DotNetCampus.ModelContextProtocol.TouchSocket.Http` 扩展包提供的 TouchSocket HTTP 传输层。
+> 本库内置的 HTTP 服务端传输层（`LocalHostHttpServerTransport`）仅监听 `127.0.0.1` 和 `[::1]`。如果你需要监听其他地址（如 `0.0.0.0`），请参考下方 [TouchSocket HTTP（扩展）](#touchsocket-http扩展) 章节。
+
+---
+
+## TouchSocket HTTP（扩展）
+
+核心库内置的 HTTP 传输层仅监听本机回环地址。如果你需要监听 `0.0.0.0` 等非回环地址（例如部署到局域网或公网），可以使用 TouchSocket HTTP 传输层。
+
+TouchSocket HTTP 传输层有两种获取方式，详见 [扩展传输层的两种获取方式](#扩展传输层的两种获取方式)。以下示例假设你已通过任一方式获得 TouchSocket HTTP 传输层支持：
+
+### 服务端
+
+```csharp
+// 简单重载：监听本地 localhost
+var mcpServer = new McpServerBuilder("示例服务器", "1.0.0")
+    .WithTools(t => t.WithTool(() => new SampleTools()))
+    .WithTouchSocketHttp(5943, "mcp")
+    .Build();
+
+// 监听 0.0.0.0（所有网络接口，包括局域网和公网）
+var mcpServer = new McpServerBuilder("公网服务器", "1.0.0")
+    .WithTools(t => t.WithTool(() => new SampleTools()))
+    .WithTouchSocketHttp(["0.0.0.0:5943", "[::]:5943"], "mcp")
+    .Build();
+
+// 选项重载：可配置全部参数
+var mcpServer = new McpServerBuilder("示例服务器", "1.0.0")
+    .WithTools(t => t.WithTool(() => new SampleTools()))
+    .WithTouchSocketHttp(new TouchSocketHttpServerTransportOptions
+    {
+        Listen = ["0.0.0.0:5943", "[::]:5943"],
+        EndPoint = "mcp",
+    })
+    .Build();
+```
+
+`Listen` 列表使用 `"IP:端口"` 格式，只能使用 IP 地址，不能使用域名。可同时监听多个地址和端口。
+
+### 复用已有的 HttpService
+
+如果你已经有正在运行的 `HttpService`（TouchSocket 的核心类型），可以将 MCP 服务端作为插件挂载上去：
+
+```csharp
+// httpService 是你已有的 HttpService 实例
+httpService.UseMcpServer("示例服务器", "1.0.0", builder =>
+{
+    builder.WithTools(t => t.WithTool(() => new SampleTools()));
+});
+
+// 也可以指定自定义端点
+httpService.UseMcpServer("示例服务器", "1.0.0", "/custom-mcp", builder =>
+{
+    builder.WithTools(t => t.WithTool(() => new SampleTools()));
+});
+```
+
+> `HttpService` 实现了 `IPluginManager` 接口，`UseMcpServer` 是 `IPluginManager` 的扩展方法。
+
+### 客户端
+
+TouchSocket HTTP 传输层的客户端无需特殊处理——客户端只需向服务端发起 HTTP 请求，可直接复用核心库的 HTTP 客户端传输层：
+
+```csharp
+var mcpClient = new McpClientBuilder("示例客户端", "1.0.0")
+    .WithHttp("http://192.168.1.100:5943/mcp")
+    .Build();
+```
+
+---
 
 ## stdio
 
@@ -114,13 +196,11 @@ In-Process 传输层不提供进程隔离，服务端与客户端运行在同一
 
 ## IPC
 
-IPC 传输层由 `DotNetCampus.ModelContextProtocol.Ipc` 包提供，适合同一台机器上不同进程之间通信。
+IPC 传输层适合同一台机器上不同进程之间通信，基于 dotnetCampus.Ipc 提供的命名管道实现。
 
-```bash
-dotnet add package DotNetCampus.ModelContextProtocol.Ipc
-```
+IPC 传输层有两种获取方式，详见 [扩展传输层的两种获取方式](#扩展传输层的两种获取方式)。以下示例假设你已通过任一方式获得 IPC 传输层支持：
 
-服务端：
+### 服务端
 
 ```csharp
 var mcpServer = new McpServerBuilder("IPC 示例服务器", "1.0.0")
@@ -132,13 +212,81 @@ var mcpServer = new McpServerBuilder("IPC 示例服务器", "1.0.0")
 await mcpServer.RunAsync();
 ```
 
-客户端：
+也可以复用外部创建的 `IpcProvider`：
+
+```csharp
+var mcpServer = new McpServerBuilder("IPC 示例服务器", "1.0.0")
+    .WithTools(tools => tools.WithTool(() => new SampleTools()))
+    .WithDotNetCampusIpc(existingIpcProvider)
+    .Build();
+```
+
+### 客户端
 
 ```csharp
 await using var mcpClient = new McpClientBuilder("IPC 示例客户端", "1.0.0")
     .WithDotNetCampusIpc("sample-mcp-pipe")
     .Build();
 ```
+
+也可以复用外部创建的 `IpcProvider`：
+
+```csharp
+await using var mcpClient = new McpClientBuilder("IPC 示例客户端", "1.0.0")
+    .WithDotNetCampusIpc(existingIpcProvider, "sample-mcp-pipe")
+    .Build();
+```
+
+---
+
+## 扩展传输层的两种获取方式
+
+核心库仅内置了 HTTP（localhost）、stdio 和 In-Process 三种传输层。如果需要 TouchSocket HTTP 或 IPC 传输层，可以通过以下两种方式获取：
+
+### 方式一：安装扩展包（推荐）
+
+直接安装对应的扩展 NuGet 包：
+
+```bash
+# TouchSocket HTTP 传输层
+dotnet add package DotNetCampus.ModelContextProtocol.TouchSocket.Http
+
+# IPC 传输层
+dotnet add package DotNetCampus.ModelContextProtocol.Ipc
+```
+
+安装后即可直接使用 `.WithTouchSocketHttp()` / `.WithDotNetCampusIpc()` 等扩展方法。扩展包已将底层依赖（`TouchSocket.Http` / `dotnetCampus.Ipc`）一并引入，这是最简单的方式。
+
+### 方式二：自行安装底层库 + 启用源生成器
+
+如果你希望尽可能减少项目中引入的 `.dll` 文件数量（我就喜欢这么干），可以不安装扩展包，而是自行安装底层库，并启用源生成器自动生成传输层代码：
+
+```bash
+# 安装底层库（而非扩展包）
+dotnet add package dotnetCampus.Ipc
+dotnet add package TouchSocket.Http
+```
+
+然后在项目 `.csproj` 中开启源生成器：
+
+```xml
+<PropertyGroup>
+  <DotNetCampusModelContextProtocolGenerateTransports>true</DotNetCampusModelContextProtocolGenerateTransports>
+</PropertyGroup>
+```
+
+开启此选项后，`DotNetCampus.ModelContextProtocol` 核心包附带的分析器（Analyzer）会自动扫描项目中已安装的库：
+
+| 检测到的库         | 自动生成的传输层        |
+| ------------------ | ----------------------- |
+| `dotnetCampus.Ipc` | IPC 传输层              |
+| `TouchSocket.Http` | TouchSocket HTTP 传输层 |
+
+**未安装的库不会生成任何代码**——源生成器是安全的，不会污染项目。
+
+> **设计理念**：dotnet-campus 组织倾向于保持核心库的零依赖和轻量化。IPC 和 TouchSocket HTTP 作为可选的扩展传输层，不会被强行塞入核心库。开发者可以根据实际需要自取所需的传输层，而不会被迫引入不需要的依赖。
+
+---
 
 ## 自定义传输层
 
