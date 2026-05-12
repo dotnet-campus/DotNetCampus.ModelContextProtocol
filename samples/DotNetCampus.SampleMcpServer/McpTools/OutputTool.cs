@@ -77,6 +77,24 @@ public class OutputTool
     // }
 
     /// <summary>
+    /// 测试返回对象中包含集合属性的结构化输出，验证集合属性的 Schema 类型为 array 而非 object
+    /// </summary>
+    /// <returns></returns>
+    [McpServerTool(ReadOnly = true)]
+    public CollectionContainerInfo TestCollectionPropertyReturn()
+    {
+        return new CollectionContainerInfo
+        {
+            Tags = ["Hello", "World", "MCP"],
+            Items =
+            [
+                new CollectionItemInfo { Id = 1, Name = "Item1" },
+                new CollectionItemInfo { Id = 2, Name = "Item2" },
+            ],
+        };
+    }
+
+    /// <summary>
     /// 测试返回含有 [JsonPropertyName] 特性的结构化输出，验证生成的 Schema 使用自定义属性名
     /// </summary>
     /// <returns></returns>
@@ -151,4 +169,36 @@ public record LocalTimeInfoWithCustomNames
     /// </summary>
     [JsonPropertyName("day_value")]
     public int Day { get; init; }
+}
+
+/// <summary>
+/// 用于测试对象中包含集合属性的输出结构
+/// </summary>
+public record CollectionContainerInfo
+{
+    /// <summary>
+    /// 字符串标签列表
+    /// </summary>
+    public IReadOnlyList<string>? Tags { get; init; }
+
+    /// <summary>
+    /// 子项列表
+    /// </summary>
+    public IReadOnlyList<CollectionItemInfo>? Items { get; init; }
+}
+
+/// <summary>
+/// 集合中的子项信息
+/// </summary>
+public record CollectionItemInfo
+{
+    /// <summary>
+    /// 子项标识符
+    /// </summary>
+    public required int Id { get; init; }
+
+    /// <summary>
+    /// 子项名称
+    /// </summary>
+    public required string Name { get; init; }
 }

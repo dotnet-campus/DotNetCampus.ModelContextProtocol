@@ -176,16 +176,16 @@ internal class JsonSchemaTypeInfo
             return JsonSpecialType.Enum;
         }
 
-        // List
-        if (typeSymbol is IArrayTypeSymbol { ElementType.SpecialType: SpecialType.System_String })
+        // 数组类型（如 string[]、MyObject[]）
+        if (notNullTypeSymbol is IArrayTypeSymbol)
         {
             return JsonSpecialType.Array;
         }
 
-        // List
+        // 单泛型集合类型（如 List<T>、IReadOnlyList<T>）
         if (notNullTypeSymbol is INamedTypeSymbol
             {
-                TypeArguments: [{ SpecialType: SpecialType.System_String }],
+                TypeArguments.Length: 1,
                 OriginalDefinition.Name: { } oneGenericName,
             } && AllowedListTypeNames.ContainsKey(oneGenericName))
         {
