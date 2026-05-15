@@ -94,7 +94,8 @@ internal static class McpServerToolSourceBuilder
                 // 非多态类型，正常处理
                 .Otherwise(nonPoly => nonPoly
                     .AddPropertyAssignment("Required", info.GetJsonRequiredPropertiesExpressionOrDefault())
-                    .Condition(properties.Count > 0, i => i
+                    // object 类型始终输出 Properties（即使为空），以符合 OpenAI API 要求
+                    .Condition(info.JsonSchemaType == "object" || properties.Count > 0, i => i
                         .AddBracketScope($"Properties = new {G.Dictionary}<string, {G.CompiledJsonSchema}>", "{", "},", rbs => rbs
                             .AddStatements(properties, (d, p) => d
                                 .AddStatement($"[ \"{p.JsonPropertyName}\" ] = ", ",", c => c

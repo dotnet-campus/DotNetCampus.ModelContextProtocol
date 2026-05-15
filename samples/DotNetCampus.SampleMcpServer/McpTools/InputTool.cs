@@ -11,6 +11,16 @@ namespace DotNetCampus.SampleMcpServer.McpTools;
 public class InputTool
 {
     /// <summary>
+    /// 演示使用没有参数的工具
+    /// </summary>
+    /// <returns></returns>
+    [McpServerTool(ReadOnly = true)]
+    public string TestNoInput()
+    {
+        return "Success";
+    }
+
+    /// <summary>
     /// 演示使用上下文参数的工具
     /// </summary>
     /// <param name="context">传递过来的 MCP 工具调用上下文</param>
