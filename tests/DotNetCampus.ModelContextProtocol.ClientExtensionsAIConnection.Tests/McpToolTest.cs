@@ -22,7 +22,7 @@ public sealed class ModelContextProtocolToolToAIToolExtensionTest
         AITool aiTool = aiTools[0];
         Assert.AreEqual("add_numbers", aiTool.Name);
 
-        var aiFunction = Assert.IsInstanceOfType<ModelContextProtocolAITool>(aiTool);
+        var aiFunction = Assert.IsInstanceOfType<ModelContextProtocolAIFunction>(aiTool);
         object? result = await aiFunction.InvokeAsync(new AIFunctionArguments(new Dictionary<string, object?>
         {
             ["left"] = 10,

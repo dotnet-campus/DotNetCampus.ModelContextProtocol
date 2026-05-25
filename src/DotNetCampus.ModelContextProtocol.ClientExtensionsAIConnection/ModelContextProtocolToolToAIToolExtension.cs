@@ -25,21 +25,28 @@ public static class ModelContextProtocolToolToAIToolExtension
         var resultList = new List<AITool>(toolList.Count);
         foreach (Tool tool in toolList)
         {
-            resultList.Add(new ModelContextProtocolAITool(mcpClient, tool));
+            resultList.Add(new ModelContextProtocolAIFunction(mcpClient, tool));
         }
 
         return resultList;
     }
+
+    public static AIFunction AsAIFunction(this Tool tool, McpClient mcpClient)
+    {
+        return new ModelContextProtocolAIFunction(mcpClient, tool);
+    }
+
+    public static AITool AsAITool(this Tool tool, McpClient mcpClient) => tool.AsAIFunction(mcpClient);
 }
 
-public sealed class ModelContextProtocolAITool : AIFunction
+public sealed class ModelContextProtocolAIFunction : AIFunction
 {
     /// <summary>
     /// 初始化 MCP AI 工具适配实例。
     /// </summary>
     /// <param name="mcpClient">MCP 客户端。</param>
     /// <param name="tool">MCP 工具定义。</param>
-    public ModelContextProtocolAITool(McpClient mcpClient, Tool tool)
+    public ModelContextProtocolAIFunction(McpClient mcpClient, Tool tool)
     {
         ArgumentNullException.ThrowIfNull(mcpClient);
         ArgumentNullException.ThrowIfNull(tool);
