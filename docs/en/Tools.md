@@ -94,7 +94,7 @@ Use the `[ToolParameter]` attribute to mark special parameter behavior:
 
 #### Full Parameter Example
 
-The following example demonstrates combined usage of `IMcpServerCallToolContext`, parameters with default values, and nullable parameters:
+The following example demonstrates combined usage of `IMcpServerCallToolContext`, required parameters (without default values), and optional parameters (with default values):
 
 ```csharp
 /// <summary>

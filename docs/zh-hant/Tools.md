@@ -94,7 +94,7 @@ public string EchoCustomized(string text)
 
 #### 完整參數範例
 
-以下範例展示了 `IMcpServerCallToolContext`、帶預設值的參數、可為 Null 的參數的綜合用法：
+以下範例展示了 `IMcpServerCallToolContext`、必需參數（無預設值）、可選參數（帶預設值）綜合用法：
 
 ```csharp
 /// <summary>
