@@ -66,6 +66,16 @@ public class OutputTool
         };
     }
 
+    /// <summary>
+    /// 测试获取结构化的输出信息（不至于出现不合法的 OutputSchema，且实际运行时返回值也符合协议）
+    /// </summary>
+    /// <returns></returns>
+    [McpServerTool(ReadOnly = true)]
+    public LocalTimeInfo? TestNullableStructureReturn()
+    {
+        return null;
+    }
+
     // /// <summary>
     // /// 解除注释后，此代码将报告编译错误
     // /// </summary>

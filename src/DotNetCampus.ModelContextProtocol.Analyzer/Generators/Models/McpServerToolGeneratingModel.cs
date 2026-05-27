@@ -136,7 +136,8 @@ public record McpServerToolGeneratingModel
     /// <returns>返回值的 Schema 信息，如果没有结构化返回则为 null。</returns>
     public JsonPropertySchemaInfo? GetReturnTypeSchemaInfo()
     {
-        var returnType = GetReturnType();
+        // MCP 规范要求 outputSchema 根级别必须是 type: "object"，不允许 type: ["object", "null"]。
+        var returnType = GetReturnType()?.GetNotNullTypeSymbol();
         if (returnType is null)
         {
             return null;
@@ -161,7 +162,7 @@ public record McpServerToolGeneratingModel
             genericType.OriginalDefinition.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat) ==
             "global::DotNetCampus.ModelContextProtocol.CompilerServices.CallToolResult<T>")
         {
-            var resultType = genericType.TypeArguments[0];
+            var resultType = genericType.TypeArguments[0].GetNotNullTypeSymbol();
             return JsonPropertySchemaInfo.From(resultType, "result");
         }
 
