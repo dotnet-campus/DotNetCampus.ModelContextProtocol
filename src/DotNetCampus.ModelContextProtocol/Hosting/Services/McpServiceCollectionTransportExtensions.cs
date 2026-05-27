@@ -1,3 +1,4 @@
+using System.Collections.Specialized;
 using DotNetCampus.ModelContextProtocol.Hosting.Logging;
 using DotNetCampus.ModelContextProtocol.Servers;
 using DotNetCampus.ModelContextProtocol.Transports;
@@ -21,6 +22,23 @@ public static class McpServiceCollectionTransportExtensions
     {
         services.AddScoped<IServerTransportSession>(session);
         services.AddScoped<IMcpServerSampling>(new McpServerSampling(session, logger));
+        return services;
+    }
+
+    /// <summary>
+    /// 向 MCP 服务集合中注册 HTTP 传输层上下文信息，包括会话 ID 和 HTTP 请求头。
+    /// </summary>
+    /// <param name="services">MCP 服务集合。</param>
+    /// <param name="sessionId">当前会话 ID。</param>
+    /// <param name="headers">当前 HTTP 请求头。</param>
+    /// <returns>提供链式调用的服务集合。</returns>
+    public static IMcpServiceCollection AddHttpTransportContext(this IMcpServiceCollection services, string? sessionId, NameValueCollection headers)
+    {
+        services.AddScoped(new HttpServerTransportContext
+        {
+            SessionId = sessionId,
+            Headers = headers,
+        });
         return services;
     }
 }

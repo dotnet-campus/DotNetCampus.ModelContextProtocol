@@ -88,7 +88,16 @@ Use the `[ToolParameter]` attribute to mark special parameter behavior:
 - Raw JSON input arguments (`context.InputJsonArguments`)
 - `_meta` metadata from the request (`context.Meta`), useful for distributed tracing
 - MCP server information (`context.McpServer.ServerName`)
-- HTTP transport layer context (`context.HttpTransportContext`, including SessionId, Headers, etc.)
+- Transport session (`context.TransportSession`), available across all transport layers, including:
+  - `SessionId`: Session ID for distinguishing different client connections (`null` under stdio transport)
+  - `ConnectedClientInfo`: Client information provided during initialization handshake (name, version, etc.)
+  - `ConnectedClientCapabilities`: Capabilities declared by the client
+  - `NegotiatedProtocolVersion`: Negotiated protocol version
+- HTTP transport context (`context.HttpTransportContext`), only available under HTTP transport, including:
+  - `SessionId`: Same as `TransportSession.SessionId`
+  - `Headers`: HTTP request headers of the current request
+
+> **💡 Tip**: To distinguish different clients, prefer `context.TransportSession` — it works across all transport layers (HTTP, stdio, InProcess, IPC). `context.HttpTransportContext` is only available under HTTP transport and is suited for scenarios that require reading HTTP request headers.
 
 > **Important**: The `IMcpServerCallToolContext` instance is **only valid during the current tool method execution**. Do not store it in static fields or pass it across async boundaries, as the context becomes invalid once the tool call completes.
 
@@ -112,9 +121,12 @@ public Task<EchoResult> EchoAsync(
     int count = 1,
     EchoExtraData? extraData = null)
 {
+    var session = context.TransportSession;
     var info = $"""
         Server name: {context.McpServer.ServerName}
-        SessionId: {context.HttpTransportContext?.SessionId}
+        SessionId: {session?.SessionId}
+        Client: {session?.ConnectedClientInfo?.Name} {session?.ConnectedClientInfo?.Version}
+        Protocol: {session?.NegotiatedProtocolVersion}
         Headers: {string.Join(", ", context.HttpTransportContext?.Headers)}
         InputJsonArguments: {context.InputJsonArguments}
         """;

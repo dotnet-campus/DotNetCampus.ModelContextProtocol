@@ -108,6 +108,8 @@ public class SampleResources
 
 如果资源方法需要读取当前请求 URI、`_meta` 元数据，或需要在找不到资源时抛出 `McpResourceNotFoundException`，可在参数中声明 `IMcpServerReadResourceContext`。通过 `context.Meta` 可获取来自客户端请求的元数据（例如分布式追踪的 TraceId）。
 
+与工具方法类似，资源方法也可通过 `context.TransportSession` 获取传输层会话信息（如 SessionId、客户端名称/版本等），通过 `context.HttpTransportContext` 获取 HTTP 传输层专属信息（如请求头）。详见 [Tools 文档中的上下文说明](Tools.md#imcpservercalltoolcontext-上下文)。
+
 ## 客户端读取资源
 
 一个典型的 MCP 客户端读取资源的代码如下：

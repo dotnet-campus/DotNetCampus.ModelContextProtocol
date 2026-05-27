@@ -27,6 +27,11 @@ public interface IServerTransportSession : IAsyncDisposable
     ProtocolVersion? NegotiatedProtocolVersion { get; set; }
 
     /// <summary>
+    /// 连接的客户端在 Initialize 握手时提供的客户端信息（名称、版本等）。在 Initialize 握手完成后设置。
+    /// </summary>
+    Implementation? ConnectedClientInfo { get; set; }
+
+    /// <summary>
     /// 向客户端发送 JSON-RPC 请求并等待响应。用于服务器主动发起的请求（如 sampling/createMessage）。
     /// </summary>
     Task<JsonRpcResponse> SendRequestAsync(JsonRpcRequest request, CancellationToken cancellationToken = default);

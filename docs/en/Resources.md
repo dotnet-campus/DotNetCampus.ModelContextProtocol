@@ -108,6 +108,8 @@ Resource methods can return the following types:
 
 If a resource method needs to read the current request URI, `_meta` metadata, or needs to throw `McpResourceNotFoundException` when a resource is not found, declare `IMcpServerReadResourceContext` as a parameter. Metadata from the client request (e.g. TraceId for distributed tracing) can be accessed via `context.Meta`.
 
+Similar to tool methods, resource methods can also access transport session information (such as SessionId, client name/version, etc.) via `context.TransportSession`, and HTTP transport-specific information (such as request headers) via `context.HttpTransportContext`. See [context details in the Tools documentation](Tools.md#imcpservercalltoolcontext) for more.
+
 ## Client-Side Resource Reading
 
 Typical code for an MCP client reading resources:

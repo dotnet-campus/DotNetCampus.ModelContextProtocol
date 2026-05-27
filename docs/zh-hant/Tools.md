@@ -88,7 +88,16 @@ public string EchoCustomized(string text)
 - 原始 JSON 輸入參數（`context.InputJsonArguments`）
 - 要求中的 `_meta` 中繼資料（`context.Meta`），可用於分散式追蹤等情節
 - MCP 伺服器資訊（`context.McpServer.ServerName`）
-- HTTP 傳輸層內容（`context.HttpTransportContext`，含 SessionId、Headers 等）
+- 傳輸層會話（`context.TransportSession`），所有傳輸層均可用，包含：
+  - `SessionId`：會話 ID，可用於區分不同用戶端連線（stdio 傳輸層下為 `null`）
+  - `ConnectedClientInfo`：用戶端在初始化握手時提供的資訊（名稱、版本等）
+  - `ConnectedClientCapabilities`：用戶端聲明的能力
+  - `NegotiatedProtocolVersion`：協商出的協定版本
+- HTTP 傳輸層內容（`context.HttpTransportContext`），僅在 HTTP 傳輸層下可用，包含：
+  - `SessionId`：與 `TransportSession.SessionId` 相同
+  - `Headers`：目前 HTTP 要求的要求標頭
+
+> **💡 提示**：如果只需要區分不同用戶端，推薦使用 `context.TransportSession`，它在所有傳輸層（HTTP、stdio、InProcess、IPC）下均可用。`context.HttpTransportContext` 僅在 HTTP 傳輸層下可用，適合需要讀取 HTTP 要求標頭等情節。
 
 > **⚠ 重要**：`IMcpServerCallToolContext` 執行個體**僅在目前工具方法執行期間有效**。不要將其儲存到靜態欄位或跨非同步邊界傳遞，因為工具呼叫結束後內容即失效。
 
@@ -112,9 +121,12 @@ public Task<EchoResult> EchoAsync(
     int count = 1,
     EchoExtraData? extraData = null)
 {
+    var session = context.TransportSession;
     var info = $"""
         Server name: {context.McpServer.ServerName}
-        SessionId: {context.HttpTransportContext?.SessionId}
+        SessionId: {session?.SessionId}
+        Client: {session?.ConnectedClientInfo?.Name} {session?.ConnectedClientInfo?.Version}
+        Protocol: {session?.NegotiatedProtocolVersion}
         Headers: {string.Join(", ", context.HttpTransportContext?.Headers)}
         InputJsonArguments: {context.InputJsonArguments}
         """;

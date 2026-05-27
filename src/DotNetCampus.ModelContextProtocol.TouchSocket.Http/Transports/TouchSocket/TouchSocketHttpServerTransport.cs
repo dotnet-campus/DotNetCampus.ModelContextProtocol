@@ -453,11 +453,9 @@ public class TouchSocketHttpServerTransport : PluginBase, IHttpPlugin, IServerTr
 
         await _manager.HandleRequestAsync(
             new JsonRpcRequest { Method = notification.Method, Params = notification.Params },
-            s =>
-            {
-                s.AddHttpTransportServices(session.SessionId, request);
-                s.AddTransportSession(session, Log);
-            },
+            s => s
+                .AddHttpTransportServices(session.SessionId, request)
+                .AddTransportSession(session, Log),
             cancellationToken: cancellationToken);
         await context.RespondHttpSuccess(HttpStatusCode.Accepted);
     }
@@ -485,11 +483,9 @@ public class TouchSocketHttpServerTransport : PluginBase, IHttpPlugin, IServerTr
 
         var response = await _manager.HandleRequestAsync(
             jsonRpcRequest,
-            s =>
-            {
-                s.AddHttpTransportServices(session.SessionId, request);
-                s.AddTransportSession(session, Log);
-            },
+            s => s
+                .AddHttpTransportServices(session.SessionId, request)
+                .AddTransportSession(session, Log),
             cancellationToken: cancellationToken);
 
         if (response is not null)
@@ -598,11 +594,9 @@ public class TouchSocketHttpServerTransport : PluginBase, IHttpPlugin, IServerTr
 
         await _manager.HandleRequestAsync(
             new JsonRpcRequest { Method = notification.Method, Params = notification.Params },
-            s =>
-            {
-                s.AddHttpTransportServices(session.SessionId, request);
-                s.AddTransportSession(session, Log);
-            },
+            s => s
+                .AddHttpTransportServices(session.SessionId, request)
+                .AddTransportSession(session, Log),
             cancellationToken: cancellationToken);
         await context.RespondHttpSuccess(HttpStatusCode.Accepted);
     }
@@ -737,11 +731,9 @@ public class TouchSocketHttpServerTransport : PluginBase, IHttpPlugin, IServerTr
     private async ValueTask HandleInitializeAsync(HttpContext context, HttpServerTransportSession session, JsonRpcRequest jsonRpcRequest, HttpRequest request, CancellationToken cancellationToken)
     {
         var initResponse = await _manager.HandleRequestAsync(jsonRpcRequest,
-            s =>
-            {
-                s.AddHttpTransportServices(session.SessionId, request);
-                s.AddTransportSession(session, Log);
-            },
+            s => s
+                .AddHttpTransportServices(session.SessionId, request)
+                .AddTransportSession(session, Log),
             cancellationToken: cancellationToken);
 
         if (initResponse != null)
@@ -781,11 +773,9 @@ public class TouchSocketHttpServerTransport : PluginBase, IHttpPlugin, IServerTr
         using var _ = session.SetRequestSseStream(output);
 
         var resp = await _manager.HandleRequestAsync(jsonRpcRequest,
-            s =>
-            {
-                s.AddHttpTransportServices(session.SessionId, request);
-                s.AddTransportSession(session, Log);
-            },
+            s => s
+                .AddHttpTransportServices(session.SessionId, request)
+                .AddTransportSession(session, Log),
             cancellationToken: cancellationToken);
 
         if (resp != null)

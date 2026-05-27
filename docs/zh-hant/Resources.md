@@ -108,6 +108,8 @@ public class SampleResources
 
 如果資源方法需要讀取目前要求 URI、`_meta` 中繼資料，或需要在找不到資源時擲出 `McpResourceNotFoundException`，可在參數中宣告 `IMcpServerReadResourceContext`。透過 `context.Meta` 可取得來用戶端要求的中繼資料（例如分散式追蹤的 TraceId）。
 
+與工具方法類似，資源方法也可透過 `context.TransportSession` 取得傳輸層會話資訊（如 SessionId、用戶端名稱/版本等），透過 `context.HttpTransportContext` 取得 HTTP 傳輸層專屬資訊（如要求標頭）。詳見 [Tools 文件中的內容說明](Tools.md#imcpservercalltoolcontext-內容)。
+
 ## 用戶端讀取資源
 
 一個典型的 MCP 用戶端讀取資源的程式碼如下：

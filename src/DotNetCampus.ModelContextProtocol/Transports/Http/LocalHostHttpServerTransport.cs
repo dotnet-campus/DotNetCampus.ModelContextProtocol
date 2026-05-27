@@ -341,7 +341,9 @@ public class LocalHostHttpServerTransport : IServerTransport
 
         await _manager.HandleRequestAsync(
             new JsonRpcRequest { Method = notification.Method, Params = notification.Params },
-            s => s.AddTransportSession(session, Log),
+            s => s
+                .AddTransportSession(session, Log)
+                .AddHttpTransportContext(session.SessionId, context.Request.Headers),
             cancellationToken);
         context.RespondHttpSuccess(HttpStatusCode.Accepted);
     }
@@ -369,7 +371,9 @@ public class LocalHostHttpServerTransport : IServerTransport
 
         var response = await _manager.HandleRequestAsync(
             jsonRpcRequest,
-            s => s.AddTransportSession(session, Log),
+            s => s
+                .AddTransportSession(session, Log)
+                .AddHttpTransportContext(session.SessionId, context.Request.Headers),
             cancellationToken);
 
         if (response is not null)
@@ -474,7 +478,9 @@ public class LocalHostHttpServerTransport : IServerTransport
 
         await _manager.HandleRequestAsync(
             new JsonRpcRequest { Method = notification.Method, Params = notification.Params },
-            s => s.AddTransportSession(session, Log),
+            s => s
+                .AddTransportSession(session, Log)
+                .AddHttpTransportContext(session.SessionId, context.Request.Headers),
             cancellationToken);
         context.RespondHttpSuccess(HttpStatusCode.Accepted);
     }
@@ -615,7 +621,9 @@ public class LocalHostHttpServerTransport : IServerTransport
         CancellationToken cancellationToken)
     {
         var initResponse = await _manager.HandleRequestAsync(jsonRpcRequest,
-            s => s.AddTransportSession(session, Log),
+            s => s
+                .AddTransportSession(session, Log)
+                .AddHttpTransportContext(session.SessionId, context.Request.Headers),
             cancellationToken);
 
         if (initResponse != null)
@@ -662,7 +670,9 @@ public class LocalHostHttpServerTransport : IServerTransport
         using var _ = session.SetRequestSseStream(output);
 
         var response = await _manager.HandleRequestAsync(jsonRpcRequest,
-            s => s.AddTransportSession(session, Log),
+            s => s
+                .AddTransportSession(session, Log)
+                .AddHttpTransportContext(session.SessionId, context.Request.Headers),
             cancellationToken);
 
         if (response != null)

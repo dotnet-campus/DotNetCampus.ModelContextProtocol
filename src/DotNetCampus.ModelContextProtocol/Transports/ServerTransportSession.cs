@@ -26,6 +26,9 @@ public abstract class ServerTransportSession : IServerTransportSession
     public ProtocolVersion? NegotiatedProtocolVersion { get; set; }
 
     /// <inheritdoc />
+    public Implementation? ConnectedClientInfo { get; set; }
+
+    /// <inheritdoc />
     public async Task<JsonRpcResponse> SendRequestAsync(JsonRpcRequest request, CancellationToken cancellationToken = default)
     {
         if (request.Id?.ToString() is not { } id)

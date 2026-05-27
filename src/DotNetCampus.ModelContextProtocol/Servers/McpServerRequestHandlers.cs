@@ -72,6 +72,7 @@ public class McpServerRequestHandlers
         if (session is not null)
         {
             session.NegotiatedProtocolVersion = negotiatedProtocolVersion;
+            session.ConnectedClientInfo = clientInfo;
 
             if (request.Params?.Capabilities is { } capabilities)
             {

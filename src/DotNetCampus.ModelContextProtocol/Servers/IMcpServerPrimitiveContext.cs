@@ -1,6 +1,7 @@
 ﻿using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using DotNetCampus.ModelContextProtocol.Transports;
 
 namespace DotNetCampus.ModelContextProtocol.Servers;
 
@@ -123,8 +124,12 @@ public static class McpServerCallToolContextExtensions
     extension(IMcpServerPrimitiveContext context)
     {
         /// <summary>
-        /// 获取与 HTTP 传输相关的上下文信息（如果当前是通过 HTTP 传输的话）。<br/>
-        /// Gets the context information related to HTTP transport (if the current transport is HTTP).
+        /// 获取当前请求对应的传输层会话。可用于获取会话 ID、客户端能力、协商协议版本和客户端信息等。
+        /// </summary>
+        public IServerTransportSession? TransportSession => (IServerTransportSession?)context.Services.GetService(typeof(IServerTransportSession));
+
+        /// <summary>
+        /// 获取与 HTTP 传输相关的上下文信息（如果当前是通过 HTTP 传输的话）。
         /// </summary>
         public HttpServerTransportContext? HttpTransportContext => (HttpServerTransportContext?)context.Services.GetService(typeof(HttpServerTransportContext));
     }
