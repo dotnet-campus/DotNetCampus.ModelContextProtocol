@@ -247,45 +247,148 @@ var {parameter.Name} = jsonArguments.TryGetProperty("{jsonName}", out var {param
         var callMethodExpression = $"Target.{model.Method.Name}({string.Join(", ", arguments)})";
 
         var isAsync = model.GetIsAsync();
-        var typeName = model.GetReturnTypeName(false);
-        var typeFullName = model.GetReturnTypeName(true);
-        var hasStructureReturn = typeName is not null && typeFullName is not null;
-        var isVoid = model.GetReturnType() is null;
 
-        builder.AddRawStatement((isAsync, isVoid, hasStructureReturn) switch
+        var schemaInfo = model.GetReturnTypeSchemaInfo();
+        var typeName = schemaInfo?.PropertyType.ToSimpleDisplayString();
+        var typeFullName = schemaInfo?.PropertyType.ToDisplayString();
+        var hasStructureReturn = typeName is not null && typeFullName is not null;
+        var returnType = model.GetReturnType();
+        var isVoid = returnType is null;
+        var collectionKind = model.GetCollectionReturnKind();
+        var isBareCallToolResult = returnType?.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat) == G.CallToolResult;
+
+        // Generate the return expression/statement based on priority
+        string code;
+
+        if (isVoid)
         {
-            // async void (Task/ValueTask without result)
-            (true, true, _) => $"""
-                await {callMethodExpression}.ConfigureAwait(false);
-                return {G.CallToolResult}.Empty;
-                """,
-            // async with structured return
-            (true, false, true) => $"""
-                var result = await {callMethodExpression}.ConfigureAwait(false);
-                return {G.CallToolResult}.FromResult(result).Structure(context, "{typeName}", "{typeFullName}");
-                """,
-            // async without structured return
-            (true, false, false) => $"""
-                var result = await {callMethodExpression}.ConfigureAwait(false);
-                return {G.CallToolResult}.FromResult(result).Structure(jsonSerializerContext);
-                """,
-            // sync void
-            (false, true, _) => $"""
-                {callMethodExpression};
-                return {G.ValueTask}.FromResult({G.CallToolResult}.Empty);
-                """,
-            // sync with structured return
-            (false, false, true) => $"""
-                var result = {callMethodExpression};
-                return {G.ValueTask}.FromResult({G.CallToolResult}.FromResult(result).Structure(context, "{typeName}", "{typeFullName}"));
-                """,
-            // sync without structured return
-            (false, false, false) => $"""
-                var result = {callMethodExpression};
-                return {G.ValueTask}.FromResult({G.CallToolResult}.FromResult(result).Structure(jsonSerializerContext));
-                """,
-        });
+            // void / Task / ValueTask
+            if (isAsync)
+            {
+                code = $"""
+                    await {callMethodExpression}.ConfigureAwait(false);
+                    return {G.CallToolResult}.Empty;
+                    """;
+            }
+            else
+            {
+                code = $"""
+                    {callMethodExpression};
+                    return {G.ValueTask}.FromResult({G.CallToolResult}.Empty);
+                    """;
+            }
+        }
+        else if (isBareCallToolResult)
+        {
+            // 裸 CallToolResult — 直接返回，不依赖用户的 JsonSerializerContext
+            code = GenerateReturnBlock(isAsync, callMethodExpression, "result");
+        }
+        else if (collectionKind is CollectionReturnKind.BasicTypeCollection)
+        {
+            // 基本类型集合 — 每个元素 ToString()
+            code = GenerateReturnBlock(isAsync, callMethodExpression,
+                $"{G.CallToolResult}.FromCollection(result, x => $\"{{x}}\")");
+        }
+        else if (collectionKind is CollectionReturnKind.ObjectCollection)
+        {
+            // 对象集合 — 每个元素 JSON 序列化
+            var elementTypeFullName = model.GetCollectionElementTypeName(true)!;
+            var elementTypeName = model.GetCollectionElementTypeName(false)!;
+            code = GenerateReturnBlock(isAsync, callMethodExpression,
+                $"{G.CallToolResult}.FromCollection(result, x => {G.JsonSerializer}.Serialize(x, context.EnsureJsonTypeInfo<{elementTypeFullName}>(\"{elementTypeName}\", \"{elementTypeFullName}\")))");
+        }
+        else if (hasStructureReturn)
+        {
+            // 可结构化对象
+            var notNull = returnType!.GetNotNullTypeSymbol();
+            var globalTypeFullName = notNull.ToNullableDisabledGlobalDisplayString();
+            code = GenerateReturnBlock(isAsync, callMethodExpression,
+                $"{G.CallToolResult}.FromResultStructured(result, context.EnsureJsonTypeInfo<{globalTypeFullName}>(\"{typeName}\", \"{typeFullName}\"))");
+        }
+        else if (returnType is not null && IsObjectLike(returnType))
+        {
+            // 不可结构化对象
+            var notNull = returnType.GetNotNullTypeSymbol();
+            var uTypeName = notNull.ToSimpleDisplayString();
+            var uTypeFullName = notNull.ToDisplayString();
+            var globalTypeFullName = notNull.ToNullableDisabledGlobalDisplayString();
+            code = GenerateReturnBlock(isAsync, callMethodExpression,
+                $"{G.CallToolResult}.FromResultUnstructured(result, context.EnsureJsonTypeInfo<{globalTypeFullName}>(\"{uTypeName}\", \"{uTypeFullName}\"))");
+        }
+        else
+        {
+            // 其他（string / 基本类型 / 枚举 / JsonElement）
+            code = GenerateReturnBlock(isAsync, callMethodExpression, GenerateOtherReturnExpression(returnType));
+        }
+
+        builder.AddRawStatement(code);
         return builder;
+    }
+
+    /// <summary>
+    /// 生成标准的 "var result = ...; return ..." 代码块。
+    /// </summary>
+    private static string GenerateReturnBlock(bool isAsync, string callMethodExpression, string returnExpression)
+    {
+        if (isAsync)
+        {
+            return $"""
+                var result = await {callMethodExpression}.ConfigureAwait(false);
+                return {returnExpression};
+                """;
+        }
+        else
+        {
+            return $"""
+                var result = {callMethodExpression};
+                return {G.ValueTask}.FromResult({returnExpression});
+                """;
+        }
+    }
+
+    /// <summary>
+    /// 判断类型是否为对象类型（非基本类型、非字符串、非枚举、非 JsonElement）。
+    /// </summary>
+    private static bool IsObjectLike(ITypeSymbol returnType)
+    {
+        var notNull = returnType.GetNotNullTypeSymbol();
+        var info = notNull.ToJsonSchemaTypeInfo();
+        return info.SpecialKind is JsonSpecialType.Object or JsonSpecialType.Dictionary
+               && !notNull.IsAnyJsonElementType();
+    }
+
+    /// <summary>
+    /// 为 string / 基本类型 / 枚举 / JsonElement 生成返回表达式。
+    /// </summary>
+    private static string GenerateOtherReturnExpression(ITypeSymbol? returnType)
+    {
+        if (returnType is null)
+        {
+            return $"{G.CallToolResult}.Empty";
+        }
+
+        var notNull = returnType.GetNotNullTypeSymbol();
+
+        // string → FromResult(result)
+        if (notNull.SpecialType == SpecialType.System_String)
+        {
+            return $"{G.CallToolResult}.FromResult(result)";
+        }
+
+        // JsonElement / JsonNode → FromResultUnstructured + EnsureJsonTypeInfo
+        if (notNull.IsAnyJsonElementType())
+        {
+            var jsonTypeName = notNull.ToSimpleDisplayString();
+            var jsonTypeFullName = notNull.ToDisplayString();
+            var jsonGlobalTypeFullName = notNull.ToNullableDisabledGlobalDisplayString();
+            return $"{G.CallToolResult}.FromResultUnstructured(result, context.EnsureJsonTypeInfo<{jsonGlobalTypeFullName}>(\"{jsonTypeName}\", \"{jsonTypeFullName}\"))";
+        }
+
+        // 基本类型 / 枚举 / 兜底 → FromResult(result.ToString())
+        var toStringExpr = notNull.IsValueType
+            ? "result.ToString()"
+            : "result?.ToString() ?? \"\"";
+        return $"{G.CallToolResult}.FromResult({toStringExpr})";
     }
 
     /// <summary>

@@ -5,7 +5,6 @@ using DotNetCampus.ModelContextProtocol.Transports;
 
 namespace DotNetCampus.ModelContextProtocol.Servers;
 
-
 /// <summary>
 /// 包含 MCP 服务器收到来自客户端的请求时，服务端处理请求具体实现可能会用到的各种上下文信息。<br/>
 /// Contains various context information that the server-side implementation of the MCP server
@@ -99,6 +98,7 @@ internal sealed class McpServerCallToolContext : IMcpServerCallToolContext
     public required string Name { get; init; }
     public required JsonElement InputJsonArguments { get; init; }
     public required CancellationToken CancellationToken { get; init; }
+
     public IMcpServerSampling Sampling =>
         (IMcpServerSampling?)Services.GetService(typeof(IMcpServerSampling))
         ?? NotSupportedMcpServerSampling.Instance;

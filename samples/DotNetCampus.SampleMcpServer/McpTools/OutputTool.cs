@@ -1,5 +1,6 @@
-﻿using System.Text.Json.Serialization;
+using System.Text.Json.Serialization;
 using DotNetCampus.ModelContextProtocol.CompilerServices;
+using DotNetCampus.ModelContextProtocol.Protocol.Messages;
 
 namespace DotNetCampus.SampleMcpServer.McpTools;
 
@@ -8,32 +9,136 @@ namespace DotNetCampus.SampleMcpServer.McpTools;
 /// </summary>
 public class OutputTool
 {
+    #region 无返回值（void / Task / ValueTask）
+
     /// <summary>
-    /// 测试什么也不输出
+    /// 测试同步无返回值（void）
     /// </summary>
-    /// <returns></returns>
     [McpServerTool(ReadOnly = true)]
-    public async Task TestNoReturn()
+    public void ReturnVoid()
+    {
+    }
+
+    /// <summary>
+    /// 测试异步无返回值（Task）
+    /// </summary>
+    [McpServerTool(ReadOnly = true)]
+    public async Task ReturnTask()
     {
         await Task.Yield();
     }
 
     /// <summary>
-    /// 测试什么也不输出
+    /// 测试异步无返回值（ValueTask）
     /// </summary>
-    /// <returns></returns>
     [McpServerTool(ReadOnly = true)]
-    public async Task<string?> TestNullableReturn()
+    public async ValueTask ReturnValueTask()
+    {
+        await Task.Yield();
+    }
+
+    #endregion
+
+    #region 字符串返回
+
+    /// <summary>
+    /// 测试返回字符串
+    /// </summary>
+    [McpServerTool(ReadOnly = true)]
+    public string ReturnString()
+    {
+        return "Hello, MCP!";
+    }
+
+    /// <summary>
+    /// 测试返回可空字符串
+    /// </summary>
+    [McpServerTool(ReadOnly = true)]
+    public async Task<string?> ReturnNullableString()
     {
         return null;
     }
 
+    #endregion
+
+    #region 基本类型返回（ToString 输出）
+
     /// <summary>
-    /// 测试异步获取结构化的输出信息
+    /// 测试返回 int
     /// </summary>
-    /// <returns></returns>
     [McpServerTool(ReadOnly = true)]
-    public async Task<LocalTimeInfo> TestAsyncStructureReturn()
+    public int ReturnInt()
+    {
+        return 42;
+    }
+
+    /// <summary>
+    /// 测试返回 bool
+    /// </summary>
+    [McpServerTool(ReadOnly = true)]
+    public bool ReturnBool()
+    {
+        return true;
+    }
+
+    /// <summary>
+    /// 测试返回 double
+    /// </summary>
+    [McpServerTool(ReadOnly = true)]
+    public double ReturnDouble()
+    {
+        return 3.14;
+    }
+
+    /// <summary>
+    /// 测试返回枚举值
+    /// </summary>
+    [McpServerTool(ReadOnly = true)]
+    public DayOfWeek ReturnEnum()
+    {
+        return DayOfWeek.Monday;
+    }
+
+    #endregion
+
+    #region 基本类型集合返回（每个元素生成一个 TextContentBlock）
+
+    /// <summary>
+    /// 测试返回字符串集合
+    /// </summary>
+    [McpServerTool(ReadOnly = true)]
+    public IReadOnlyList<string> ReturnStringList()
+    {
+        return ["Hello", "World", "MCP", "Tool"];
+    }
+
+    /// <summary>
+    /// 测试返回 int 数组
+    /// </summary>
+    [McpServerTool(ReadOnly = true)]
+    public int[] ReturnIntArray()
+    {
+        return [1, 2, 3, 4, 5];
+    }
+
+    /// <summary>
+    /// 测试返回枚举集合
+    /// </summary>
+    [McpServerTool(ReadOnly = true)]
+    public IReadOnlyList<DayOfWeek> ReturnEnumList()
+    {
+        return [DayOfWeek.Monday, DayOfWeek.Wednesday, DayOfWeek.Friday];
+    }
+
+    #endregion
+
+    #region 结构化对象返回（默认启用 OutputSchema）
+
+    /// <summary>
+    /// 测试同步返回结构化对象
+    /// </summary>
+    [McpServerTool(ReadOnly = true)]
+    public LocalTimeInfo ReturnObject()
     {
         var now = DateTime.Now;
         return new LocalTimeInfo
@@ -48,11 +153,10 @@ public class OutputTool
     }
 
     /// <summary>
-    /// 测试获取结构化的输出信息
+    /// 测试异步返回结构化对象
     /// </summary>
-    /// <returns></returns>
     [McpServerTool(ReadOnly = true)]
-    public LocalTimeInfo TestStructureReturn()
+    public async Task<LocalTimeInfo> ReturnObjectAsync()
     {
         var now = DateTime.Now;
         return new LocalTimeInfo
@@ -67,31 +171,10 @@ public class OutputTool
     }
 
     /// <summary>
-    /// 测试获取结构化的输出信息（不至于出现不合法的 OutputSchema，且实际运行时返回值也符合协议）
+    /// 测试返回含集合属性的结构化对象
     /// </summary>
-    /// <returns></returns>
     [McpServerTool(ReadOnly = true)]
-    public LocalTimeInfo? TestNullableStructureReturn()
-    {
-        return null;
-    }
-
-    // /// <summary>
-    // /// 解除注释后，此代码将报告编译错误
-    // /// </summary>
-    // /// <returns></returns>
-    // [McpServerTool(ReadOnly = true)]
-    // public IReadOnlyList<string> TestListReturn()
-    // {
-    //     return ["Hello", "World", "MCP", "Tool",];
-    // }
-
-    /// <summary>
-    /// 测试返回对象中包含集合属性的结构化输出，验证集合属性的 Schema 类型为 array 而非 object
-    /// </summary>
-    /// <returns></returns>
-    [McpServerTool(ReadOnly = true)]
-    public CollectionContainerInfo TestCollectionPropertyReturn()
+    public CollectionContainerInfo ReturnObjectWithCollectionProperties()
     {
         return new CollectionContainerInfo
         {
@@ -105,11 +188,10 @@ public class OutputTool
     }
 
     /// <summary>
-    /// 测试返回含有 [JsonPropertyName] 特性的结构化输出，验证生成的 Schema 使用自定义属性名
+    /// 测试返回含 [JsonPropertyName] 特性的结构化对象
     /// </summary>
-    /// <returns></returns>
     [McpServerTool(ReadOnly = true)]
-    public LocalTimeInfoWithCustomNames TestJsonPropertyNameReturn()
+    public LocalTimeInfoWithCustomNames ReturnObjectWithJsonPropertyName()
     {
         var now = DateTime.Now;
         return new LocalTimeInfoWithCustomNames
@@ -119,6 +201,147 @@ public class OutputTool
             Day = now.Day,
         };
     }
+
+    #endregion
+
+    #region 非结构化对象返回（Structured=false）
+
+    /// <summary>
+    /// 测试非空对象返回，通过 Structured=false 禁用结构化
+    /// </summary>
+    [McpServerTool(ReadOnly = true, Structured = false)]
+    public LocalTimeInfo ReturnObjectUnstructured()
+    {
+        var now = DateTime.Now;
+        return new LocalTimeInfo
+        {
+            Year = now.Year,
+            Month = now.Month,
+            Day = now.Day,
+            Hour = now.Hour,
+            Minute = now.Minute,
+            Second = now.Second,
+        };
+    }
+
+    /// <summary>
+    /// 测试可空对象返回，必须显式设置 Structured=false
+    /// </summary>
+    [McpServerTool(ReadOnly = true, Structured = false)]
+    public LocalTimeInfo? ReturnNullableObject()
+    {
+        return null;
+    }
+
+    /// <summary>
+    /// 测试对象集合返回，必须显式设置 Structured=false
+    /// </summary>
+    [McpServerTool(ReadOnly = true, Structured = false)]
+    public IReadOnlyList<LocalTimeInfo> ReturnObjectList()
+    {
+        return
+        [
+            new LocalTimeInfo { Year = 2026, Month = 1, Day = 1, Hour = 0, Minute = 0, Second = 0 },
+            new LocalTimeInfo { Year = 2026, Month = 5, Day = 29, Hour = 10, Minute = 0, Second = 0 },
+        ];
+    }
+
+    #endregion
+
+    #region CallToolResult 直接返回
+
+    /// <summary>
+    /// 测试同步直接返回 CallToolResult
+    /// </summary>
+    [McpServerTool(ReadOnly = true)]
+    public CallToolResult ReturnCallToolResult()
+    {
+        return CallToolResult.Empty;
+    }
+
+    /// <summary>
+    /// 测试异步直接返回 CallToolResult
+    /// </summary>
+    [McpServerTool(ReadOnly = true)]
+    public async Task<CallToolResult> ReturnCallToolResultAsync()
+    {
+        await Task.Yield();
+        return CallToolResult.Empty;
+    }
+
+    #endregion
+
+    #region 编译错误情况（解除注释可验证诊断）
+
+    // --- DM0101: 对不可结构化的类型设置 Structured=true ---
+
+    // 解除注释将报告编译错误 DM0101：string 不可结构化，不允许设置 Structured=true
+    // [McpServerTool(ReadOnly = true, Structured = true)]
+    // public string ReturnStringStructuredTrue()
+    // {
+    //     return "Hello";
+    // }
+
+    // 解除注释将报告编译错误 DM0101：void 不可结构化，不允许设置 Structured=true
+    // [McpServerTool(ReadOnly = true, Structured = true)]
+    // public void ReturnVoidStructuredTrue()
+    // {
+    // }
+
+    // 解除注释将报告编译错误 DM0101：int 不可结构化，不允许设置 Structured=true
+    // [McpServerTool(ReadOnly = true, Structured = true)]
+    // public int ReturnIntStructuredTrue()
+    // {
+    //     return 42;
+    // }
+
+    // 解除注释将报告编译错误 DM0101：CallToolResult 不可结构化，不允许设置 Structured=true
+    // [McpServerTool(ReadOnly = true, Structured = true)]
+    // public CallToolResult ReturnCallToolResultStructuredTrue()
+    // {
+    //     return CallToolResult.Empty;
+    // }
+
+    // 解除注释将报告编译错误 DM0101：基本类型集合不可结构化，不允许设置 Structured=true
+    // [McpServerTool(ReadOnly = true, Structured = true)]
+    // public IReadOnlyList<string> ReturnStringListStructuredTrue()
+    // {
+    //     return ["Hello"];
+    // }
+
+    // --- DM0102: 可空对象或对象集合未显式设置 Structured ---
+
+    // 解除注释将报告编译错误 DM0102：可空对象返回必须显式设置 Structured
+    // [McpServerTool(ReadOnly = true)]
+    // public LocalTimeInfo? ReturnNullableObjectWithoutStructured()
+    // {
+    //     return null;
+    // }
+
+    // 解除注释将报告编译错误 DM0102：对象集合返回必须显式设置 Structured
+    // [McpServerTool(ReadOnly = true)]
+    // public IReadOnlyList<LocalTimeInfo> ReturnObjectListWithoutStructured()
+    // {
+    //     return [];
+    // }
+
+    // --- DM0103: 可空对象或对象集合设置 Structured=true ---
+
+    // 解除注释将报告编译错误 DM0103：可空对象不允许 Structured=true（MCP 协议 outputSchema 不支持 null）
+    // [McpServerTool(ReadOnly = true, Structured = true)]
+    // public LocalTimeInfo? ReturnNullableObjectStructuredTrue()
+    // {
+    //     return null;
+    // }
+
+    // 解除注释将报告编译错误 DM0103：对象集合不允许 Structured=true（MCP 协议 outputSchema.type 必须是 "object"）
+    // [McpServerTool(ReadOnly = true, Structured = true)]
+    // public IReadOnlyList<LocalTimeInfo> ReturnObjectListStructuredTrue()
+    // {
+    //     return [];
+    // }
+
+    #endregion
 }
 
 /// <summary>

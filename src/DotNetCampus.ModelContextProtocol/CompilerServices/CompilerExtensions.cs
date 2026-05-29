@@ -7,8 +7,7 @@ using DotNetCampus.ModelContextProtocol.Servers;
 namespace DotNetCampus.ModelContextProtocol.CompilerServices;
 
 /// <summary>
-/// 扩展 <see cref="IMcpServerCallToolContext"/> 接口的扩展方法。<br/>
-/// Extension methods for the <see cref="IMcpServerCallToolContext"/> interface.
+/// 扩展 <see cref="IMcpServerCallToolContext"/> 接口的扩展方法。
 /// </summary>
 public static class CompilerExtensions
 {
@@ -39,6 +38,27 @@ public static class CompilerExtensions
         }
 
         /// <summary>
+        /// 确保从 <see cref="IMcpServerPrimitiveContext.JsonSerializerContext"/> 中获取指定类型的 <see cref="JsonTypeInfo"/>。
+        /// 如果未找到，则抛出包含友好提示的异常。
+        /// </summary>
+        /// <typeparam name="T">要获取其序列化信息的类型。</typeparam>
+        /// <param name="typeName">类型的简短名称（用于错误提示）。</param>
+        /// <param name="typeFullName">类型的完整名称（用于错误提示）。</param>
+        /// <returns>指定类型的 <see cref="JsonTypeInfo{T}"/> 实例。</returns>
+        /// <exception cref="McpToolJsonTypeInfoNotFoundException">如果在上下文中未找到该类型的序列化信息。</exception>
+        public JsonTypeInfo<T> EnsureJsonTypeInfo<T>(string typeName, string typeFullName)
+        {
+            if (context.JsonSerializerContext.GetTypeInfo(typeof(T)) is JsonTypeInfo<T> typeInfo)
+            {
+                return typeInfo;
+            }
+
+            throw context.McpServer.Context.JsonSerializerTypeName is { } serializerName
+                ? new McpToolJsonTypeInfoNotFoundException(typeName, typeFullName, serializerName)
+                : new McpToolJsonTypeInfoNotFoundException(typeName, typeFullName);
+        }
+
+        /// <summary>
         /// 确保将指定的 JSON 属性反序列化为指定类型的对象。
         /// </summary>
         /// <param name="property">要反序列化的 JSON 属性。</param>
@@ -54,13 +74,7 @@ public static class CompilerExtensions
             string sourceGeneratedJsonTypeName, string sourceGeneratedJsonTypeFullName,
             string? typeDiscriminatorPropertyName, params ReadOnlySpan<string> expectedTypeDiscriminatorValues)
         {
-            var jsonTypeInfo = (JsonTypeInfo<T>?)context.JsonSerializerContext.GetTypeInfo(typeof(T));
-            if (jsonTypeInfo is null)
-            {
-                throw context.McpServer.Context.JsonSerializerTypeName is { } serializerName
-                    ? new McpToolJsonTypeInfoNotFoundException(sourceGeneratedJsonTypeName, sourceGeneratedJsonTypeFullName, serializerName)
-                    : new McpToolJsonTypeInfoNotFoundException(sourceGeneratedJsonTypeName, sourceGeneratedJsonTypeFullName);
-            }
+            var jsonTypeInfo = context.EnsureJsonTypeInfo<T>(sourceGeneratedJsonTypeName, sourceGeneratedJsonTypeFullName);
 
             try
             {
