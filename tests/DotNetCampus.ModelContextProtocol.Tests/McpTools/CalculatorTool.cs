@@ -14,9 +14,9 @@ public class CalculatorTool
     /// <param name="b">第二个加数。</param>
     /// <returns>两数之和。</returns>
     [McpServerTool(ReadOnly = true)]
-    public int Add(int a, int b)
+    public string Add(int a, int b)
     {
-        return a + b;
+        return (a + b).ToString();
     }
 
     /// <summary>
@@ -26,8 +26,8 @@ public class CalculatorTool
     /// <param name="b">除数。</param>
     /// <returns>商。</returns>
     [McpServerTool(ReadOnly = true)]
-    public double Divide(int a, int b)
+    public string Divide(int a, int b)
     {
-        return (double)a / b;
+        return ((double)a / b).ToString();
     }
 }

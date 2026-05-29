@@ -247,44 +247,98 @@ var {parameter.Name} = jsonArguments.TryGetProperty("{jsonName}", out var {param
         var callMethodExpression = $"Target.{model.Method.Name}({string.Join(", ", arguments)})";
 
         var isAsync = model.GetIsAsync();
-        var typeName = model.GetReturnTypeName(false);
-        var typeFullName = model.GetReturnTypeName(true);
-        var hasStructureReturn = typeName is not null && typeFullName is not null;
         var isVoid = model.GetReturnType() is null;
+        var isStringCollection = model.IsStringCollectionReturn();
+        var schemaInfo = model.GetReturnTypeSchemaInfo();
+        var isStructurable = schemaInfo is not null;
+        var isCallToolResultWrapped = model.IsCallToolResultWrapped;
+        var typeName = schemaInfo?.PropertyType.ToSimpleDisplayString();
+        var typeFullName = schemaInfo?.PropertyType.ToDisplayString();
 
-        builder.AddRawStatement((isAsync, isVoid, hasStructureReturn) switch
+        // 字符串集合返回类型需要特殊的拆分逻辑
+        if (isStringCollection)
         {
-            // async void (Task/ValueTask without result)
-            (true, true, _) => $"""
+            return builder.AddStringCollectionReturnStatements(callMethodExpression, isAsync);
+        }
+
+        builder.AddRawStatement((isAsync, isVoid, isStructurable, isCallToolResultWrapped) switch
+        {
+            // async void (Task/ValueTask without result) - 不应到达（DM0102），保留为安全兜底
+            (true, true, _, _) => $"""
                 await {callMethodExpression}.ConfigureAwait(false);
                 return {G.CallToolResult}.Empty;
                 """,
-            // async with structured return
-            (true, false, true) => $"""
+            // async with structured return (Foo → outputSchema + structuredContent)
+            (true, false, true, _) => $"""
                 var result = await {callMethodExpression}.ConfigureAwait(false);
-                return {G.CallToolResult}.FromResult(result).Structure(context, "{typeName}", "{typeFullName}");
+                return {G.CallToolResult}.FromResultStructured(result).Apply(context, "{typeName}", "{typeFullName}");
                 """,
-            // async without structured return
-            (true, false, false) => $"""
+            // async CallToolResult<T> wrapped, unstructured → 用户已构建结果，无需再次包装
+            (true, false, false, true) => $"""
                 var result = await {callMethodExpression}.ConfigureAwait(false);
-                return {G.CallToolResult}.FromResult(result).Structure(jsonSerializerContext);
+                return result;
                 """,
-            // sync void
-            (false, true, _) => $"""
+            // async unstructured (string, JsonElement, Foo? with Structured=false, etc.)
+            (true, false, false, false) => $"""
+                var result = await {callMethodExpression}.ConfigureAwait(false);
+                return {G.CallToolResult}.FromResultUnstructured(result).Apply(jsonSerializerContext);
+                """,
+            // sync void - 不应到达（DM0102），保留为安全兜底
+            (false, true, _, _) => $"""
                 {callMethodExpression};
                 return {G.ValueTask}.FromResult({G.CallToolResult}.Empty);
                 """,
-            // sync with structured return
-            (false, false, true) => $"""
+            // sync with structured return (Foo → outputSchema + structuredContent)
+            (false, false, true, _) => $"""
                 var result = {callMethodExpression};
-                return {G.ValueTask}.FromResult({G.CallToolResult}.FromResult(result).Structure(context, "{typeName}", "{typeFullName}"));
+                return {G.ValueTask}.FromResult({G.CallToolResult}.FromResultStructured(result).Apply(context, "{typeName}", "{typeFullName}"));
                 """,
-            // sync without structured return
-            (false, false, false) => $"""
+            // sync CallToolResult<T> wrapped, unstructured → 用户已构建结果，无需再次包装
+            (false, false, false, true) => $"""
                 var result = {callMethodExpression};
-                return {G.ValueTask}.FromResult({G.CallToolResult}.FromResult(result).Structure(jsonSerializerContext));
+                return {G.ValueTask}.FromResult(result);
+                """,
+            // sync unstructured (string, JsonElement, Foo? with Structured=false, etc.)
+            (false, false, false, false) => $"""
+                var result = {callMethodExpression};
+                return {G.ValueTask}.FromResult({G.CallToolResult}.FromResultUnstructured(result).Apply(jsonSerializerContext));
                 """,
         });
+        return builder;
+    }
+
+    /// <summary>
+    /// 为字符串集合返回类型生成分拆为多个 TextContentBlock 的代码。
+    /// </summary>
+    private static TBuilder AddStringCollectionReturnStatements<TBuilder>(
+        this TBuilder builder,
+        string callMethodExpression,
+        bool isAsync)
+        where TBuilder : IAllowStatement
+    {
+        var awaitPrefix = isAsync ? "await " : "";
+        var configureAwait = isAsync ? ".ConfigureAwait(false)" : "";
+        var contentBlock = G.ContentBlock;
+        var textContentBlock = G.TextContentBlock;
+        var callToolResult = G.CallToolResult;
+        var valueTask = G.ValueTask;
+
+        var nullReturn = isAsync
+            ? $"return {callToolResult}.Empty;"
+            : $"return {valueTask}.FromResult({callToolResult}.Empty);";
+        var finalReturn = isAsync
+            ? $"return new {callToolResult} {{ Content = blocks, IsError = false }};"
+            : $"return {valueTask}.FromResult(new {callToolResult} {{ Content = blocks, IsError = false }});";
+
+        builder
+            .AddRawStatement($"var collection = {awaitPrefix}{callMethodExpression}{configureAwait};")
+            .AddRawStatement("if (collection is null)")
+            .AddRawStatement($"    {nullReturn}")
+            .AddRawStatement($"var blocks = new global::System.Collections.Generic.List<{contentBlock}>();")
+            .AddRawStatement("foreach (var s in collection)")
+            .AddRawStatement("    if (s is not null)")
+            .AddRawStatement($"        blocks.Add(new {textContentBlock} {{ Text = s }});")
+            .AddRawStatement(finalReturn);
         return builder;
     }
 

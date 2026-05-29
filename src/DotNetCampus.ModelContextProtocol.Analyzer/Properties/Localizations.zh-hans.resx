@@ -30,4 +30,58 @@
   <data name="DM0101_Description" xml:space="preserve">
     <value>MCP 协议规范要求 outputSchema 类型为 object，CallToolResult.StructuredContent 必须是对象而非数组。请将集合包装在对象中，或使用 CallToolResult 自行构建内容。</value>
   </data>
+  <data name="DM0102" xml:space="preserve">
+    <value>MCP 工具必须有返回值</value>
+  </data>
+  <data name="DM0102_Message" xml:space="preserve">
+    <value>方法 '{0}' 没有返回值（void/Task/ValueTask）。MCP 工具必须返回有意义的内容。</value>
+  </data>
+  <data name="DM0102_Description" xml:space="preserve">
+    <value>MCP 工具必须返回有意义的内容。void 返回类型无法产生任何 Content 块。请将返回类型改为 string、对象类型或 CallToolResult。</value>
+  </data>
+  <data name="DM0103" xml:space="preserve">
+    <value>MCP 工具不支持基本类型返回值</value>
+  </data>
+  <data name="DM0103_Message" xml:space="preserve">
+    <value>方法 '{0}' 的返回类型 '{1}' 是基本类型，不受 MCP 协议支持。请转换为 string 或包装为对象。</value>
+  </data>
+  <data name="DM0103_Description" xml:space="preserve">
+    <value>基本类型（bool、int、double 等）序列化为 JSON 原始值，不是有效的 MCP 内容块，也无法产生 type 为 'object' 的 outputSchema。请转换为 string 或包装为对象类型。</value>
+  </data>
+  <data name="DM0104" xml:space="preserve">
+    <value>MCP 工具不支持枚举返回类型</value>
+  </data>
+  <data name="DM0104_Message" xml:space="preserve">
+    <value>方法 '{0}' 的返回类型 '{1}' 是枚举类型，不受 MCP 协议支持。请使用 ToString() 转换为 string。</value>
+  </data>
+  <data name="DM0104_Description" xml:space="preserve">
+    <value>枚举类型序列化为 JSON 字符串但不是 'string' 类型。请使用 ToString() 或映射方法显式转换为 string。</value>
+  </data>
+  <data name="DM0105" xml:space="preserve">
+    <value>该返回类型不允许设置 Structured = true</value>
+  </data>
+  <data name="DM0105_Message" xml:space="preserve">
+    <value>方法 '{0}' 的返回类型 '{1}' 无法产生结构化内容。请移除 Structured = true 或改为 Structured = false。</value>
+  </data>
+  <data name="DM0105_Description" xml:space="preserve">
+    <value>该返回类型（string、字符串集合、CallToolResult、JsonElement 等）无法生成合规的 outputSchema。禁止设置 Structured = true，请保持不设置或设为 false。</value>
+  </data>
+  <data name="DM0106" xml:space="preserve">
+    <value>可空对象返回类型需要显式设置 Structured</value>
+  </data>
+  <data name="DM0106_Message" xml:space="preserve">
+    <value>方法 '{0}' 的返回类型 '{1}' 是可空对象类型。必须显式设置 Structured = false（放弃结构化输出）或将返回类型改为非空的 '{2}'。</value>
+  </data>
+  <data name="DM0106_Description" xml:space="preserve">
+    <value>可空对象类型可能在运行时返回 null，违反 MCP 规范中"声明了 outputSchema 就必须返回 structuredContent"的要求。设置 Structured = false 接受破坏式回退，或使用非空返回类型。</value>
+  </data>
+  <data name="DM0107" xml:space="preserve">
+    <value>可空对象返回类型不能使用 Structured = true</value>
+  </data>
+  <data name="DM0107_Message" xml:space="preserve">
+    <value>方法 '{0}' 的返回类型 '{1}' 是可空对象类型。不允许 Structured = true，因为 null 会违反 structuredContent 合约。请设置 Structured = false 或改为非空的 '{2}'。</value>
+  </data>
+  <data name="DM0107_Description" xml:space="preserve">
+    <value>可空对象类型可能在运行时返回 null，无法满足 structuredContent 合约。请使用 Structured = false（接受破坏式回退）或将返回类型改为非空。</value>
+  </data>
 </root>

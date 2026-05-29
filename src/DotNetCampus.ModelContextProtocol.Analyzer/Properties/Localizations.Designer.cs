@@ -103,5 +103,167 @@ namespace DotNetCampus.ModelContextProtocol.Properties {
                 return ResourceManager.GetString("DM0101_Description", resourceCulture);
             }
         }
+
+        /// <summary>
+        ///   Looks up a localized string similar to MCP tool must have a return value.
+        /// </summary>
+        internal static string DM0102 {
+            get {
+                return ResourceManager.GetString("DM0102", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Method '{0}' has no return value (void/Task/ValueTask). MCP tools must return meaningful content.
+        /// </summary>
+        internal static string DM0102_Message {
+            get {
+                return ResourceManager.GetString("DM0102_Message", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to MCP tools must return meaningful content.
+        /// </summary>
+        internal static string DM0102_Description {
+            get {
+                return ResourceManager.GetString("DM0102_Description", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to MCP tool does not support primitive return type.
+        /// </summary>
+        internal static string DM0103 {
+            get {
+                return ResourceManager.GetString("DM0103", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Method '{0}' returns '{1}', which is a primitive type not supported by the MCP protocol.
+        /// </summary>
+        internal static string DM0103_Message {
+            get {
+                return ResourceManager.GetString("DM0103_Message", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Primitive types serialize to JSON primitives, which are not valid MCP content blocks.
+        /// </summary>
+        internal static string DM0103_Description {
+            get {
+                return ResourceManager.GetString("DM0103_Description", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to MCP tool does not support enum return type.
+        /// </summary>
+        internal static string DM0104 {
+            get {
+                return ResourceManager.GetString("DM0104", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Method '{0}' returns '{1}', which is an enum type not supported by the MCP protocol.
+        /// </summary>
+        internal static string DM0104_Message {
+            get {
+                return ResourceManager.GetString("DM0104_Message", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Enum types serialize to JSON strings but are not the 'string' type.
+        /// </summary>
+        internal static string DM0104_Description {
+            get {
+                return ResourceManager.GetString("DM0104_Description", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Structured = true is not allowed for this return type.
+        /// </summary>
+        internal static string DM0105 {
+            get {
+                return ResourceManager.GetString("DM0105", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Method '{0}' returns '{1}', which cannot produce structured content.
+        /// </summary>
+        internal static string DM0105_Message {
+            get {
+                return ResourceManager.GetString("DM0105_Message", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to This return type cannot generate a compliant outputSchema.
+        /// </summary>
+        internal static string DM0105_Description {
+            get {
+                return ResourceManager.GetString("DM0105_Description", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Nullable object return type requires explicit Structured.
+        /// </summary>
+        internal static string DM0106 {
+            get {
+                return ResourceManager.GetString("DM0106", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Method '{0}' returns '{1}', which is a nullable object type. You must explicitly set Structured.
+        /// </summary>
+        internal static string DM0106_Message {
+            get {
+                return ResourceManager.GetString("DM0106_Message", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Nullable object types may return null at runtime, violating MCP structuredContent requirements.
+        /// </summary>
+        internal static string DM0106_Description {
+            get {
+                return ResourceManager.GetString("DM0106_Description", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Nullable object return type cannot use Structured = true.
+        /// </summary>
+        internal static string DM0107 {
+            get {
+                return ResourceManager.GetString("DM0107", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Method '{0}' returns '{1}', which is a nullable object type. Structured = true is not allowed.
+        /// </summary>
+        internal static string DM0107_Message {
+            get {
+                return ResourceManager.GetString("DM0107_Message", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to A nullable object type may return null at runtime, which cannot satisfy the structuredContent contract.
+        /// </summary>
+        internal static string DM0107_Description {
+            get {
+                return ResourceManager.GetString("DM0107_Description", resourceCulture);
+            }
+        }
     }
 }

@@ -28,6 +28,15 @@ public record McpServerToolGeneratingModel
 
     public required bool? ReadOnly { get; init; }
 
+    public required bool? Structured { get; init; }
+
+    /// <summary>
+    /// 获取返回值是否原本就是 <c>CallToolResult&lt;T&gt;</c> 包装类型。
+    /// 此属性影响代码生成时是否需要调用 <c>FromResultStructured</c> 进行包装。
+    /// 由 <see cref="GetReturnType"/> 方法在调用时设置。
+    /// </summary>
+    public bool IsCallToolResultWrapped { get; private set; }
+
     public IReadOnlyList<IParameterSymbol> GetParameters(bool includeAll = false)
     {
         return Method.Parameters
@@ -75,6 +84,7 @@ public record McpServerToolGeneratingModel
             Idempotent = attribute.NamedArguments.GetValueOrDefault<bool>(nameof(McpServerToolAttribute.Idempotent)),
             OpenWorld = attribute.NamedArguments.GetValueOrDefault<bool>(nameof(McpServerToolAttribute.OpenWorld)),
             ReadOnly = attribute.NamedArguments.GetValueOrDefault<bool>(nameof(McpServerToolAttribute.ReadOnly)),
+            Structured = attribute.NamedArguments.GetValueOrDefault<bool>(nameof(McpServerToolAttribute.Structured)),
         };
     }
 
@@ -102,89 +112,220 @@ public record McpServerToolGeneratingModel
     }
 
     /// <summary>
-    /// 获取方法返回值的实际类型（去除 Task/ValueTask 包装）。
+    /// 获取方法返回值的实际类型（循环剥离 Task/ValueTask/CallToolResult 包装）。
     /// </summary>
-    /// <returns>返回值的实际类型，如果是 void/Task/ValueTask 则返回 null。</returns>
+    /// <returns>返回值的最内层类型，如果是 void/Task/ValueTask 则返回 null。裸 CallToolResult 返回其类型本身。</returns>
     public ITypeSymbol? GetReturnType()
     {
         var returnType = Method.ReturnType;
+        var isCallToolResultWrapped = false;
 
-        // 如果是 Task 或 ValueTask，提取其泛型参数
-        if (returnType is INamedTypeSymbol { IsGenericType: true } namedType)
+        // 循环剥离 Task<T> / ValueTask<T> / CallToolResult<T>
+        while (returnType is INamedTypeSymbol { IsGenericType: true } namedType)
         {
             var fullName = namedType.OriginalDefinition.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
             if (fullName is "global::System.Threading.Tasks.Task<TResult>"
                 or "global::System.Threading.Tasks.ValueTask<TResult>")
             {
-                return namedType.TypeArguments[0];
+                returnType = namedType.TypeArguments[0];
+                continue;
             }
+
+            if (fullName == "global::DotNetCampus.ModelContextProtocol.CompilerServices.CallToolResult<T>")
+            {
+                isCallToolResultWrapped = true;
+                returnType = namedType.TypeArguments[0];
+                continue;
+            }
+
+            break;
         }
 
         // 如果是 void、Task 或 ValueTask（无返回值），返回 null
         if (returnType.SpecialType == SpecialType.System_Void ||
             IsTaskLikeReturnType(returnType))
         {
+            IsCallToolResultWrapped = false;
             return null;
         }
 
+        IsCallToolResultWrapped = isCallToolResultWrapped;
         return returnType;
     }
 
     /// <summary>
     /// 获取返回值的 JsonPropertySchemaInfo，用于生成 OutputSchema。
+    /// 同时执行两层校验：第一层为 MCP 协议合规性，第二层为结构化内容可行性。
+    /// 校验不通过时抛出 <see cref="DiagnosticsException"/>。
     /// </summary>
-    /// <returns>返回值的 Schema 信息，如果没有结构化返回则为 null。</returns>
+    /// <returns>返回值的 Schema 信息，如果不需要结构化返回则为 null。</returns>
     public JsonPropertySchemaInfo? GetReturnTypeSchemaInfo()
     {
-        // MCP 规范要求 outputSchema 根级别必须是 type: "object"，不允许 type: ["object", "null"]。
-        var returnType = GetReturnType()?.GetNotNullTypeSymbol();
-        if (returnType is null)
+        var t = GetReturnType();
+
+        // 第一层：MCP 协议合规性
+
+        // 1. void / Task / ValueTask → DM0102
+        if (t is null)
         {
+            throw new DiagnosticsException(
+                Diagnostics.DM0102_McpToolVoidReturnType,
+                GetReturnTypeLocation(),
+                Method.Name);
+        }
+
+        // 2. 裸 CallToolResult → 校验 Structured != true，不生成 outputSchema
+        var tFullName = t.GetNotNullTypeSymbol().ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+        if (tFullName == G.CallToolResult)
+        {
+            if (Structured == true)
+            {
+                throw new DiagnosticsException(
+                    Diagnostics.DM0105_McpToolStructuredNotAllowed,
+                    GetReturnTypeLocation(),
+                    Method.Name, t.ToDisplayString());
+            }
             return null;
         }
 
-        var fullName = returnType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+        // 获取非空类型和 Schema 信息用于后续判定
+        var notNull = t.GetNotNullTypeSymbol();
+        var info = notNull.ToJsonSchemaTypeInfo();
 
-        // 1. string - 没有结构化返回
-        if (returnType.SpecialType == SpecialType.System_String)
+        // 3. 基本类型 (bool, int, double 等) → DM0103
+        if (info.SpecialKind is JsonSpecialType.Boolean or JsonSpecialType.Integer or JsonSpecialType.Number)
         {
-            return null;
+            throw new DiagnosticsException(
+                Diagnostics.DM0103_McpToolPrimitiveReturnType,
+                GetReturnTypeLocation(),
+                Method.Name, t.ToDisplayString());
         }
 
-        // 2. CallToolResult - 没有结构化返回
-        if (fullName == G.CallToolResult)
+        // 4. 枚举类型 → DM0104
+        if (info.SpecialKind is JsonSpecialType.Enum)
         {
-            return null;
+            throw new DiagnosticsException(
+                Diagnostics.DM0104_McpToolEnumReturnType,
+                GetReturnTypeLocation(),
+                Method.Name, t.ToDisplayString());
         }
 
-        // 3. CallToolResult<T> - 使用 T 的结构化返回
-        if (returnType is INamedTypeSymbol { IsGenericType: true } genericType &&
-            genericType.OriginalDefinition.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat) ==
-            "global::DotNetCampus.ModelContextProtocol.CompilerServices.CallToolResult<T>")
+        // 5. 集合/数组类型
+        if (info.SpecialKind is JsonSpecialType.Array)
         {
-            var resultType = genericType.TypeArguments[0].GetNotNullTypeSymbol();
-            return JsonPropertySchemaInfo.From(resultType, "result");
-        }
+            var elementType = info.AsArrayItemSymbol();
+            if (elementType is not null && elementType.SpecialType == SpecialType.System_String)
+            {
+                // 字符串集合 → 允许，但禁止 Structured = true，不生成 outputSchema
+                if (Structured == true)
+                {
+                    throw new DiagnosticsException(
+                        Diagnostics.DM0105_McpToolStructuredNotAllowed,
+                        GetReturnTypeLocation(),
+                        Method.Name, t.ToDisplayString());
+                }
+                return null;
+            }
 
-        // 4. 集合/数组类型 - MCP 协议不支持直接返回集合作为 structuredContent
-        // MCP 规范要求 outputSchema.type 固定为 "object"，CallToolResult.StructuredContent 是对象而非数组
-        if (returnType.ToJsonSchemaTypeString() == "array")
-        {
-            // 尽量将错误标注到返回类型语法节点上，而非整个方法
-            var returnTypeLocation = (Method.DeclaringSyntaxReferences.FirstOrDefault()?.GetSyntax()
-                as Microsoft.CodeAnalysis.CSharp.Syntax.MethodDeclarationSyntax)
-                ?.ReturnType.GetLocation()
-                ?? Method.Locations.FirstOrDefault()
-                ?? Location.None;
+            // 非字符串集合 → DM0101
             throw new DiagnosticsException(
                 Diagnostics.DM0101_McpToolCollectionReturnTypeNotSupported,
-                returnTypeLocation,
-                Method.Name,
-                returnType.ToDisplayString());
+                GetReturnTypeLocation(),
+                Method.Name, t.ToDisplayString());
         }
 
-        // 5. 可序列化的对象 - 使用此对象的结构化返回
-        return JsonPropertySchemaInfo.From(returnType, "result");
+        // 第二层：结构化内容可行性
+
+        // 6. string / string? → 禁止 Structured = true，不生成 outputSchema
+        if (info.SpecialKind is JsonSpecialType.String)
+        {
+            if (Structured == true)
+            {
+                throw new DiagnosticsException(
+                    Diagnostics.DM0105_McpToolStructuredNotAllowed,
+                    GetReturnTypeLocation(),
+                    Method.Name, t.ToDisplayString());
+            }
+            return null;
+        }
+
+        // 7. JsonElement / JsonNode 等任意 JSON 类型 → 禁止 Structured = true
+        if (notNull.IsAnyJsonElementType())
+        {
+            if (Structured == true)
+            {
+                throw new DiagnosticsException(
+                    Diagnostics.DM0105_McpToolStructuredNotAllowed,
+                    GetReturnTypeLocation(),
+                    Method.Name, t.ToDisplayString());
+            }
+            return null;
+        }
+
+        // 8. 对象 / 字典类型
+        if (t.IsNullableType)
+        {
+            // 可空对象 Foo? → 必须显式设置 Structured
+            switch (Structured)
+            {
+                case null:
+                    throw new DiagnosticsException(
+                        Diagnostics.DM0106_McpToolNullableRequiresStructured,
+                        GetReturnTypeLocation(),
+                        Method.Name, t.ToDisplayString(), notNull.ToDisplayString());
+                case true:
+                    throw new DiagnosticsException(
+                        Diagnostics.DM0107_McpToolNullableStructuredTrue,
+                        GetReturnTypeLocation(),
+                        Method.Name, t.ToDisplayString(), notNull.ToDisplayString());
+                case false:
+                    // 承诺书：放弃结构化输出，接受 null 时的破坏式回退
+                    return null;
+            }
+        }
+
+        // 非空对象 Foo → 默认开启结构化，可通过 Structured = false 关闭
+        if (Structured == false)
+        {
+            return null;
+        }
+
+        return JsonPropertySchemaInfo.From(notNull, "result");
+    }
+
+    /// <summary>
+    /// 获取返回值类型的位置信息，用于诊断错误标注。
+    /// 优先标注到返回类型语法节点上，而非整个方法。
+    /// </summary>
+    private Location GetReturnTypeLocation()
+    {
+        return (Method.DeclaringSyntaxReferences.FirstOrDefault()?.GetSyntax()
+            as Microsoft.CodeAnalysis.CSharp.Syntax.MethodDeclarationSyntax)
+            ?.ReturnType.GetLocation()
+            ?? Method.Locations.FirstOrDefault()
+            ?? Location.None;
+    }
+
+    /// <summary>
+    /// 判断返回值是否为字符串集合类型（需要拆分为多个 TextContentBlock）。
+    /// </summary>
+    public bool IsStringCollectionReturn()
+    {
+        var t = GetReturnType();
+        if (t is null)
+        {
+            return false;
+        }
+
+        var notNull = t.GetNotNullTypeSymbol();
+        var info = notNull.ToJsonSchemaTypeInfo();
+        if (info.SpecialKind is not JsonSpecialType.Array)
+        {
+            return false;
+        }
+
+        var elementType = info.AsArrayItemSymbol();
+        return elementType is not null && elementType.SpecialType == SpecialType.System_String;
     }
 
     /// <summary>

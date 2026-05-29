@@ -9,6 +9,7 @@ internal static class GlobalTypeNames
     public const string CancellationToken = "global::System.Threading.CancellationToken";
     public const string CompiledJsonSchema = "global::DotNetCampus.ModelContextProtocol.CompilerServices.CompiledJsonSchema";
     public const string CompiledSchemaJsonContext = "global::DotNetCampus.ModelContextProtocol.CompilerServices.CompiledSchemaJsonContext";
+    public const string ContentBlock = "global::DotNetCampus.ModelContextProtocol.Protocol.Messages.ContentBlock";
     public const string Convert = "global::System.Convert";
     public const string CreationMode = "global::DotNetCampus.ModelContextProtocol.Servers.CreationMode";
     public const string Dictionary = "global::System.Collections.Generic.Dictionary";
@@ -34,6 +35,7 @@ internal static class GlobalTypeNames
     public const string ResourceTemplate = "global::DotNetCampus.ModelContextProtocol.Protocol.Messages.ResourceTemplate";
     public const string ServiceProviderServiceExtensions = "global::Microsoft.Extensions.DependencyInjection.ServiceProviderServiceExtensions";
     public const string StringComparison = "global::System.StringComparison";
+    public const string TextContentBlock = "global::DotNetCampus.ModelContextProtocol.Protocol.Messages.TextContentBlock";
     public const string TextResourceContents = "global::DotNetCampus.ModelContextProtocol.Protocol.Messages.TextResourceContents";
     public const string Tool = "global::DotNetCampus.ModelContextProtocol.Protocol.Messages.Tool";
     public const string ToolAnnotations = "global::DotNetCampus.ModelContextProtocol.Protocol.Messages.ToolAnnotations";

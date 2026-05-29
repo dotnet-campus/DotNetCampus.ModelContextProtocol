@@ -100,26 +100,26 @@ public record CallToolResult : Result
     }
 
     /// <summary>
-    /// 使用指定的 JSON 序列化上下文将当前实例序列化为结构化的 <see cref="CallToolResult"/> 实例。
-    /// 当然，如果当前实例不是结构化实例，则会原样返回当前实例。
+    /// 应用序列化上下文，为延迟序列化的 <see cref="CallToolResult{TResult}"/> 实例生成最终的 <see cref="CallToolResult"/>。
+    /// 如果当前实例不是延迟序列化实例，则原样返回。
     /// </summary>
     /// <param name="jsonSerializerContext">用于序列化的 JSON 序列化上下文。</param>
-    /// <returns>结构化的 <see cref="CallToolResult"/> 实例，或者当前实例本身（如果它不是结构化实例）。</returns>
-    public CallToolResult Structure(JsonSerializerContext jsonSerializerContext) => this switch
+    /// <returns>最终 <see cref="CallToolResult"/> 实例，或者当前实例本身（如果它不是延迟序列化实例）。</returns>
+    public CallToolResult Apply(JsonSerializerContext jsonSerializerContext) => this switch
     {
         ICallToolResultJsonSerializer s => s.SerializeToCallToolResult(jsonSerializerContext),
         _ => this,
     };
 
     /// <summary>
-    /// 使用指定的 JSON 序列化上下文将当前实例序列化为结构化的 <see cref="CallToolResult"/> 实例。
-    /// 当然，如果当前实例不是结构化实例，则会原样返回当前实例。
+    /// 应用调用上下文，为延迟序列化的 <see cref="CallToolResult{TResult}"/> 实例生成最终的 <see cref="CallToolResult"/>。
+    /// 如果当前实例不是延迟序列化实例，则原样返回。
     /// </summary>
     /// <param name="context">调用工具的上下文。</param>
     /// <param name="sourceGeneratedJsonTypeName">由源生成器提供的要被反序列化的类型名称。</param>
     /// <param name="sourceGeneratedJsonTypeFullName">由源生成器提供的要被反序列化的类型完整名称。</param>
-    /// <returns>结构化的 <see cref="CallToolResult"/> 实例，或者当前实例本身（如果它不是结构化实例）。</returns>
-    public CallToolResult Structure(IMcpServerCallToolContext context,
+    /// <returns>最终 <see cref="CallToolResult"/> 实例，或者当前实例本身（如果它不是延迟序列化实例）。</returns>
+    public CallToolResult Apply(IMcpServerCallToolContext context,
         string sourceGeneratedJsonTypeName, string sourceGeneratedJsonTypeFullName) => this switch
     {
         ICallToolResultJsonSerializer s => s.SerializeToCallToolResult(context, sourceGeneratedJsonTypeName, sourceGeneratedJsonTypeFullName),
@@ -209,12 +209,13 @@ public record CallToolResult : Result
     }
 
     /// <summary>
-    /// 创建一个表示成功的，包含指定结果的 <see cref="CallToolResult{TResult}"/> 实例。
+    /// 创建一个延迟序列化的 <see cref="CallToolResult{TResult}"/> 实例。
+    /// 调用 <see cref="Apply(JsonSerializerContext)"/> 后，会同时生成 <c>content</c>（JSON 文本）和 <c>structuredContent</c>（JSON 对象）。
     /// </summary>
     /// <param name="result">要包含的结果。</param>
     /// <typeparam name="TResult">结果的类型。</typeparam>
     /// <returns>一个可以被序列化成 <see cref="CallToolResult"/> 的延迟实例。</returns>
-    public static CallToolResult FromResult<TResult>(TResult? result) => result switch
+    public static CallToolResult FromResultStructured<TResult>(TResult? result) => result switch
     {
         null => new CallToolResult
         {
@@ -239,6 +240,44 @@ public record CallToolResult : Result
                     ],
                     StructuredContent = json,
                 };
+            },
+        },
+    };
+
+    /// <summary>
+    /// 创建一个非结构化的延迟序列化 <see cref="CallToolResult"/> 实例。
+    /// 与 <see cref="FromResultStructured{TResult}"/> 不同，调用 <see cref="Apply(JsonSerializerContext)"/> 后
+    /// 只会生成 <c>content</c>（JSON 文本），不会生成 <c>structuredContent</c>。
+    /// 当返回值为 <see langword="null"/> 时，进行破坏式回退：返回包含空字符串的 <see cref="TextContentBlock"/>。
+    /// </summary>
+    /// <param name="result">要包含的结果。</param>
+    /// <typeparam name="TResult">结果的类型。</typeparam>
+    /// <returns>一个可以被序列化成 <see cref="CallToolResult"/> 的延迟实例（不含结构化内容）。</returns>
+    public static CallToolResult FromResultUnstructured<TResult>(TResult? result) => result switch
+    {
+        null => new CallToolResult
+        {
+            IsError = false,
+            Content = [new TextContentBlock { Text = "" }],
+        },
+        CallToolResult r => r,
+        string s => new CallToolResult
+        {
+            IsError = false,
+            Content = [new TextContentBlock { Text = s }],
+        },
+        _ => new CallToolResult<TResult>(result)
+        {
+            IsError = false,
+            ResultFactory = (r, t) => new CallToolResult
+            {
+                Content =
+                [
+                    new TextContentBlock
+                    {
+                        Text = JsonSerializer.Serialize(r, t),
+                    },
+                ],
             },
         },
     };

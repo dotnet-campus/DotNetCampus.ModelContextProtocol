@@ -38,4 +38,58 @@
   <data name="DM0101_Description" xml:space="preserve">
     <value>The MCP protocol specification requires Tool's outputSchema to be of type object and CallToolResult.StructuredContent to be an object (not an array). Wrap the collection in an object, or use CallToolResult to build the content manually.</value>
   </data>
+  <data name="DM0102" xml:space="preserve">
+    <value>MCP tool must have a return value</value>
+  </data>
+  <data name="DM0102_Message" xml:space="preserve">
+    <value>Method '{0}' has no return value (void/Task/ValueTask). MCP tools must return meaningful content.</value>
+  </data>
+  <data name="DM0102_Description" xml:space="preserve">
+    <value>MCP tools must return meaningful content. A void return type cannot produce any Content blocks. Change the return type to string, an object type, or CallToolResult.</value>
+  </data>
+  <data name="DM0103" xml:space="preserve">
+    <value>MCP tool does not support primitive return type</value>
+  </data>
+  <data name="DM0103_Message" xml:space="preserve">
+    <value>Method '{0}' returns '{1}', which is a primitive type not supported by the MCP protocol. Convert to string or wrap in an object.</value>
+  </data>
+  <data name="DM0103_Description" xml:space="preserve">
+    <value>Primitive types (bool, int, double, etc.) serialize to JSON primitives, which are not valid MCP content blocks and cannot produce an outputSchema with type 'object'. Convert to string or wrap in an object type.</value>
+  </data>
+  <data name="DM0104" xml:space="preserve">
+    <value>MCP tool does not support enum return type</value>
+  </data>
+  <data name="DM0104_Message" xml:space="preserve">
+    <value>Method '{0}' returns '{1}', which is an enum type not supported by the MCP protocol. Convert to string using ToString().</value>
+  </data>
+  <data name="DM0104_Description" xml:space="preserve">
+    <value>Enum types serialize to JSON strings but are not the 'string' type. Convert to string explicitly using ToString() or a mapping method.</value>
+  </data>
+  <data name="DM0105" xml:space="preserve">
+    <value>Structured = true is not allowed for this return type</value>
+  </data>
+  <data name="DM0105_Message" xml:space="preserve">
+    <value>Method '{0}' returns '{1}', which cannot produce structured content. Remove Structured = true or set Structured = false.</value>
+  </data>
+  <data name="DM0105_Description" xml:space="preserve">
+    <value>This return type (string, string collection, CallToolResult, JsonElement, etc.) cannot generate a compliant outputSchema. Structured = true is forbidden. Leave Structured unset or set to false.</value>
+  </data>
+  <data name="DM0106" xml:space="preserve">
+    <value>Nullable object return type requires explicit Structured</value>
+  </data>
+  <data name="DM0106_Message" xml:space="preserve">
+    <value>Method '{0}' returns '{1}', which is a nullable object type. You must explicitly set Structured = false (to opt out of structured output) or change the return type to non-nullable '{2}'.</value>
+  </data>
+  <data name="DM0106_Description" xml:space="preserve">
+    <value>Nullable object types may return null at runtime, which violates the MCP requirement that tools declaring outputSchema must always return structuredContent. Set Structured = false to accept destructive fallback, or use a non-nullable return type.</value>
+  </data>
+  <data name="DM0107" xml:space="preserve">
+    <value>Nullable object return type cannot use Structured = true</value>
+  </data>
+  <data name="DM0107_Message" xml:space="preserve">
+    <value>Method '{0}' returns '{1}', which is a nullable object type. Structured = true is not allowed because null would violate the structuredContent contract. Set Structured = false or change to non-nullable '{2}'.</value>
+  </data>
+  <data name="DM0107_Description" xml:space="preserve">
+    <value>A nullable object type may return null at runtime, which cannot satisfy the structuredContent contract. Use Structured = false (accepting destructive fallback) or change the return type to non-nullable.</value>
+  </data>
 </root>

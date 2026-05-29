@@ -7,9 +7,9 @@ internal class StatefulCounterTool
     private int _count;
 
     [McpServerTool(Name = "stateful_counter")]
-    public int Next()
+    public string Next()
     {
         _count++;
-        return _count;
+        return _count.ToString();
     }
 }
