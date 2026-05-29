@@ -14,8 +14,8 @@ public class SimpleTool
     /// <param name="b">The second number.</param>
     /// <returns>The sum of the two numbers.</returns>
     [McpServerTool(ReadOnly = true)]
-    public string AddNumber(int a, double b)
+    public double AddNumber(int a, double b)
     {
-        return (a + b).ToString();
+        return a + b;
     }
 }

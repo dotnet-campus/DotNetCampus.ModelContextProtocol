@@ -108,28 +108,4 @@ public class McpServerToolAttribute : Attribute
     /// When this is <see langword="true"/>, <see cref="Destructive"/> and <see cref="Idempotent"/> are ignored.
     /// </remarks>
     public bool ReadOnly { get; init; }
-
-    /// <summary>
-    /// 控制是否生成结构化内容（<c>outputSchema</c> 和 <c>structuredContent</c>）。<br/>
-    /// 源生成器将其解析为三态：未设置、显式 <see langword="true"/>、显式 <see langword="false"/>。<br/>
-    /// Controls whether structured content (<c>outputSchema</c> and <c>structuredContent</c>) is generated.<br/>
-    /// The source generator resolves this as a tri-state: unset, explicitly <see langword="true"/>, or explicitly <see langword="false"/>.
-    /// </summary>
-    /// <remarks>
-    /// <para>
-    /// 对于非空对象类型（如 <c>Foo</c>），默认开启结构化（视为 <see langword="true"/>），可设为 <see langword="false"/> 关闭。<br/>
-    /// For non-nullable object types (e.g., <c>Foo</c>), structured content is enabled by default (treated as <see langword="true"/>), and can be disabled by setting to <see langword="false"/>.
-    /// </para>
-    /// <para>
-    /// 对于可空对象类型（如 <c>Foo?</c>），必须显式设置此属性。设为 <see langword="true"/> 将导致编译错误（无法保证运行时 <c>structuredContent</c> 合法性）；
-    /// 设为 <see langword="false"/> 表示放弃结构化输出并接受 null 时的破坏式回退。<br/>
-    /// For nullable object types (e.g., <c>Foo?</c>), this property must be set explicitly. Setting to <see langword="true"/> causes a compile error (cannot guarantee runtime <c>structuredContent</c> validity);
-    /// setting to <see langword="false"/> opts out of structured output and accepts destructive fallback when null.
-    /// </para>
-    /// <para>
-    /// 对于 <see langword="string"/>、字符串集合、<see cref="System.Text.Json.JsonElement"/> 等类型，禁止设为 <see langword="true"/>（这些类型无法生成合规的 <c>outputSchema</c>）。<br/>
-    /// For <see langword="string"/>, string collections, <see cref="System.Text.Json.JsonElement"/>, and similar types, setting to <see langword="true"/> is forbidden (these types cannot produce a compliant <c>outputSchema</c>).
-    /// </para>
-    /// </remarks>
-    public bool Structured { get; init; }
 }

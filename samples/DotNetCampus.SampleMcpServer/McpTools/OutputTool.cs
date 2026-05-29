@@ -9,14 +9,13 @@ namespace DotNetCampus.SampleMcpServer.McpTools;
 public class OutputTool
 {
     /// <summary>
-    /// 测试返回空字符串（MCP 工具必须有返回值，因此用空字符串代替 void）
+    /// 测试什么也不输出
     /// </summary>
     /// <returns></returns>
     [McpServerTool(ReadOnly = true)]
-    public async Task<string> TestNoReturn()
+    public async Task TestNoReturn()
     {
         await Task.Yield();
-        return "";
     }
 
     /// <summary>
@@ -68,10 +67,10 @@ public class OutputTool
     }
 
     /// <summary>
-    /// 测试获取可空的结构化输出信息（必须显式 Structured = false，null 时框架进行破坏式回退）
+    /// 测试获取结构化的输出信息（不至于出现不合法的 OutputSchema，且实际运行时返回值也符合协议）
     /// </summary>
     /// <returns></returns>
-    [McpServerTool(ReadOnly = true, Structured = false)]
+    [McpServerTool(ReadOnly = true)]
     public LocalTimeInfo? TestNullableStructureReturn()
     {
         return null;

@@ -29,66 +29,6 @@ public class Diagnostics
         description: Localize(nameof(DM0101_Description)),
         customTags: WellKnownDiagnosticTags.NotConfigurable);
 
-    public static DiagnosticDescriptor DM0102_McpToolVoidReturnType { get; } = new(
-        nameof(DM0102),
-        Localize(nameof(DM0102)),
-        Localize(nameof(DM0102_Message)),
-        Categories.RuntimeException,
-        DiagnosticSeverity.Error,
-        true,
-        description: Localize(nameof(DM0102_Description)),
-        customTags: WellKnownDiagnosticTags.NotConfigurable);
-
-    public static DiagnosticDescriptor DM0103_McpToolPrimitiveReturnType { get; } = new(
-        nameof(DM0103),
-        Localize(nameof(DM0103)),
-        Localize(nameof(DM0103_Message)),
-        Categories.RuntimeException,
-        DiagnosticSeverity.Error,
-        true,
-        description: Localize(nameof(DM0103_Description)),
-        customTags: WellKnownDiagnosticTags.NotConfigurable);
-
-    public static DiagnosticDescriptor DM0104_McpToolEnumReturnType { get; } = new(
-        nameof(DM0104),
-        Localize(nameof(DM0104)),
-        Localize(nameof(DM0104_Message)),
-        Categories.RuntimeException,
-        DiagnosticSeverity.Error,
-        true,
-        description: Localize(nameof(DM0104_Description)),
-        customTags: WellKnownDiagnosticTags.NotConfigurable);
-
-    public static DiagnosticDescriptor DM0105_McpToolStructuredNotAllowed { get; } = new(
-        nameof(DM0105),
-        Localize(nameof(DM0105)),
-        Localize(nameof(DM0105_Message)),
-        Categories.RuntimeException,
-        DiagnosticSeverity.Error,
-        true,
-        description: Localize(nameof(DM0105_Description)),
-        customTags: WellKnownDiagnosticTags.NotConfigurable);
-
-    public static DiagnosticDescriptor DM0106_McpToolNullableRequiresStructured { get; } = new(
-        nameof(DM0106),
-        Localize(nameof(DM0106)),
-        Localize(nameof(DM0106_Message)),
-        Categories.RuntimeException,
-        DiagnosticSeverity.Error,
-        true,
-        description: Localize(nameof(DM0106_Description)),
-        customTags: WellKnownDiagnosticTags.NotConfigurable);
-
-    public static DiagnosticDescriptor DM0107_McpToolNullableStructuredTrue { get; } = new(
-        nameof(DM0107),
-        Localize(nameof(DM0107)),
-        Localize(nameof(DM0107_Message)),
-        Categories.RuntimeException,
-        DiagnosticSeverity.Error,
-        true,
-        description: Localize(nameof(DM0107_Description)),
-        customTags: WellKnownDiagnosticTags.NotConfigurable);
-
     private static class Categories
     {
         /// <summary>
