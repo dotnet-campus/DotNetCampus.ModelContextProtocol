@@ -68,7 +68,7 @@ public class SampleTools
 }
 ```
 
-For a complete explanation of method parameters, return value types, and sync/async behavior, see [Tools - Parameters and Return Values](Tools.md#parameters-and-context).
+For a complete explanation of method parameters, return value types, and sync/async behavior, see [Tools](Tools.md).
 
 ## Client
 

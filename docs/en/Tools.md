@@ -61,24 +61,39 @@ Property descriptions:
 - **Idempotent**: Whether the tool is idempotent. Idempotent tools can be safely retried by the client on network errors.
 - **OpenWorld**: Whether the tool interacts with the external open world (e.g. calling a web API).
 - **ReadOnly**: Whether the tool is read-only. Read-only tools do not modify their environment when called.
+- **Structured**: Controls whether structured output (outputSchema + structuredContent) is generated for this tool:
+  - **Not set**: Automatically generates structured output for non-nullable object types; produces compilation error DM0102 for nullable object or object collection types, requiring explicit `false`
+  - **true**: Explicitly enables structured output. Only valid for non-nullable object types; produces compilation error DM0101 for non-structurable types, and DM0103 for nullable objects and object collections
+  - **false**: Explicitly disables structured output. Valid for all types; no outputSchema generated
+
+For example, tools returning custom object types generate structured output by default; if not needed, you can explicitly disable it:
+
+```csharp
+[McpServerTool(ReadOnly = true, Structured = false)]
+public LocalTimeInfo GetTime() { ... }
+```
 
 ### Parameters and Context
 
-#### Implicit Parameter Types
+#### Parameter Types
 
-Tool methods can receive the following implicit parameters — just add them to the method signature as needed:
+Tool methods support a variety of parameter types. The table below summarizes the annotation method, whether the parameter appears in the input Schema, and the source of its runtime value.
 
-- Any JSON-deserializable type (primitives, arrays, objects, etc.) — passed in by the MCP client
-- `CancellationToken` — triggered when the client cancels the tool call; recommended to always declare as the last parameter
-- `IMcpServerCallToolContext` — provides contextual information about the current tool call
-- `JsonElement` — receives arbitrary JSON data; suitable for scenarios where the parameter structure is uncertain
+> In the table, "—" means the parameter does not appear in the input Schema. `[ToolParameter]` also supports `Name` (overrides the JSON property name) and `Description` (overrides the parameter description), which are common to all types and not listed separately.
 
-#### Explicit Parameter Types (`[ToolParameter]` Attribute)
+| Parameter Type | Annotation | Input Schema | Runtime Value |
+|---|---|---|---|
+| `IMcpServerCallToolContext` | Automatic | — | Forwards the current `context` |
+| JSON-deserializable types (primitives, string, objects, etc.) | Automatic | Yes | `jsonArguments["name"]` deserialized to .NET type |
+| `JsonElement` / `object` | Automatic | Yes (arbitrary JSON) | `jsonArguments["name"]` passed as-is |
+| Entire input object `[ToolParameter(Type = InputObject)]` | Must annotate | Yes (expanded as properties) | Entire `jsonArguments` deserialized |
+| DI injection `[ToolParameter(Type = Injected)]` (nullable) | Must annotate | — | `GetService()`; unregistered → `null` |
+| DI injection `[ToolParameter(Type = Injected)]` (non-nullable) | Must annotate | — | `GetService()`; unregistered → `McpToolServiceNotFoundException` |
+| `CancellationToken` | Automatic | — | `context.CancellationToken` |
 
-Use the `[ToolParameter]` attribute to mark special parameter behavior:
+Automatic annotation means the source generator infers the behavior from the parameter type. Once any parameter is annotated with `InputObject`, **no further** plain JSON parameters are allowed. Parameters annotated with `Injected` receive their values from `IServiceProvider`, which must be configured via `WithServices()` during server initialization. See [Dependency Injection](DependencyInjection.md) for details.
 
-- `[ToolParameter(Type = ToolParameterType.InputObject)]`: This parameter receives the entire input object of the tool call (deserialized into a type). After using this attribute, **no other** plain parameters are allowed.
-- `[ToolParameter(Type = ToolParameterType.Injected)]`: This parameter is automatically injected by the dependency injection framework, not passed through the MCP protocol layer. Requires `IServiceProvider` to be configured during server initialization. See [Dependency Injection](DependencyInjection.md) for details.
+> **💡 Tip**: Place `CancellationToken` and `IMcpServerCallToolContext` at the end of the parameter list to keep JSON parameters readable.
 
 #### IMcpServerCallToolContext
 
@@ -99,7 +114,7 @@ Use the `[ToolParameter]` attribute to mark special parameter behavior:
 
 > **💡 Tip**: To distinguish different clients, prefer `context.TransportSession` — it works across all transport layers (HTTP, stdio, InProcess, IPC). `context.HttpTransportContext` is only available under HTTP transport and is suited for scenarios that require reading HTTP request headers.
 
-> **Important**: The `IMcpServerCallToolContext` instance is **only valid during the current tool method execution**. Do not store it in static fields or pass it across async boundaries, as the context becomes invalid once the tool call completes.
+> **⚠ Important**: The `IMcpServerCallToolContext` instance is **only valid during the current tool method execution**. Do not store it in static fields or pass it across async boundaries, as the context becomes invalid once the tool call completes.
 
 #### Full Parameter Example
 
@@ -140,28 +155,39 @@ public Task<EchoResult> EchoAsync(
 }
 ```
 
-(The definitions of `EchoOptions`, `EchoExtraData`, and `EchoResult` used in this example can be found in [Auxiliary Types](#auxiliary-types) below.)
+(The definitions of `EchoOptions`, `EchoExtraData`, and `EchoResult` used in this example can be found in [Auxiliary Types](#auxiliary-types) below. This example returns `Task<EchoResult>`; since `EchoResult` is a non-nullable object, structured output is enabled by default. See the [Return Value Types](#return-value-types) table below for the complete rules.)
 
 ### Return Value Types
 
-The method return value can be one of the following types:
+The method's return type determines how the compile-time source generator processes the return value and the `CallToolResult` structure generated at runtime. You can further control whether MCP structured output is generated via the `Structured` property (see above).
 
-- `string`: A string returned to the AI (typically natural language understandable by AI)
-- `void`: No return value. **Note**: Although this is a type supported by the MCP protocol, some MCP clients may error when the server returns an empty result. In such cases, consider returning a `string` with an empty value instead.
-- Any JSON-serializable type (per MCP protocol specification, the **return value must be an object type**, not an array or primitive)
-- `CallToolResult`: A generic tool call result — the final data structure of the MCP protocol layer. Using this return type allows you to directly control the data returned to the AI at the protocol level.
-- `CallToolResult<T>`: A tool call result with a structured data type, created via `CallToolResult<T>.FromResult(result)`. `T` is any JSON-serializable type. Using this return type gives you structured return value capabilities while retaining protocol-level control over the returned data.
+The table below summarizes all supported return types and their behavior. Recommendation levels:
 
-**Notably**, when the return value is a JSON-serializable object, per the MCP protocol specification we return structured data and also include the JSON-serialized string in the plain text return value (for compatibility). The tool will also be marked as "having structured return values".
+- **Recommended**: The return value behavior fully complies with MCP protocol requirements — no conversion needed
+- **Supported**: This library processes the return value to make it MCP-compliant
+- **Not recommended**: May produce results non-compliant with MCP in some scenarios, potentially causing errors in some MCP clients
+- **Self-managed**: This library does not intervene; the developer fully controls the protocol-level data
 
-**Notably**, the MCP protocol specification does not allow collection types as return values. The analyzer will check whether an MCP tool has a collection return value, and if so, will report a DM0101 error.
+> In the table, "—" means Structured is not applicable (setting `true` → DM0101). "false only" means the setting must be explicit: unset → DM0102, `true` → DM0103.
 
-### Synchronous vs. Asynchronous
+| Return Type | Level | Structured | Output Schema | Runtime Behavior |
+|---|---|---|---|---|
+| `string` | Recommended | — | — | TextContentBlock(text) |
+| Non-nullable custom object (record/class) `Foo` | Recommended | Default true; can set false to disable | Default: OutputSchema generated | Default: StructuredContent + TextContentBlock(json); Structured=false: TextContentBlock(json) only |
+| `string?` | Supported | — | — | TextContentBlock(text or "") |
+| Nullable primitives / nullable enums (`int?`/`bool?`/`DayOfWeek?` etc.) | Supported | — | — | ToString(); null→"" |
+| Primitives / enums (`int`/`bool`/`DayOfWeek` etc.) | Supported | — | — | ToString() |
+| `JsonElement` | Supported | — | — | TextContentBlock(json) |
+| `void` / `Task` / `ValueTask` | Not recommended | — | — | [] |
+| Nullable custom object (record/class) `Foo?` | Not recommended | false only | — | json→TextContentBlock; null→"" |
+| Primitive collections (`string[]`/`int[]`/`IReadOnlyList<DayOfWeek>` etc.) | Not recommended | — | — | Per-element ToString()→multiple blocks; null/empty→[] |
+| Object collections `Foo[]` / `IReadOnlyList<Foo>` | Not recommended | false only | — | Per-element json→multiple blocks; null/empty→[] |
+| `CallToolResult` | Self-managed | — | — | Returned as-is |
 
 Methods can be synchronous or asynchronous:
 
 - Synchronous: Supports all of the above return value types
-- Asynchronous: Supports `Task`, `Task<T>`, `ValueTask`, and `ValueTask<T>` async return types
+- Asynchronous: Supports `Task`, `Task<T>`, `ValueTask`, and `ValueTask<T>` async return types, where `T` is any of the types in the table above with identical behavior
 
 ### How Tools Report Errors
 
@@ -195,7 +221,7 @@ public CallToolResult SafeEcho(string text)
     {
         return CallToolResult.FromError("The text parameter cannot be empty.");
     }
-    return text;
+    return text; // string implicitly converts to CallToolResult
 }
 ```
 

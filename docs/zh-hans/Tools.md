@@ -27,7 +27,7 @@ public class SampleTools
 在这个示例中：
 
 - 注释会成为此工具描述的重要部分，并在 MCP 协议中发送给客户端，所以写好注释对大模型正确使用工具非常重要；另外，不用太在意注释的多语言问题，因为大模型不在乎你用什么语言描述工具
-- 如果参数是复杂的数据类型或枚举，不必详细在参数注释中详细描述每个内部属性或字段，因为本库会自动递归地提取注释，并将它们包含在 MCP 协议中发送给客户端
+- 如果参数是复杂的数据类型或枚举，不必在参数注释中详细描述每个内部属性或字段，因为本库会自动递归地提取注释，并将它们包含在 MCP 协议中发送给客户端
 - 工具的名称默认使用 snake_case 命名法转换方法名，本例中，你会得到 `echo_tool`
 
 ### 自定义工具属性
@@ -45,7 +45,7 @@ public class SampleTools
     Description = "用于给 AI 调试使用的工具，原样返回一些信息",  // 覆盖方法注释中的描述
     Idempotent = true,           // 标记为幂等工具，客户端可以安全地重试调用
     OpenWorld = false,           // 标记此工具不会与外部开放世界交互
-    ReadOnly = true              // 标记为只读工具，调用时不会修改其环境
+    ReadOnly = true              // 标记为只读工具，调用时不会修改其所在环境
 )]
 public string EchoCustomized(string text)
 {
@@ -61,24 +61,39 @@ public string EchoCustomized(string text)
 - **Idempotent**：标记工具是否幂等。幂等工具在网络异常时可由客户端安全重试。
 - **OpenWorld**：标记工具是否会与外部开放世界交互（如访问网络 API）。
 - **ReadOnly**：标记工具是否只读。只读工具在调用时不会修改其所在环境。
+- **Structured**：控制是否为此工具生成结构化输出（outputSchema + structuredContent）：
+  - **未设置**：对于非空对象类型自动生成结构化输出；对于可空对象或对象集合类型产生编译错误 DM0102，要求显式设置为 `false`
+  - **true**：显式启用结构化输出。仅对非空对象类型有效；对不可结构化的类型产生编译错误 DM0101，对可空对象和对象集合产生编译错误 DM0103
+  - **false**：显式禁用结构化输出。对所有类型有效，不会产生 outputSchema
+
+例如，返回自定义对象类型的工具默认生成结构化输出；若不需要，可显式禁用：
+
+```csharp
+[McpServerTool(ReadOnly = true, Structured = false)]
+public LocalTimeInfo GetTime() { ... }
+```
 
 ### 参数与上下文
 
-#### 隐式参数类型
+#### 参数类型
 
-工具方法可以接收以下隐式参数，按需添加在方法签名中即可：
+工具方法支持多种参数类型。以下表格汇总了各类参数的标注方式、是否进入输入 Schema、以及运行时值的来源。
 
-- 任意可被 JSON 反序列化的类型（基本类型、数组、对象等）—— 由 MCP 客户端传入
-- `CancellationToken` —— 当客户端取消工具调用时触发，推荐总是作为最后一个参数声明
-- `IMcpServerCallToolContext` —— 提供当前工具调用的上下文信息
-- `JsonElement` —— 接收任意 JSON 数据，适合参数结构不确定的场景
+> 表中「—」表示不出现在输入 Schema 中。`[ToolParameter]` 还支持 `Name`（覆盖 JSON 属性名）和 `Description`（覆盖参数描述），各类型通用，表中不单独列出。
 
-#### 显式参数类型（`[ToolParameter]` 特性）
+| 参数类型 | 标注方式 | 输入 Schema | 运行时取值 |
+|---|---|---|---|
+| `IMcpServerCallToolContext` | 自动 | — | 转发当前 `context` |
+| JSON 可序列化类型（基本类型、string、对象等） | 自动 | 是 | `jsonArguments["name"]` 反序列化为 .NET 类型 |
+| `JsonElement` / `object` | 自动 | 是（任意 JSON） | `jsonArguments["name"]` 原样传递 |
+| 整个输入对象 `[ToolParameter(Type = InputObject)]` | 必须标注 | 是（展开为属性） | 整个 `jsonArguments` 反序列化 |
+| DI 注入 `[ToolParameter(Type = Injected)]`（可空） | 必须标注 | — | `GetService()`；未注册→`null` |
+| DI 注入 `[ToolParameter(Type = Injected)]`（非空） | 必须标注 | — | `GetService()`；未注册→`McpToolServiceNotFoundException` |
+| `CancellationToken` | 自动 | — | `context.CancellationToken` |
 
-通过 `[ToolParameter]` 特性标记特殊参数行为：
+标注方式为自动的，由源生成器根据参数类型自动推断。任何参数标注为 `InputObject` 后**不允许**再有任何普通 JSON 参数。标注为 `Injected` 的参数值由 `IServiceProvider` 提供，需在服务器初始化时配置 `WithServices()`，详见[依赖注入](DependencyInjection.md)。
 
-- `[ToolParameter(Type = ToolParameterType.InputObject)]`：此参数负责接收整个工具调用的输入对象（反序列化到一个类型）。使用此标记后**不允许**再有其他普通参数。
-- `[ToolParameter(Type = ToolParameterType.Injected)]`：此参数由依赖注入框架自动注入，不由 MCP 协议层传入。需要已在服务器初始化时配置 `IServiceProvider`。详见[依赖注入](DependencyInjection.md)。
+> **💡 提示**：`CancellationToken` 和 `IMcpServerCallToolContext` 推荐放在参数列表末尾，避免影响 JSON 参数的可读性。
 
 #### IMcpServerCallToolContext 上下文
 
@@ -140,28 +155,39 @@ public Task<EchoResult> EchoAsync(
 }
 ```
 
-（示例中 `EchoOptions`、`EchoExtraData`、`EchoResult` 的定义见下方 [辅助类型](#辅助类型)。）
+（示例中 `EchoOptions`、`EchoExtraData`、`EchoResult` 的定义见下方 [辅助类型](#辅助类型)。此示例返回 `Task<EchoResult>`，`EchoResult` 为非空对象，默认启用结构化输出；返回值行为的完整规则见下方[返回值类型](#返回值类型)表格。）
 
 ### 返回值类型
 
-方法的返回值可以是以下类型：
+方法的返回值类型决定了编译期源生成器如何处理返回值，以及运行时生成的 `CallToolResult` 结构。你可以通过 `Structured` 属性（参见上文）进一步控制是否生成 MCP 结构化输出。
 
-- `string`：返回给 AI 的字符串（通常是可被 AI 理解的自然语言）
-- `void`：没有返回值。**请注意**，虽然这是 MCP 协议支持的类型，但有些 MCP 客户端会在服务器返回空结果时出现异常；此时建议改为 `string` 返回值，返回空字符串
-- 任意可被 JSON 序列化的类型（根据 MCP 协议规范，**返回值只能是对象类型**，不能是数组或原始类型）
-- `CallToolResult`：通用的工具调用结果，即 MCP 协议层的最终数据结构。使用此返回值类型，你可以直接在协议层控制返回给 AI 的数据
-- `CallToolResult<T>`：带有结构化数据类型的工具调用结果，通过 `CallToolResult<T>.FromResult(result)` 方法创建实例。`T` 是任意可被 JSON 序列化的类型。使用此返回值类型，你在保持结构化返回值功能的同时，仍然具备协议层控制返回数据的能力
+以下表格汇总了所有支持的返回值类型及其行为。推荐等级含义：
 
-**特别的**，当返回值是可被 JSON 序列化的对象时，按 MCP 协议规范，我们会返回结构化数据，并在普通字符串返回值中也包含此数据的 JSON 序列化字符串（以供兼容）。同时此工具还会被标记为「具有结构化返回值」。
+- **推荐**：返回值行为完全符合 MCP 协议要求，无需任何转换
+- **支持**：本库会对返回值进行加工，使其符合 MCP 协议要求
+- **不推荐**：部分场景下可能返回不符合 MCP 协议的结果，可能导致某些 MCP 客户端异常
+- **自行处理**：本库不干预返回值，由开发者完全控制协议层数据
 
-**特别的**，MCP 协议规范要求集合类型不允许作为返回值。本库会检查 MCP 工具是否存在集合返回值，如果存在，会报告 DM0101 错误。
+> 表中「—」表示 Structured 不适用，设 `true`→DM0101。`只可 false` 表示必须显式设置，未设→DM0102，设 `true`→DM0103。
 
-### 同步与异步
+| 返回值类型 | 推荐等级 | Structured 设置 | 输出 Schema | 运行时行为 |
+|---|---|---|---|---|
+| `string` | 推荐 | — | — | TextContentBlock(text) |
+| 非空自定义对象（record/class）`Foo` | 推荐 | 默认 true；可设 false 禁用 | 默认生成 OutputSchema | 默认：StructuredContent + TextContentBlock(json)；Structured=false 时仅 TextContentBlock(json) |
+| `string?` | 支持 | — | — | TextContentBlock(text 或 "") |
+| 可空基本类型 / 可空枚举（`int?`/`bool?`/`DayOfWeek?` 等） | 支持 | — | — | ToString()；null->"" |
+| 基本类型 / 枚举（`int`/`bool`/`DayOfWeek` 等） | 支持 | — | — | ToString() |
+| `JsonElement` | 支持 | — | — | TextContentBlock(json) |
+| `void` / `Task` / `ValueTask` | 不推荐 | — | — | [] |
+| 可空自定义对象（record/class）`Foo?` | 不推荐 | 只可 false | — | json->TextContentBlock；null->"" |
+| 基本类型集合（`string[]`/`int[]`/`IReadOnlyList<DayOfWeek>` 等） | 不推荐 | — | — | 逐元素 ToString()->多个块；null/空->[] |
+| 对象集合 `Foo[]` / `IReadOnlyList<Foo>` | 不推荐 | 只可 false | — | 逐元素 json->多个块；null/空->[] |
+| `CallToolResult` | 自行处理 | — | — | 原样返回 |
 
 方法可以是同步或异步的：
 
-- 同步：支持上述所有种类的返回值类型
-- 异步：支持 `Task`、`Task<T>`、`ValueTask` 和 `ValueTask<T>` 的异步返回值
+- 同步：可使用上述所有种类的返回值类型
+- 异步：可使用 `Task`、`Task<T>`、`ValueTask` 和 `ValueTask<T>` 的异步返回值。其中 `T` 即为表中对应的返回值类型，行为一致
 
 ### 工具如何报告错误
 
@@ -195,7 +221,7 @@ public CallToolResult SafeEcho(string text)
     {
         return CallToolResult.FromError("text 参数不能为空。");
     }
-    return text;
+    return text; // string 可隐式转换为 CallToolResult
 }
 ```
 
