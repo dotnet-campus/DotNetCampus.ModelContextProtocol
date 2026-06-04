@@ -120,7 +120,7 @@ public record RootsCapability
     /// </summary>
     [JsonPropertyName("listChanged")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public required bool? ListChanged { get; init; }
+    public bool? ListChanged { get; init; }
 }
 
 /// <summary>
