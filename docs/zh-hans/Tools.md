@@ -95,6 +95,8 @@ public LocalTimeInfo GetTime() { ... }
 
 > **💡 提示**：`CancellationToken` 和 `IMcpServerCallToolContext` 推荐放在参数列表末尾，避免影响 JSON 参数的可读性。
 
+> **💡 提示**：对于 JSON 可序列化类型，可通过类型鉴别器支持多态；支持任意级别的属性使用多态。详见[多态类型](Polymorphism.md)。
+
 #### IMcpServerCallToolContext 上下文
 
 `IMcpServerCallToolContext` 提供工具方法执行时的上下文信息，包括：
@@ -188,6 +190,8 @@ public Task<EchoResult> EchoAsync(
 
 - 同步：可使用上述所有种类的返回值类型
 - 异步：可使用 `Task`、`Task<T>`、`ValueTask` 和 `ValueTask<T>` 的异步返回值。其中 `T` 即为表中对应的返回值类型，行为一致
+
+对于非空自定义对象，可通过类型鉴别器支持多态；支持任意级别的属性使用多态。详见[多态类型](Polymorphism.md)。
 
 ### 工具如何报告错误
 
