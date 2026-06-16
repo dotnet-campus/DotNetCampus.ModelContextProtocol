@@ -95,6 +95,8 @@ Automatic annotation means the source generator infers the behavior from the par
 
 > **💡 Tip**: Place `CancellationToken` and `IMcpServerCallToolContext` at the end of the parameter list to keep JSON parameters readable.
 
+> **💡 Tip**: JSON-serializable types can support polymorphism through type discriminators, including properties at any nesting level. See [Polymorphic Types](Polymorphism.md).
+
 #### IMcpServerCallToolContext
 
 `IMcpServerCallToolContext` provides contextual information during tool method execution, including:
@@ -188,6 +190,8 @@ Methods can be synchronous or asynchronous:
 
 - Synchronous: Supports all of the above return value types
 - Asynchronous: Supports `Task`, `Task<T>`, `ValueTask`, and `ValueTask<T>` async return types, where `T` is any of the types in the table above with identical behavior
+
+For non-nullable custom objects, polymorphism can be supported through type discriminators, including properties at any nesting level. See [Polymorphic Types](Polymorphism.md).
 
 ### How Tools Report Errors
 

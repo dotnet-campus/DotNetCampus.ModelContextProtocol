@@ -15,6 +15,8 @@
     - [Elicitation](Elicitation.md)
     - [Utilities](Utilities.md)
     - [_meta](Meta.md)
-    - [Dependency Injection](DependencyInjection.md)
 - MCP Transport
     - [Choosing a Transport](Transport.md)
+- Library Mechanisms
+    - [Dependency Injection](DependencyInjection.md)
+    - [Polymorphic Types](Polymorphism.md)
