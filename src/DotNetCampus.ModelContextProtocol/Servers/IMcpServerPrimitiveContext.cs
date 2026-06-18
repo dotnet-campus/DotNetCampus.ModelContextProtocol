@@ -118,28 +118,4 @@ public static class McpServerCallToolContextExtensions
         /// </summary>
         public HttpServerTransportContext? HttpTransportContext => (HttpServerTransportContext?)context.Services.GetService(typeof(HttpServerTransportContext));
     }
-
-    /// <param name="context">工具调用上下文。</param>
-    extension(IMcpServerCallToolContext context)
-    {
-        /// <summary>
-        /// 判断 MCP 客户端传入的输入参数里是否显式指定了此 Json 属性。
-        /// </summary>
-        /// <param name="mcpToolMethodParameter">直接填入工具形参名称，其名称字符串可被第二个参数捕获。</param>
-        /// <param name="inputJsonPropertyName">由编译器捕获第一个传入的参数并生成字符串，决定要检查的 Json 属性名。</param>
-        /// <typeparam name="T">防止装箱专用。</typeparam>
-        /// <returns></returns>
-        /// <remarks>
-        /// 通过此方法，可以在 MCP 工具参数获得 <see langword="null"/> 或其他默认值时，知道此默认值来源于没有设置，还是来源于显式传入。
-        /// </remarks>
-        public bool IsPropertyProvided<T>(T? mcpToolMethodParameter, [CallerArgumentExpression("mcpToolMethodParameter")] string? inputJsonPropertyName = null)
-        {
-            if (inputJsonPropertyName is null)
-            {
-                throw new ArgumentNullException(
-                    $"Failed to resolve the input JSON property name from the caller expression. Pass a method parameter directly, or specify the property name explicitly.");
-            }
-            return context.InputJsonArguments.TryGetProperty(inputJsonPropertyName, out _);
-        }
-    }
 }

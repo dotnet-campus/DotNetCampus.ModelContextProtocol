@@ -48,10 +48,10 @@ public class InputTool
     [McpServerTool(ReadOnly = true)]
     public string TestParameterPropertyProvided(IMcpServerCallToolContext context, int? value = null, string? text = null)
     {
-        var valueResult = context.IsPropertyProvided(value)
+        var valueResult = context.InputJsonArguments.TryGetProperty(nameof(value), out _)
             ? value is { } v ? v.ToString() : "null"
             : "未提供";
-        var textResult = context.IsPropertyProvided(text)
+        var textResult = context.InputJsonArguments.TryGetProperty(nameof(text), out _)
             ? text ?? "null"
             : "未提供";
 
