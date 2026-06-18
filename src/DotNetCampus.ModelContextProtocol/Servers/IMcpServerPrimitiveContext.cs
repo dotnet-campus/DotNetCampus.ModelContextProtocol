@@ -1,4 +1,5 @@
 ﻿using System.Diagnostics.CodeAnalysis;
+using System.Runtime.CompilerServices;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using DotNetCampus.ModelContextProtocol.Transports;
@@ -6,59 +7,48 @@ using DotNetCampus.ModelContextProtocol.Transports;
 namespace DotNetCampus.ModelContextProtocol.Servers;
 
 /// <summary>
-/// 包含 MCP 服务器收到来自客户端的请求时，服务端处理请求具体实现可能会用到的各种上下文信息。<br/>
-/// Contains various context information that the server-side implementation of the MCP server
-/// may use when the MCP server receives a request from the client.
+/// 包含 MCP 服务器收到来自客户端的请求时，服务端处理请求具体实现可能会用到的各种上下文信息。
 /// </summary>
 public interface IMcpServerPrimitiveContext
 {
     /// <summary>
-    /// 调用 MCP 服务器实例。<br/>
-    /// MCP server instance invoking the tool.
+    /// 调用 MCP 服务器实例。
     /// </summary>
     McpServer McpServer { get; }
 
     /// <summary>
-    /// 用于解析和获取服务的服务提供者。<br/>
-    /// Service provider used to resolve and obtain services.
+    /// 用于解析和获取服务的服务提供者。
     /// </summary>
     IServiceProvider Services { get; }
 
     /// <summary>
-    /// 可用于反序列化 MCP 工具调用输入参数的 JSON 序列化上下文。<br/>
-    /// JSON serialization context that can be used to deserialize MCP tool invocation input parameters.
+    /// 可用于反序列化 MCP 工具调用输入参数的 JSON 序列化上下文。
     /// </summary>
     JsonSerializerContext JsonSerializerContext { get; }
 
     /// <summary>
-    /// 来自 MCP 协议中请求中 _meta 字段的元数据。<br/>
-    /// Metadata from the _meta field in the request in the MCP protocol.
+    /// 来自 MCP 协议中请求中 _meta 字段的元数据。
     /// </summary>
     JsonElement Meta { get; }
 }
 
 /// <summary>
-/// 包含 MCP 服务器收到来自客户端的工具调用时，服务端调用工具具体实现可能会用到的各种上下文信息。<br/>
-/// Contains various context information that the server-side implementation of the MCP server tool
-/// may use when the MCP server receives a tool invocation from the client.
+/// 包含 MCP 服务器收到来自客户端的工具调用时，服务端调用工具具体实现可能会用到的各种上下文信息。
 /// </summary>
 public interface IMcpServerCallToolContext : IMcpServerPrimitiveContext
 {
     /// <summary>
-    /// 来自 MCP 协议中 tools/call 请求中 name 字段的工具名称。<br/>
-    /// The name of the tool to call from the name field in the tools/call request in the MCP protocol.
+    /// 来自 MCP 协议中 tools/call 请求中 name 字段的工具名称。
     /// </summary>
     string Name { get; }
 
     /// <summary>
-    /// 来自 MCP 协议中 tools/call 请求中 arguments 字段的 JSON 元素。<br/>
-    /// JSON element from the arguments field in the tools/call request in the MCP protocol.
+    /// 来自 MCP 协议中 tools/call 请求中 arguments 字段的 JSON 元素。
     /// </summary>
     JsonElement InputJsonArguments { get; }
 
     /// <summary>
-    /// 用于取消工具调用操作的取消令牌。<br/>
-    /// Cancellation token used to cancel the tool invocation operation.
+    /// 用于取消工具调用操作的取消令牌。
     /// </summary>
     CancellationToken CancellationToken { get; }
 
@@ -69,22 +59,18 @@ public interface IMcpServerCallToolContext : IMcpServerPrimitiveContext
 }
 
 /// <summary>
-/// 包含 MCP 服务器收到来自客户端的读取资源时，服务端调用工具具体实现可能会用到的各种上下文信息。<br/>
-/// Contains various context information that the server-side implementation of the MCP server resource
-/// may use when the MCP server receives a read resource request from the client.
+/// 包含 MCP 服务器收到来自客户端的读取资源时，服务端调用工具具体实现可能会用到的各种上下文信息。
 /// </summary>
 public interface IMcpServerReadResourceContext : IMcpServerPrimitiveContext
 {
     /// <summary>
-    /// 要读取的资源的 URI。URI 可以使用任何协议；由服务器决定如何解释它。<br/>
-    /// The URI of the resource to read. The URI can use any protocol; it is up to the server how to interpret it.
+    /// 要读取的资源的 URI。URI 可以使用任何协议；由服务器决定如何解释它。
     /// </summary>
     [StringSyntax(StringSyntaxAttribute.Uri)]
     string Uri { get; }
 
     /// <summary>
-    /// 资源的 MIME 类型（如 text/plain、application/json）。如果未设置，将根据资源内容自动推断。<br/>
-    /// The MIME type of the resource (e.g., text/plain, application/json). If not set, it will be inferred from the resource contents.
+    /// 资源的 MIME 类型（如 text/plain、application/json）。如果未设置，将根据资源内容自动推断。
     /// </summary>
     string? MimeType { get; }
 }
@@ -115,12 +101,11 @@ internal sealed class McpServerReadResourceContext : IMcpServerReadResourceConte
 }
 
 /// <summary>
-/// 扩展 <see cref="IMcpServerCallToolContext"/> 接口的扩展方法。<br/>
-/// Extension methods for the <see cref="IMcpServerCallToolContext"/> interface.
+/// 扩展 <see cref="IMcpServerCallToolContext"/> 接口的扩展方法。
 /// </summary>
 public static class McpServerCallToolContextExtensions
 {
-    /// <param name="context">工具调用上下文。Tool invocation context.</param>
+    /// <param name="context">工具调用上下文。</param>
     extension(IMcpServerPrimitiveContext context)
     {
         /// <summary>
@@ -132,5 +117,29 @@ public static class McpServerCallToolContextExtensions
         /// 获取与 HTTP 传输相关的上下文信息（如果当前是通过 HTTP 传输的话）。
         /// </summary>
         public HttpServerTransportContext? HttpTransportContext => (HttpServerTransportContext?)context.Services.GetService(typeof(HttpServerTransportContext));
+    }
+
+    /// <param name="context">工具调用上下文。</param>
+    extension(IMcpServerCallToolContext context)
+    {
+        /// <summary>
+        /// 判断 MCP 客户端传入的输入参数里是否显式指定了此 Json 属性。
+        /// </summary>
+        /// <param name="mcpToolMethodParameter">直接填入工具形参名称，其名称字符串可被第二个参数捕获。</param>
+        /// <param name="inputJsonPropertyName">由编译器捕获第一个传入的参数并生成字符串，决定要检查的 Json 属性名。</param>
+        /// <typeparam name="T">防止装箱专用。</typeparam>
+        /// <returns></returns>
+        /// <remarks>
+        /// 通过此方法，可以在 MCP 工具参数获得 <see langword="null"/> 或其他默认值时，知道此默认值来源于没有设置，还是来源于显式传入。
+        /// </remarks>
+        public bool IsPropertyProvided<T>(T? mcpToolMethodParameter, [CallerArgumentExpression("mcpToolMethodParameter")] string? inputJsonPropertyName = null)
+        {
+            if (inputJsonPropertyName is null)
+            {
+                throw new ArgumentNullException(
+                    $"Failed to resolve the input JSON property name from the caller expression. Pass a method parameter directly, or specify the property name explicitly.");
+            }
+            return context.InputJsonArguments.TryGetProperty(inputJsonPropertyName, out _);
+        }
     }
 }

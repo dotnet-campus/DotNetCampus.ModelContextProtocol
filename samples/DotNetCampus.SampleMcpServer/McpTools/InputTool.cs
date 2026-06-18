@@ -39,6 +39,30 @@ public class InputTool
     }
 
     /// <summary>
+    /// 演示探测 Json 中的属性未传，还是传了 null
+    /// </summary>
+    /// <param name="context">传递过来的 MCP 工具调用上下文</param>
+    /// <param name="value">一个值，可不传，传 null，或传实际值</param>
+    /// <param name="text">一个字符串，可不传，传 null，或传实际值</param>
+    /// <returns></returns>
+    [McpServerTool(ReadOnly = true)]
+    public string TestParameterPropertyProvided(IMcpServerCallToolContext context, int? value = null, string? text = null)
+    {
+        var valueResult = context.IsPropertyProvided(value)
+            ? value is { } v ? v.ToString() : "null"
+            : "未提供";
+        var textResult = context.IsPropertyProvided(text)
+            ? text ?? "null"
+            : "未提供";
+
+        return $"""
+            输入参数的值（实际值 | null | 未提供）:
+            value: {valueResult}
+            text : {textResult}
+            """;
+    }
+
+    /// <summary>
     /// 演示使用 InputObject 参数的工具（接收整个 JSON 对象）
     /// </summary>
     /// <param name="input">整个工具调用的输入对象</param>
