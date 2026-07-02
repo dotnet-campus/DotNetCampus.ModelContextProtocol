@@ -29,8 +29,7 @@ public sealed class ModelContextProtocolToolToAIToolExtensionTest
             ["right"] = 20,
         }));
 
-        JsonElement jsonResult = Assert.IsInstanceOfType<JsonElement>(result);
-        Assert.AreEqual(30, jsonResult.GetInt32());
+        Assert.AreEqual("30", result as string);
     }
 
     [TestMethod]

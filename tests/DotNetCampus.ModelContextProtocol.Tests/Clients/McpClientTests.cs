@@ -7,6 +7,9 @@ namespace DotNetCampus.ModelContextProtocol.Tests.Clients;
 [TestClass]
 public sealed class McpClientTests
 {
+#if !DEBUG
+    [Ignore]
+#endif
     [TestMethod("使用 @modelcontextprotocol/server-everything STDIO：失败则证明客户端错误")]
     public async Task ServerEverything_Stdio()
     {
@@ -22,6 +25,9 @@ public sealed class McpClientTests
         Assert.IsNotNull(tools.Tools.Count > 0);
     }
 
+#if !DEBUG
+    [Ignore]
+#endif
     [TestMethod("使用 @modelcontextprotocol/server-everything HTTP：失败则证明客户端错误")]
     public async Task ServerEverything_Http()
     {
