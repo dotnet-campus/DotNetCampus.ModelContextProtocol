@@ -193,7 +193,7 @@ public Task<EchoResult> EchoAsync(
 - 同步：可使用上述所有种类的返回值类型
 - 异步：可使用 `Task`、`Task<T>`、`ValueTask` 和 `ValueTask<T>` 的异步返回值。其中 `T` 即为表中对应的返回值类型，行为一致
 
-对于非空自定义对象，可通过类型鉴别器支持多态；支持任意级别的属性使用多态。详见[多态类型](Polymorphism.md)。输出 Schema 在编译期自动生成，如需预览或自定义，请参阅[编译期 JSON Schema 生成](JsonSchemaGeneration.md)。
+对于非空自定义对象，可通过类型鉴别器支持多态；支持任意级别的属性使用多态。详见[多态类型](Polymorphism.md)。
 
 ### 工具如何报告错误
 

@@ -66,6 +66,8 @@ Property descriptions:
   - **true**: Explicitly enables structured output. Only valid for non-nullable object types; produces compilation error DM0101 for non-structurable types, and DM0103 for nullable objects and object collections
   - **false**: Explicitly disables structured output. Valid for all types; no outputSchema generated
 
+> Both input and output JSON Schemas are generated at compile time, capturing information only available during compilation without runtime reflection. For details on the generation logic and customization, see [Compile-Time JSON Schema Generation](JsonSchemaGeneration.md).
+
 For example, tools returning custom object types generate structured output by default; if not needed, you can explicitly disable it:
 
 ```csharp

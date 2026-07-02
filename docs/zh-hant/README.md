@@ -20,3 +20,4 @@
 - 庫機制
     - [相依性注入](DependencyInjection.md)
     - [多型型別](Polymorphism.md)
+    - [編譯期 JSON Schema 生成](JsonSchemaGeneration.md)

@@ -20,3 +20,4 @@
 - Library Mechanisms
     - [Dependency Injection](DependencyInjection.md)
     - [Polymorphic Types](Polymorphism.md)
+    - [Compile-Time JSON Schema Generation](JsonSchemaGeneration.md)
