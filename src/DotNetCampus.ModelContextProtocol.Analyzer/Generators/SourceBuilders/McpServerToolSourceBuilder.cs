@@ -1,4 +1,4 @@
-﻿using DotNetCampus.ModelContextProtocol.CodeAnalysis;
+using DotNetCampus.ModelContextProtocol.CodeAnalysis;
 using DotNetCampus.ModelContextProtocol.CompilerServices;
 using DotNetCampus.ModelContextProtocol.Generators.Builders;
 using DotNetCampus.ModelContextProtocol.Generators.Models;
@@ -44,7 +44,7 @@ internal static class McpServerToolSourceBuilder
     {
         return builder
             .AddMethodDeclaration($"private {G.CompiledJsonSchema} GetInputSchema({G.CompiledSchemaJsonContext} jsonContext)", true,
-                m => m.AddInputSchemaExpression(JsonPropertySchemaInfo.From(model))
+                m => m.AddCompiledJsonSchemaExpression(JsonPropertySchemaInfo.From(model))
             );
     }
 
@@ -61,85 +61,7 @@ internal static class McpServerToolSourceBuilder
 
         return builder
             .AddMethodDeclaration($"private {G.CompiledJsonSchema} GetOutputSchema({G.CompiledSchemaJsonContext} jsonContext)", true,
-                m => m.AddInputSchemaExpression(schemaInfo)
-            );
-    }
-
-    /// <summary>
-    /// 添加生成 InputSchema 的表达式。
-    /// </summary>
-    private static IAllowStatement AddInputSchemaExpression(this IAllowStatement builder, JsonPropertySchemaInfo info)
-    {
-        var itemSchema = info.GetItemSchemaOfArrayOrDefault();
-        var properties = info.GetProperties();
-        var polymorphicDerivedTypes = info.GetPolymorphicDerivedTypes();
-        var isJsonElementType = info.PropertyType.IsAnyJsonElementType();
-
-        return builder
-            .AddBracketScope($"new {G.CompiledJsonSchema}", "{", "}", true, bs => bs
-                .AddPropertyAssignment("Type", info.GetJsonSchemaTypeExpression())
-                .AddPropertyAssignment("Default", info.DefaultValueJsonElement)
-                .AddStringAssignment("Description", info.GetEnhancedDescription())
-                .AddPropertyAssignment("Enum", info.GetJsonEnumNameExpressionOrDefault())
-                .Condition(itemSchema is not null, i => i
-                    .AddStatement("Items = ", null, c => c.AddInputSchemaExpression(itemSchema!)))
-                .EndCondition()
-                // 如果是多态类型，只输出 Required 和 AnyOf，不输出 Properties
-                .Condition(polymorphicDerivedTypes.Count > 0, poly => poly
-                    .AddPropertyAssignment("Required", $"[ \"{info.PolymorphicInfo!.DiscriminatorPropertyName}\" ]")
-                    .AddBracketScope("AnyOf = ", "[", "],", rbs => rbs
-                        .AddStatements(polymorphicDerivedTypes, (d, derivedType) => d
-                            .AddStatement("", ",", c => c.AddPolymorphicDerivedTypeSchema(derivedType, info))
-                        )))
-                // 非多态类型，正常处理
-                .Otherwise(nonPoly => nonPoly
-                    .AddPropertyAssignment("Required", info.GetJsonRequiredPropertiesExpressionOrDefault())
-                    // object 类型始终输出 Properties（即使为空），以符合 OpenAI API 要求
-                    .Condition(info.JsonSchemaType == "object" || properties.Count > 0, i => i
-                        .AddBracketScope($"Properties = new {G.Dictionary}<string, {G.CompiledJsonSchema}>", "{", "},", rbs => rbs
-                            .AddStatements(properties, (d, p) => d
-                                .AddStatement($"[ \"{p.JsonPropertyName}\" ] = ", ",", c => c
-                                    .AddInputSchemaExpression(p))
-                            )))
-                    .EndCondition()
-                )
-                .EndCondition()
-            );
-    }
-
-    /// <summary>
-    /// 为多态派生类型添加 Schema 表达式（包含鉴别器约束）。
-    /// </summary>
-    private static IAllowStatement AddPolymorphicDerivedTypeSchema(
-        this IAllowStatement builder,
-        JsonPropertySchemaInfo derivedType,
-        JsonPropertySchemaInfo baseInfo)
-    {
-        var discriminatorPropertyName = baseInfo.PolymorphicInfo!.DiscriminatorPropertyName;
-        var discriminatorValue = baseInfo.PolymorphicInfo.DerivedTypes
-            .FirstOrDefault(d => SymbolEqualityComparer.Default.Equals(d.Type, derivedType.PropertyType))
-            ?.DiscriminatorValue ?? derivedType.PropertyType.Name;
-
-        var properties = derivedType.GetProperties();
-
-        return builder
-            .AddBracketScope($"new {G.CompiledJsonSchema}", "{", "}", true, bs => bs
-                .AddPropertyAssignment("Type", null)
-                .AddBracketScope($"Properties = new {G.Dictionary}<string, {G.CompiledJsonSchema}>", "{", "},", rbs => rbs
-                    .AddStatement($"[ \"{discriminatorPropertyName}\" ] = ", ",", c => c
-                        .AddBracketScope($"new {G.CompiledJsonSchema}", "{", "}", false, ds => ds
-                            .AddPropertyAssignment("Type", null)
-                            .AddStringAssignment("Const", discriminatorValue)
-                        ))
-                    // 添加派生类型的所有属性
-                    .AddStatements(properties, (d, p) => d
-                        .AddStatement($"[ \"{p.JsonPropertyName}\" ] = ", ",", c => c
-                            .AddInputSchemaExpression(p))
-                    )
-                )
-                .Condition(properties.Any(p => p.IsRequired), req => req
-                    .AddPropertyAssignment("Required", derivedType.GetJsonRequiredPropertiesExpressionOrDefault()))
-                .EndCondition()
+                m => m.AddCompiledJsonSchemaExpression(schemaInfo)
             );
     }
 
@@ -454,20 +376,6 @@ var {parameter.Name} = jsonArguments.TryGetProperty("{jsonName}", out var {param
             };
 
             builder.AddRawText($"{propertyName} = {value},");
-        }
-        return builder;
-    }
-
-    /// <summary>
-    /// 添加属性赋值（用于对象初始化器）。
-    /// </summary>
-    private static TBuilder AddPropertyAssignment<TBuilder>(this TBuilder builder,
-        string property, string? expression)
-        where TBuilder : ISourceTextBuilder
-    {
-        if (expression is not null)
-        {
-            builder.AddRawText($"{property} = {expression},");
         }
         return builder;
     }
