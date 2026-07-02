@@ -79,4 +79,4 @@ public PolymorphicBase GetPolymorphicResult()
 }
 ```
 
-对于非空自定义对象返回值，默认会生成包含多态的 `outputSchema` 和 `structuredContent`
+对于非空自定义对象返回值，默认会生成包含多态的 `outputSchema` 和 `structuredContent`。

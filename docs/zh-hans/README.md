@@ -20,3 +20,4 @@
 - 库机制
     - [依赖注入](DependencyInjection.md)
     - [多态类型](Polymorphism.md)
+    - [编译期 JSON Schema 生成](JsonSchemaGeneration.md)
