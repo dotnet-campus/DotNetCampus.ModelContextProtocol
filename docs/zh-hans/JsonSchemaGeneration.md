@@ -21,6 +21,8 @@
 internal partial class MyJsonContext : JsonSerializerContext;
 ```
 
+> 注意：JSON Schema 的属性名生成规则与 MCP 工具保持一致：优先使用 `[JsonPropertyName]`，否则使用 camelCase。当前不会读取 `JsonSourceGenerationOptions` 中的 `PropertyNamingPolicy` 或 `DictionaryKeyPolicy`。
+
 ### 第二步：调用扩展方法
 
 编译后，每个 `[JsonSerializable]` 标注的类型都会自动生成一个 `GetCompilerGeneratedJsonSchema()` 扩展方法：
@@ -106,13 +108,12 @@ var schema = MyJsonContext.Default.Order.GetCompilerGeneratedJsonSchema();
 ```json
 {
   "type": "object",
-  "description": "订单信息",
   "properties": {
     "id": { "type": "string", "description": "订单编号" },
     "amount": { "type": ["number", "null"], "description": "订单金额（可选）" },
     "status": {
       "type": "string",
-      "description": "订单状态",
+      "description": "订单状态\nPending: 待处理\nShipped: 已发货\nDone: 已完成",
       "enum": ["Pending", "Shipped", "Done"]
     },
     "items": {
@@ -120,12 +121,11 @@ var schema = MyJsonContext.Default.Order.GetCompilerGeneratedJsonSchema();
       "description": "商品明细",
       "items": {
         "type": "object",
-        "description": "订单项",
         "properties": {
           "product_name": { "type": "string", "description": "商品名" },
           "quantity": { "type": "integer", "description": "数量" }
         },
-        "required": ["product_name", "quantity"]
+        "required": ["product_name"]
       }
     }
   },
@@ -139,12 +139,12 @@ var schema = MyJsonContext.Default.Order.GetCompilerGeneratedJsonSchema();
 | -------------- | ------------------------------------------------------------------------------------------ |
 | `id`           | `required` 修饰符 → 加入 `required` 列表；XML 注释 → `description`                         |
 | `amount`       | `decimal?` 可空值类型 → `type` 为 `["number", "null"]`                                     |
-| `status`       | 枚举类型 → 生成 `enum` 数组；枚举成员的 `<summary>` 自动收集                               |
+| `status`       | 枚举类型 → 生成 `enum` 数组；枚举成员的 `<summary>` 会追加到 `description`                 |
 | `items`        | 嵌套类型 → `items` 中递归生成 `OrderItem` 的完整 Schema                                    |
 | `product_name` | `[JsonPropertyName("product_name")]` → Schema 属性名使用 `product_name` 而非 `ProductName` |
-| `quantity`     | 非空值类型 → 自动加入 `required` 列表                                                      |
+| `quantity`     | 未使用 `required` 修饰符 → 不加入 `required` 列表                                          |
 
-> **递归特性**：XML 注释的提取是递归的，任意深度的嵌套属性的 `<summary>` 都会被提取。此外，如果类型来自基础库、NuGet 包或外部 dll，只要编译期可获取其 XML 文档，注释同样能被提取到 Schema 中。
+> **递归特性**：XML 注释的提取是递归的，任意深度的嵌套属性的 `<summary>` 都会被提取。当前对象类型自身的 `<summary>` 不会写入该对象 Schema 的 `description`。
 
 ## 典型场景：按需获取 Schema，避免智能体上下文污染
 

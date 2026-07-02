@@ -21,6 +21,8 @@
 internal partial class MyJsonContext : JsonSerializerContext;
 ```
 
+> 注意：JSON Schema 的屬性名產生規則與 MCP 工具保持一致：優先使用 `[JsonPropertyName]`，否則使用 camelCase。目前不會讀取 `JsonSourceGenerationOptions` 中的 `PropertyNamingPolicy` 或 `DictionaryKeyPolicy`。
+
 ### 第二步：呼叫擴充方法
 
 編譯後，每個 `[JsonSerializable]` 標注的型別都會自動產生一個 `GetCompilerGeneratedJsonSchema()` 擴充方法：
@@ -106,13 +108,12 @@ var schema = MyJsonContext.Default.Order.GetCompilerGeneratedJsonSchema();
 ```json
 {
   "type": "object",
-  "description": "訂單資訊",
   "properties": {
     "id": { "type": "string", "description": "訂單編號" },
     "amount": { "type": ["number", "null"], "description": "訂單金額（可選）" },
     "status": {
       "type": "string",
-      "description": "訂單狀態",
+      "description": "訂單狀態\nPending: 待處理\nShipped: 已出貨\nDone: 已完成",
       "enum": ["Pending", "Shipped", "Done"]
     },
     "items": {
@@ -120,12 +121,11 @@ var schema = MyJsonContext.Default.Order.GetCompilerGeneratedJsonSchema();
       "description": "商品明細",
       "items": {
         "type": "object",
-        "description": "訂單項目",
         "properties": {
           "product_name": { "type": "string", "description": "商品名" },
           "quantity": { "type": "integer", "description": "數量" }
         },
-        "required": ["product_name", "quantity"]
+        "required": ["product_name"]
       }
     }
   },
@@ -139,12 +139,12 @@ var schema = MyJsonContext.Default.Order.GetCompilerGeneratedJsonSchema();
 | -------------- | ------------------------------------------------------------------------------------------ |
 | `id`           | `required` 修飾詞 → 加入 `required` 列表；XML 註解 → `description`                          |
 | `amount`       | `decimal?` 可空值型別 → `type` 為 `["number", "null"]`                                     |
-| `status`       | 列舉型別 → 產生 `enum` 陣列；列舉成員的 `<summary>` 自動收集                                |
+| `status`       | 列舉型別 → 產生 `enum` 陣列；列舉成員的 `<summary>` 會追加到 `description`                  |
 | `items`        | 巢狀型別 → `items` 中遞迴產生 `OrderItem` 的完整 Schema                                    |
 | `product_name` | `[JsonPropertyName("product_name")]` → Schema 屬性名使用 `product_name` 而非 `ProductName` |
-| `quantity`     | 非空值型別 → 自動加入 `required` 列表                                                       |
+| `quantity`     | 未使用 `required` 修飾詞 → 不加入 `required` 列表                                           |
 
-> **遞迴特性**：XML 註解的提取是遞迴的，任意深度的巢狀屬性的 `<summary>` 都會被提取。此外，如果型別來自基礎程式庫、NuGet 套件或外部 dll，只要編譯期可取得其 XML 文件，註解同樣能被提取到 Schema 中。
+> **遞迴特性**：XML 註解的提取是遞迴的，任意深度的巢狀屬性的 `<summary>` 都會被提取。目前物件型別自身的 `<summary>` 不會寫入該物件 Schema 的 `description`。
 
 ## 典型場景：按需取得 Schema，避免智慧體上下文污染
 

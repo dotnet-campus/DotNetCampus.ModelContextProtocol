@@ -21,6 +21,8 @@ Add `[GenerateJsonSchema]` to your `JsonSerializerContext`-derived class:
 internal partial class MyJsonContext : JsonSerializerContext;
 ```
 
+> Note: JSON Schema property names follow the same rules as MCP tools: `[JsonPropertyName]` wins, otherwise camelCase is used. The generator currently does not read `PropertyNamingPolicy` or `DictionaryKeyPolicy` from `JsonSourceGenerationOptions`.
+
 ### Step 2: Call the Extension Method
 
 At compile time, each type annotated with `[JsonSerializable]` automatically gets a `GetCompilerGeneratedJsonSchema()` extension method:
@@ -106,13 +108,12 @@ Generated JSON Schema:
 ```json
 {
   "type": "object",
-  "description": "Order information",
   "properties": {
     "id": { "type": "string", "description": "Order ID" },
     "amount": { "type": ["number", "null"], "description": "Order amount (optional)" },
     "status": {
       "type": "string",
-      "description": "Order status",
+      "description": "Order status\nPending: Pending\nShipped: Shipped\nDone: Done",
       "enum": ["Pending", "Shipped", "Done"]
     },
     "items": {
@@ -120,12 +121,11 @@ Generated JSON Schema:
       "description": "Order items",
       "items": {
         "type": "object",
-        "description": "Order item",
         "properties": {
           "product_name": { "type": "string", "description": "Product name" },
           "quantity": { "type": "integer", "description": "Quantity" }
         },
-        "required": ["product_name", "quantity"]
+        "required": ["product_name"]
       }
     }
   },
@@ -139,12 +139,12 @@ Property-by-property breakdown:
 | -------------- | ------------------------------------------------------------------------------- |
 | `id`           | `required` modifier → added to `required` list; XML comment → `description`     |
 | `amount`       | `decimal?` nullable value type → `type` becomes `["number", "null"]`            |
-| `status`       | Enum type → `enum` array generated; `<summary>` collected automatically         |
+| `status`       | Enum type → `enum` array generated; enum member `<summary>` is appended to `description` |
 | `items`        | Nested type → `items` recursively generates `OrderItem`'s full Schema           |
 | `product_name` | `[JsonPropertyName("product_name")]` → Schema property name uses `product_name` |
-| `quantity`     | Non-nullable value type → automatically added to `required` list                |
+| `quantity`     | No `required` modifier → not added to the `required` list                       |
 
-> **Recursive nature**: XML comment extraction is recursive — `<summary>` at any depth of nesting is extracted. Additionally, if a type comes from a base library, NuGet package, or external DLL, as long as its XML documentation is available at compile time, the comments will be included in the Schema.
+> **Recursive nature**: XML comment extraction is recursive: nested property `<summary>` comments are extracted at any depth. The object type's own `<summary>` is currently not written to that object Schema's `description`.
 
 ## Typical Scenario: On-Demand Schema to Avoid Context Pollution
 

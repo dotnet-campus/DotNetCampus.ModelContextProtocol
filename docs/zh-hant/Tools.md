@@ -66,7 +66,7 @@ public string EchoCustomized(string text)
   - **true**：顯式啟用結構化輸出。僅對非空物件型別有效；對不可結構化的型別產生編譯錯誤 DM0101，對可空物件和物件集合產生編譯錯誤 DM0103
   - **false**：顯式禁用結構化輸出。對所有型別有效，不會產生 outputSchema
 
-> 輸入和輸出的 JSON Schema 均在編譯期自動產生，包含僅編譯期才能獲得的資訊，且無需執行時反射。產生邏輯和自訂方式詳見[編譯期 JSON Schema 生成](JsonSchemaGeneration.md)。
+> 輸入和輸出的 JSON Schema 均在編譯期自動產生，包含僅編譯期才能獲得的資訊，且無需執行時反射。產生規則與限制詳見[編譯期 JSON Schema 生成](JsonSchemaGeneration.md)。
 
 例如，傳回自訂物件型別的工具預設產生結構化輸出；若不需要，可顯式禁用：
 

@@ -66,7 +66,7 @@ public string EchoCustomized(string text)
   - **true**：显式启用结构化输出。仅对非空对象类型有效；对不可结构化的类型产生编译错误 DM0101，对可空对象和对象集合产生编译错误 DM0103
   - **false**：显式禁用结构化输出。对所有类型有效，不会产生 outputSchema
 
-> 输入和输出的 JSON Schema 均在编译期自动生成，包含仅编译期才能获得的信息，且无需运行时反射。生成逻辑和自定义方式详见[编译期 JSON Schema 生成](JsonSchemaGeneration.md)。
+> 输入和输出的 JSON Schema 均在编译期自动生成，包含仅编译期才能获得的信息，且无需运行时反射。生成规则与限制详见[编译期 JSON Schema 生成](JsonSchemaGeneration.md)。
 
 例如，返回自定义对象类型的工具默认生成结构化输出；若不需要，可显式禁用：
 
