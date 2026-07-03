@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using DotNetCampus.ModelContextProtocol.Exceptions;
 using DotNetCampus.ModelContextProtocol.Protocol.Messages;
 using DotNetCampus.ModelContextProtocol.Tests.McpTools;
 
@@ -108,6 +109,18 @@ public class ToolSchemaContractTests
         CollectionAssert.AreEqual(new[] { "PlainText", "jsonObject" }, ReadStringArray(mode.GetProperty("enum")));
     }
 
+    [TestMethod("Tool schema: missing JsonTypeInfo throws")]
+    public async Task ToolSchemaThrowsWhenJsonTypeInfoMissing()
+    {
+        await using var package = await TestMcpFactory.Shared.CreateInProcessCoreAsync(builder => builder
+            .WithJsonSerializer(MissingSchemaContractJsonContext.Default)
+            .WithTools(t => t.WithTool(() => new SchemaContractTool())));
+
+        var tool = package.Server.Tools.Single(x => x.ToolName == "echo_contract_object");
+
+        Assert.ThrowsException<McpToolJsonTypeInfoNotFoundException>(() =>
+            tool.GetToolDefinition(MissingSchemaContractJsonContext.Default));
+    }
 
     [TestMethod("Tool schema: InputObject object properties use runtime JsonTypeInfo naming policy")]
     public async Task InputObjectSchemaUsesRuntimeJsonTypeInfoNamingPolicy()
@@ -154,6 +167,7 @@ public class ToolSchemaContractTests
 }
 
 [JsonSerializable(typeof(SchemaContractEnum))]
+[JsonSerializable(typeof(IReadOnlyList<SchemaContractEnum>))]
 [JsonSerializable(typeof(SchemaContractInput))]
 [JsonSerializable(typeof(SchemaContractOutput))]
 [JsonSerializable(typeof(Dictionary<string, int>))]
@@ -165,3 +179,12 @@ public class ToolSchemaContractTests
     UseStringEnumConverter = true,
     AllowOutOfOrderMetadataProperties = true)]
 internal partial class SnakeCaseSchemaContractJsonContext : JsonSerializerContext;
+
+[JsonSerializable(typeof(SchemaContractEnum))]
+[JsonSourceGenerationOptions(
+    PropertyNameCaseInsensitive = true,
+    PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,
+    NumberHandling = JsonNumberHandling.AllowReadingFromString,
+    UseStringEnumConverter = true,
+    AllowOutOfOrderMetadataProperties = true)]
+internal partial class MissingSchemaContractJsonContext : JsonSerializerContext;

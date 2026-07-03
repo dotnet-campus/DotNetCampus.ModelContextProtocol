@@ -29,6 +29,9 @@
     <Compile Include="..\DotNetCampus.ModelContextProtocol\Properties\Compatibility.cs" LinkBase="Properties" />
     <Compile Include="..\DotNetCampus.ModelContextProtocol\CompilerServices\*Attribute.cs" LinkBase="CompilerServices" />
     <Compile Include="..\DotNetCampus.ModelContextProtocol\CompilerServices\CompiledJsonSchema.cs" LinkBase="CompilerServices" />
+    <Compile Include="..\DotNetCampus.ModelContextProtocol\Exceptions\ModelContextProtocolException.cs" LinkBase="Exceptions" />
+    <Compile Include="..\DotNetCampus.ModelContextProtocol\Exceptions\McpToolException.cs" LinkBase="Exceptions" />
+    <Compile Include="..\DotNetCampus.ModelContextProtocol\Exceptions\McpToolJsonTypeInfoNotFoundException.cs" LinkBase="Exceptions" />
     <Compile Include="..\DotNetCampus.ModelContextProtocol\Servers\CreationMode.cs" LinkBase="CompilerServices" />
   </ItemGroup>
 

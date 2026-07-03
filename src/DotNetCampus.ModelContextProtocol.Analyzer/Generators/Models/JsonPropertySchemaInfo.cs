@@ -134,8 +134,8 @@ public record JsonPropertySchemaInfo(ITypeSymbol PropertyType)
     public string? GetJsonSchemaTypeExpression() => (PropertyType.IsAnyJsonElementType(), IsNullableType) switch
     {
         (true, _) => null,
-        (_, true) => $"{G.JsonSerializer}.SerializeToElement(new[] {{ \"{JsonSchemaType}\", \"null\" }}, jsonContext.StringArray)",
-        (_, false) => $"{G.JsonSerializer}.SerializeToElement(\"{JsonSchemaType}\", jsonContext.String)",
+        (_, true) => $"{G.JsonSerializer}.SerializeToElement(new[] {{ \"{JsonSchemaType}\", \"null\" }}, {G.CompiledSchemaJsonContext}.Default.StringArray)",
+        (_, false) => $"{G.JsonSerializer}.SerializeToElement(\"{JsonSchemaType}\", {G.CompiledSchemaJsonContext}.Default.String)",
     };
 
     /// <summary>
@@ -362,16 +362,16 @@ public record JsonPropertySchemaInfo(ITypeSymbol PropertyType)
                 .FirstOrDefault(x => EqualsByString(x.ConstantValue, defaultValue));
             return enumValue.JsonName is null
                 ? null
-                : $"{G.JsonSerializer}.SerializeToElement(\"{enumValue.JsonName}\", jsonContext.String)";
+                : $"{G.JsonSerializer}.SerializeToElement(\"{enumValue.JsonName}\", {G.CompiledSchemaJsonContext}.Default.String)";
         }
 
         return (defaultValue, info.SchemaKind) switch
         {
             (null, _) => $"{G.JsonDocument}.Parse(\"null\").RootElement",
-            (_, JsonType.Boolean) => $"{G.JsonSerializer}.SerializeToElement({defaultValue.ToString().ToLowerInvariant()}, jsonContext.Boolean)",
-            (_, JsonType.Integer) => $"{G.JsonSerializer}.SerializeToElement((long){defaultValue}, jsonContext.Int64)",
-            (_, JsonType.Number) => $"{G.JsonSerializer}.SerializeToElement((decimal){defaultValue}, jsonContext.Decimal)",
-            (_, JsonType.String) => $"{G.JsonSerializer}.SerializeToElement(\"{defaultValue}\", jsonContext.String)",
+            (_, JsonType.Boolean) => $"{G.JsonSerializer}.SerializeToElement({defaultValue.ToString().ToLowerInvariant()}, {G.CompiledSchemaJsonContext}.Default.Boolean)",
+            (_, JsonType.Integer) => $"{G.JsonSerializer}.SerializeToElement((long){defaultValue}, {G.CompiledSchemaJsonContext}.Default.Int64)",
+            (_, JsonType.Number) => $"{G.JsonSerializer}.SerializeToElement((decimal){defaultValue}, {G.CompiledSchemaJsonContext}.Default.Decimal)",
+            (_, JsonType.String) => $"{G.JsonSerializer}.SerializeToElement(\"{defaultValue}\", {G.CompiledSchemaJsonContext}.Default.String)",
             // 其他情况，C# 语法中写不出来默认值。
             _ => null,
         };

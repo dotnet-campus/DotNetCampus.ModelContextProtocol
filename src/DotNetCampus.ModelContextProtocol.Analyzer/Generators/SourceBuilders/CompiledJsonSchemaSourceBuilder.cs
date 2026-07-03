@@ -17,10 +17,10 @@ internal static class CompiledJsonSchemaSourceBuilder
 
         return builder.AddMethodDeclaration(signature, m => m
             .WithSummaryComment($"获取为 <see cref=\"{typeName}\"/> 生成的 JSON Schema。")
-            .AddRawStatement("_ = jsonTypeInfo;")
             .AddRawStatement($"var jsonContext = {G.CompiledSchemaJsonContext}.Default;")
-            .AddStatement($"return {G.JsonSerializer}.SerializeToElement(", ", jsonContext.CompiledJsonSchema);", s => s
+            .AddStatement("var schema = ", ";", s => s
                 .AddCompiledJsonSchemaExpression(JsonPropertySchemaInfo.From(model.Type, "schema")))
+            .AddRawStatement("return schema.ToJsonElement(jsonContext, jsonTypeInfo);")
         );
     }
 
@@ -37,7 +37,9 @@ internal static class CompiledJsonSchemaSourceBuilder
         return builder
             .AddBracketScope($"new {G.CompiledJsonSchema}", "{", "}", true, bs => bs
                 .AddPropertyAssignment("Type", info.GetJsonSchemaTypeExpression())
-                .AddPropertyAssignment("RuntimeType", $"typeof({info.PropertyType.GetNotNullTypeSymbol().ToNullableDisabledGlobalDisplayString()})")
+                .Condition(info.Properties is null, runtimeType => runtimeType
+                    .AddPropertyAssignment("RuntimeType", $"typeof({info.PropertyType.GetNotNullTypeSymbol().ToNullableDisabledGlobalDisplayString()})"))
+                .EndCondition()
                 .AddStringAssignment("RuntimePropertyName", info.RuntimePropertyName)
                 .AddPropertyAssignment("Default", info.DefaultValueJsonElement)
                 .AddStringAssignment("Description", info.GetEnhancedDescription())
@@ -46,7 +48,7 @@ internal static class CompiledJsonSchemaSourceBuilder
                     .AddStatement("Items = ", null, c => c.AddCompiledJsonSchemaExpression(itemSchema!)))
                 .EndCondition()
                 .Condition(dictionaryValueSchema is not null, d => d
-                    .AddStatement($"AdditionalProperties = {G.JsonSerializer}.SerializeToElement(", ", jsonContext.CompiledJsonSchema),", c => c.AddCompiledJsonSchemaExpression(dictionaryValueSchema!)))
+                    .AddStatement($"AdditionalProperties = {G.JsonSerializer}.SerializeToElement(", $", {G.CompiledSchemaJsonContext}.Default.CompiledJsonSchema),", c => c.AddCompiledJsonSchemaExpression(dictionaryValueSchema!)))
                 .EndCondition()
                 // 如果是多态类型，只输出 Required 和 AnyOf，不输出 Properties
                 .Condition(polymorphicDerivedTypes.Count > 0, poly => poly
@@ -104,7 +106,6 @@ internal static class CompiledJsonSchemaSourceBuilder
                 .AddPropertyAssignment("Required", GetPolymorphicDerivedTypeRequiredExpression(derivedType, discriminatorPropertyName))
             );
     }
-
 
     private static string GetPolymorphicDerivedTypeRequiredExpression(JsonPropertySchemaInfo derivedType, string discriminatorPropertyName)
     {

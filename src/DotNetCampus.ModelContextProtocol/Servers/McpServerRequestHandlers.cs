@@ -210,13 +210,12 @@ public class McpServerRequestHandlers
         RequestContext<ListToolsRequestParams> request,
         CancellationToken cancellationToken)
     {
-        var schemaJsonContext = CompiledSchemaJsonContext.Default;
         var jsonSerializerContext = _server.Context.JsonSerializer switch
         {
             McpServerToolJsonSerializer mcpSerializer => mcpSerializer.JsonSerializerContext ?? McpServerToolJsonContext.Default,
             _ => McpServerToolJsonContext.Default,
         };
-        var tools = _server.Tools.Select(x => x.GetToolDefinition(schemaJsonContext, jsonSerializerContext)).ToList();
+        var tools = _server.Tools.Select(x => x.GetToolDefinition(jsonSerializerContext)).ToList();
         Logger.Debug($"[McpServer][Mcp] Listing tools. Count={tools.Count}");
         return ValueTask.FromResult(new ListToolsResult
         {
@@ -249,8 +248,8 @@ public class McpServerRequestHandlers
                 Services = request.Services,
                 JsonSerializerContext = _server.Context.JsonSerializer switch
                 {
-                    McpServerToolJsonSerializer mcpSerializer => mcpSerializer.JsonSerializerContext ?? CompiledSchemaJsonContext.Default,
-                    _ => CompiledSchemaJsonContext.Default,
+                    McpServerToolJsonSerializer mcpSerializer => mcpSerializer.JsonSerializerContext ?? McpServerToolJsonContext.Default,
+                    _ => McpServerToolJsonContext.Default,
                 },
                 Meta = request.Params?.Meta ?? EmptyObject.JsonElement,
                 Name = toolName,
@@ -414,9 +413,8 @@ public class McpServerRequestHandlers
         RequestContext<ListResourcesRequestParams> request,
         CancellationToken cancellationToken)
     {
-        var jsonContext = CompiledSchemaJsonContext.Default;
         var resources = _server.Resources.GetStaticResources()
-            .Select(r => (Resource)r.GetResourceDefinition(jsonContext))
+            .Select(r => (Resource)r.GetResourceDefinition())
             .ToArray();
 
         Logger.Debug($"[McpServer][Mcp] Listing resources. Count={resources.Length}");
@@ -456,9 +454,8 @@ public class McpServerRequestHandlers
         RequestContext<ListResourceTemplatesRequestParams> request,
         CancellationToken cancellationToken)
     {
-        var jsonContext = CompiledSchemaJsonContext.Default;
         var templates = _server.Resources.GetTemplateResources()
-            .Select(r => (ResourceTemplate)r.GetResourceDefinition(jsonContext))
+            .Select(r => (ResourceTemplate)r.GetResourceDefinition())
             .ToArray();
 
         return ValueTask.FromResult(new ListResourceTemplatesResult
@@ -492,8 +489,8 @@ public class McpServerRequestHandlers
                 Services = request.Services,
                 JsonSerializerContext = _server.Context.JsonSerializer switch
                 {
-                    McpServerToolJsonSerializer mcpSerializer => mcpSerializer.JsonSerializerContext ?? CompiledSchemaJsonContext.Default,
-                    _ => CompiledSchemaJsonContext.Default,
+                    McpServerToolJsonSerializer mcpSerializer => mcpSerializer.JsonSerializerContext ?? McpServerToolJsonContext.Default,
+                    _ => McpServerToolJsonContext.Default,
                 },
                 Meta = request.Params?.Meta ?? EmptyObject.JsonElement,
                 Uri = uri,

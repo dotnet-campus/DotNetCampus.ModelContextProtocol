@@ -2,6 +2,7 @@ using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.Json.Serialization.Metadata;
+using DotNetCampus.ModelContextProtocol.Exceptions;
 
 namespace DotNetCampus.ModelContextProtocol.CompilerServices;
 
@@ -21,6 +22,7 @@ public sealed record CompiledJsonSchema
     /// </summary>
     [JsonIgnore]
     public string? RuntimePropertyName { get; init; }
+
     /// <summary>
     /// Schema 类型（可能是字符串或数组，数组用于表示可空类型）。<br/>
     /// 仅类型鉴别器此字段是 <see langword="null"/>，且需显式赋值。
@@ -103,23 +105,66 @@ public sealed record CompiledJsonSchema
     public JsonElement? AdditionalProperties { get; init; }
 
     /// <summary>
-    /// Rewrites object property names and required members using the runtime System.Text.Json contract when available.
+    /// 将编译期生成的 Schema 模板按指定 JSON 序列化上下文转换为最终可输出的 JSON Schema。
     /// </summary>
-    public CompiledJsonSchema ApplyJsonTypeInfo(JsonSerializerContext jsonSerializerContext)
+    /// <param name="jsonSerializerContext">业务类型的 JSON 序列化上下文。</param>
+    /// <returns>最终可输出的 JSON Schema。</returns>
+    public JsonElement ToJsonElement(JsonSerializerContext jsonSerializerContext)
+    {
+        var schema = ApplyJsonContract(jsonSerializerContext.GetTypeInfo, jsonSerializerContext.GetType().FullName);
+
+        return JsonSerializer.SerializeToElement(schema, CompiledSchemaJsonContext.Default.CompiledJsonSchema);
+    }
+
+    /// <summary>
+    /// 将编译期生成的 Schema 模板按指定 JSON 类型信息转换为最终可输出的 JSON Schema。
+    /// </summary>
+    /// <param name="schemaJsonContext">用于序列化 Schema 对象的 JSON 上下文。</param>
+    /// <param name="jsonTypeInfo">业务类型的 JSON 类型信息。</param>
+    /// <returns>最终可输出的 JSON Schema。</returns>
+    public JsonElement ToJsonElement<T>(JsonSerializerContext schemaJsonContext, JsonTypeInfo<T> jsonTypeInfo)
+    {
+        var schema = ApplyJsonContract(runtimeType => GetJsonTypeInfo(jsonTypeInfo, runtimeType), jsonTypeInfo.Options.TypeInfoResolver?.GetType().FullName);
+
+        return JsonSerializer.SerializeToElement(schema, GetSchemaJsonTypeInfo(schemaJsonContext));
+    }
+
+    private static JsonTypeInfo<CompiledJsonSchema> GetSchemaJsonTypeInfo(JsonSerializerContext schemaJsonContext)
+    {
+        if (schemaJsonContext.GetTypeInfo(typeof(CompiledJsonSchema)) is JsonTypeInfo<CompiledJsonSchema> schemaJsonTypeInfo)
+        {
+            return schemaJsonTypeInfo;
+        }
+
+        throw new InvalidOperationException($"{schemaJsonContext.GetType().FullName} does not contain JsonTypeInfo for {typeof(CompiledJsonSchema).FullName}.");
+    }
+
+    private CompiledJsonSchema ApplyJsonContract(Func<Type, JsonTypeInfo?> getJsonTypeInfo, string? jsonSerializerContextTypeName)
     {
         var properties = Properties?.ToDictionary(
             x => x.Key,
-            x => x.Value.ApplyJsonTypeInfo(jsonSerializerContext),
+            x => x.Value.ApplyJsonContract(getJsonTypeInfo, jsonSerializerContextTypeName),
             StringComparer.Ordinal);
 
         var schema = this with
         {
             Properties = properties,
-            Items = Items?.ApplyJsonTypeInfo(jsonSerializerContext),
-            AnyOf = AnyOf?.Select(x => x.ApplyJsonTypeInfo(jsonSerializerContext)).ToList(),
+            Items = Items?.ApplyJsonContract(getJsonTypeInfo, jsonSerializerContextTypeName),
+            AnyOf = AnyOf?.Select(x => x.ApplyJsonContract(getJsonTypeInfo, jsonSerializerContextTypeName)).ToList(),
         };
 
-        if (RuntimeType is null || properties is null || jsonSerializerContext.GetTypeInfo(RuntimeType) is not { Kind: JsonTypeInfoKind.Object } jsonTypeInfo)
+        if (RuntimeType is null)
+        {
+            return schema;
+        }
+
+        var jsonTypeInfo = getJsonTypeInfo(RuntimeType);
+        if (jsonTypeInfo is null)
+        {
+            throw CreateJsonTypeInfoNotFoundException(RuntimeType, jsonSerializerContextTypeName);
+        }
+
+        if (properties is null || jsonTypeInfo.Kind is not JsonTypeInfoKind.Object)
         {
             return schema;
         }
@@ -153,6 +198,36 @@ public sealed record CompiledJsonSchema
             Properties = rewrittenProperties,
             Required = rewrittenRequired.Count == 0 ? null : rewrittenRequired,
         };
+    }
+
+    private static JsonTypeInfo? GetJsonTypeInfo(JsonTypeInfo rootJsonTypeInfo, Type runtimeType)
+    {
+        if (rootJsonTypeInfo.Type == runtimeType)
+        {
+            return rootJsonTypeInfo;
+        }
+
+        try
+        {
+            return rootJsonTypeInfo.Options.GetTypeInfo(runtimeType);
+        }
+        catch (InvalidOperationException)
+        {
+            return null;
+        }
+        catch (NotSupportedException)
+        {
+            return null;
+        }
+    }
+
+    private static McpToolJsonTypeInfoNotFoundException CreateJsonTypeInfoNotFoundException(Type runtimeType, string? jsonSerializerContextTypeName)
+    {
+        var typeName = runtimeType.Name;
+        var typeFullName = runtimeType.FullName ?? runtimeType.ToString();
+        return jsonSerializerContextTypeName is null
+            ? new McpToolJsonTypeInfoNotFoundException(typeName, typeFullName)
+            : new McpToolJsonTypeInfoNotFoundException(typeName, typeFullName, jsonSerializerContextTypeName);
     }
 
     private static string? GetRuntimePropertyName(JsonPropertyInfo propertyInfo)

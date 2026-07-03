@@ -131,6 +131,6 @@ public sealed class DerivedTypeDiscriminator
     public string DisplayValue { get; }
 
     public string ToJsonElementExpression() => StringValue is { } stringValue
-        ? $"{G.JsonSerializer}.SerializeToElement(\"{stringValue}\", jsonContext.String)"
-        : $"{G.JsonSerializer}.SerializeToElement({Int32Value!.Value}, jsonContext.Int32)";
+        ? $"{G.JsonSerializer}.SerializeToElement(\"{stringValue}\", {G.CompiledSchemaJsonContext}.Default.String)"
+        : $"{G.JsonSerializer}.SerializeToElement({Int32Value!.Value}, {G.CompiledSchemaJsonContext}.Default.Int32)";
 }

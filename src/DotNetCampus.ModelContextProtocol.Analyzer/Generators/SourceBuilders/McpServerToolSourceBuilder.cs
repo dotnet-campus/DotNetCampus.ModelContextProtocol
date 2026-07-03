@@ -16,7 +16,7 @@ internal static class McpServerToolSourceBuilder
         McpServerToolGeneratingModel model)
     {
         return builder
-            .AddMethodDeclaration($"public {G.Tool} GetToolDefinition({G.CompiledSchemaJsonContext} jsonContext, global::System.Text.Json.Serialization.JsonSerializerContext jsonSerializerContext)", true,
+            .AddMethodDeclaration($"public {G.Tool} GetToolDefinition(global::System.Text.Json.Serialization.JsonSerializerContext jsonSerializerContext)", true,
                 m => m
                     .WithRawDocumentationComment("/// <inheritdoc />")
                     .AddBracketScope("new()", "{", "}", bs => bs
@@ -24,10 +24,10 @@ internal static class McpServerToolSourceBuilder
                         .AddStringAssignment("Title", model.Title)
                         .AddStringAssignment("Description", model.Description)
                         .AddRawStatement(
-                            $"InputSchema = {G.JsonSerializer}.SerializeToElement(GetInputSchema(jsonContext).ApplyJsonTypeInfo(jsonSerializerContext), jsonContext.CompiledJsonSchema),")
+                            $"InputSchema = GetInputSchema().ToJsonElement(jsonSerializerContext),")
                         .Condition(model.GetReturnTypeSchemaInfo() is not null, output => output
                             .AddRawStatement(
-                                $"OutputSchema = {G.JsonSerializer}.SerializeToElement(GetOutputSchema(jsonContext).ApplyJsonTypeInfo(jsonSerializerContext), jsonContext.CompiledJsonSchema),"))
+                                $"OutputSchema = GetOutputSchema().ToJsonElement(jsonSerializerContext),"))
                         .EndCondition()
                         .Condition(model.ShouldGenerateAnnotations(), anno => anno
                             .AddStatement("Annotations = ", ",", a => a.AddToolAnnotations(model)))
@@ -42,7 +42,7 @@ internal static class McpServerToolSourceBuilder
         McpServerToolGeneratingModel model)
     {
         return builder
-            .AddMethodDeclaration($"private {G.CompiledJsonSchema} GetInputSchema({G.CompiledSchemaJsonContext} jsonContext)", true,
+            .AddMethodDeclaration($"private {G.CompiledJsonSchema} GetInputSchema()", true,
                 m => m.AddCompiledJsonSchemaExpression(JsonPropertySchemaInfo.From(model))
             );
     }
@@ -59,7 +59,7 @@ internal static class McpServerToolSourceBuilder
         }
 
         return builder
-            .AddMethodDeclaration($"private {G.CompiledJsonSchema} GetOutputSchema({G.CompiledSchemaJsonContext} jsonContext)", true,
+            .AddMethodDeclaration($"private {G.CompiledJsonSchema} GetOutputSchema()", true,
                 m => m.AddCompiledJsonSchemaExpression(schemaInfo)
             );
     }

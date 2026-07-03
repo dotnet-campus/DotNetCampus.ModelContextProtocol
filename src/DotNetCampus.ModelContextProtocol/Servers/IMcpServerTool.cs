@@ -1,5 +1,4 @@
 using System.Text.Json.Serialization;
-using DotNetCampus.ModelContextProtocol.CompilerServices;
 using DotNetCampus.ModelContextProtocol.Protocol.Messages;
 
 namespace DotNetCampus.ModelContextProtocol.Servers;
@@ -17,8 +16,9 @@ public interface IMcpServerTool
     /// <summary>
     /// 获取工具在指定业务 JSON 序列化上下文下的定义信息。
     /// </summary>
+    /// <param name="jsonSerializerContext">为此 MCP 工具提供 Json 序列化所需的上下文。</param>
     /// <returns>工具的定义信息。</returns>
-    Tool GetToolDefinition(CompiledSchemaJsonContext schemaJsonContext, JsonSerializerContext jsonSerializerContext);
+    Tool GetToolDefinition(JsonSerializerContext jsonSerializerContext);
 
     /// <summary>
     /// 调用 MCP 服务器工具的方法。
@@ -26,23 +26,4 @@ public interface IMcpServerTool
     /// <param name="context">调用工具时的上下文信息。</param>
     /// <returns>表示工具调用结果的 JSON 元素。</returns>
     ValueTask<CallToolResult> CallTool(IMcpServerCallToolContext context);
-}
-
-/// <summary>
-/// 提供 <see cref="IMcpServerTool"/> 的扩展方法。
-/// </summary>
-public static class McpServerToolExtensions
-{
-    /// <param name="mcpServerTool">MCP 服务器工具</param>
-    extension(IMcpServerTool mcpServerTool)
-    {
-        /// <summary>
-        /// 获取工具的定义信息，这些信息将被 AI 查看，以了解工具的功能和使用方法。
-        /// </summary>
-        /// <returns>工具的定义信息。</returns>
-        public Tool GetToolDefinition(JsonSerializerContext jsonSerializerContext)
-        {
-            return mcpServerTool.GetToolDefinition(CompiledSchemaJsonContext.Default, jsonSerializerContext);
-        }
-    }
 }
