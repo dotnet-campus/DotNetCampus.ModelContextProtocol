@@ -30,17 +30,23 @@ internal static class CompiledJsonSchemaSourceBuilder
     public static IAllowStatement AddCompiledJsonSchemaExpression(this IAllowStatement builder, JsonPropertySchemaInfo info)
     {
         var itemSchema = info.GetItemSchemaOfArrayOrDefault();
+        var dictionaryValueSchema = info.GetDictionaryValueSchemaOrDefault();
         var properties = info.GetProperties();
         var polymorphicDerivedTypes = info.GetPolymorphicDerivedTypes();
 
         return builder
             .AddBracketScope($"new {G.CompiledJsonSchema}", "{", "}", true, bs => bs
                 .AddPropertyAssignment("Type", info.GetJsonSchemaTypeExpression())
+                .AddPropertyAssignment("RuntimeType", $"typeof({info.PropertyType.GetNotNullTypeSymbol().ToNullableDisabledGlobalDisplayString()})")
+                .AddStringAssignment("RuntimePropertyName", info.RuntimePropertyName)
                 .AddPropertyAssignment("Default", info.DefaultValueJsonElement)
                 .AddStringAssignment("Description", info.GetEnhancedDescription())
                 .AddPropertyAssignment("Enum", info.GetJsonEnumNameExpressionOrDefault())
                 .Condition(itemSchema is not null, i => i
                     .AddStatement("Items = ", null, c => c.AddCompiledJsonSchemaExpression(itemSchema!)))
+                .EndCondition()
+                .Condition(dictionaryValueSchema is not null, d => d
+                    .AddStatement($"AdditionalProperties = {G.JsonSerializer}.SerializeToElement(", ", jsonContext.CompiledJsonSchema),", c => c.AddCompiledJsonSchemaExpression(dictionaryValueSchema!)))
                 .EndCondition()
                 // 如果是多态类型，只输出 Required 和 AnyOf，不输出 Properties
                 .Condition(polymorphicDerivedTypes.Count > 0, poly => poly
@@ -74,9 +80,9 @@ internal static class CompiledJsonSchemaSourceBuilder
         JsonPropertySchemaInfo baseInfo)
     {
         var discriminatorPropertyName = baseInfo.PolymorphicInfo!.DiscriminatorPropertyName;
-        var discriminatorValue = baseInfo.PolymorphicInfo.DerivedTypes
+        var discriminator = baseInfo.PolymorphicInfo.DerivedTypes
             .FirstOrDefault(d => SymbolEqualityComparer.Default.Equals(d.Type, derivedType.PropertyType))
-            ?.DiscriminatorValue ?? derivedType.PropertyType.Name;
+            ?.Discriminator;
 
         var properties = derivedType.GetProperties();
 
@@ -87,7 +93,7 @@ internal static class CompiledJsonSchemaSourceBuilder
                     .AddStatement($"[ \"{discriminatorPropertyName}\" ] = ", ",", c => c
                         .AddBracketScope($"new {G.CompiledJsonSchema}", "{", "}", false, ds => ds
                             .AddPropertyAssignment("Type", null)
-                            .AddStringAssignment("Const", discriminatorValue)
+                            .AddPropertyAssignment("Const", discriminator?.ToJsonElementExpression())
                         ))
                     // 添加派生类型的所有属性
                     .AddStatements(properties, (d, p) => d
@@ -95,12 +101,21 @@ internal static class CompiledJsonSchemaSourceBuilder
                             .AddCompiledJsonSchemaExpression(p))
                     )
                 )
-                .Condition(properties.Any(p => p.IsRequired), req => req
-                    .AddPropertyAssignment("Required", derivedType.GetJsonRequiredPropertiesExpressionOrDefault()))
-                .EndCondition()
+                .AddPropertyAssignment("Required", GetPolymorphicDerivedTypeRequiredExpression(derivedType, discriminatorPropertyName))
             );
     }
 
+
+    private static string GetPolymorphicDerivedTypeRequiredExpression(JsonPropertySchemaInfo derivedType, string discriminatorPropertyName)
+    {
+        var required = derivedType.GetProperties()
+            .Where(p => p.IsRequired)
+            .Select(p => p.JsonPropertyName)
+            .Prepend(discriminatorPropertyName)
+            .ToList();
+
+        return $"[ {string.Join(", ", required.Select(x => $"\"{x}\""))} ]";
+    }
     /// <summary>
     /// 添加字符串属性赋值（用于对象初始化器）。
     /// </summary>

@@ -275,16 +275,26 @@ public record McpServerToolGeneratingModel
     [DoesNotReturn]
     private void ThrowDiagnostic(ITypeSymbol? returnType, DiagnosticDescriptor descriptor)
     {
-        var returnTypeLocation = (Method.DeclaringSyntaxReferences.FirstOrDefault()?.GetSyntax()
-            as MethodDeclarationSyntax)
-            ?.ReturnType.GetLocation()
-            ?? Method.Locations.FirstOrDefault()
-            ?? Location.None;
+        var returnTypeLocation = (Method.DeclaringSyntaxReferences.FirstOrDefault()?.GetSyntax() as MethodDeclarationSyntax)
+                                 ?.ReturnType.GetLocation()
+                                 ?? Method.Locations.FirstOrDefault()
+                                 ?? Location.None;
         throw new DiagnosticsException(
             descriptor,
             returnTypeLocation,
             Method.Name,
             returnType?.ToDisplayString() ?? "void");
+    }
+
+    public ITypeSymbol? GetCollectionElementType()
+    {
+        var returnType = GetReturnType()?.GetNotNullTypeSymbol();
+        if (returnType is null)
+        {
+            return null;
+        }
+
+        return returnType.ToJsonSchemaTypeInfo().AsArrayItemSymbol()?.GetNotNullTypeSymbol();
     }
 
     /// <summary>

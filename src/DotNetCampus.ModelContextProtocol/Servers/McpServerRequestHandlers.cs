@@ -210,7 +210,13 @@ public class McpServerRequestHandlers
         RequestContext<ListToolsRequestParams> request,
         CancellationToken cancellationToken)
     {
-        var tools = _server.Tools.Select(x => x.GetToolDefinition(CompiledSchemaJsonContext.Default)).ToList();
+        var schemaJsonContext = CompiledSchemaJsonContext.Default;
+        var jsonSerializerContext = _server.Context.JsonSerializer switch
+        {
+            McpServerToolJsonSerializer mcpSerializer => mcpSerializer.JsonSerializerContext ?? McpServerToolJsonContext.Default,
+            _ => McpServerToolJsonContext.Default,
+        };
+        var tools = _server.Tools.Select(x => x.GetToolDefinition(schemaJsonContext, jsonSerializerContext)).ToList();
         Logger.Debug($"[McpServer][Mcp] Listing tools. Count={tools.Count}");
         return ValueTask.FromResult(new ListToolsResult
         {

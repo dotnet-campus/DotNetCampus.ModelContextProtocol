@@ -1,4 +1,4 @@
-﻿using System.Text.Encodings.Web;
+using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.Json.Serialization.Metadata;
@@ -61,6 +61,7 @@ internal sealed class McpServerToolCompositeJsonContext(JsonSerializerContext ex
 // 用于编译期可确定的默认值（请参见 JsonPropertySchemaInfo 编译期代码）
 [JsonSerializable(typeof(bool))]
 [JsonSerializable(typeof(decimal))]
+[JsonSerializable(typeof(int))]
 [JsonSerializable(typeof(long))]
 [JsonSerializable(typeof(string))]
 [JsonSerializable(typeof(string[]))]
@@ -119,7 +120,6 @@ public partial class CompiledSchemaJsonContext : JsonSerializerContext
 [JsonSourceGenerationOptions(
     PropertyNameCaseInsensitive = true,
     PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,
-    DictionaryKeyPolicy = JsonKnownNamingPolicy.Unspecified,
     NumberHandling = JsonNumberHandling.AllowReadingFromString,
     UseStringEnumConverter = true,
     WriteIndented = false)]

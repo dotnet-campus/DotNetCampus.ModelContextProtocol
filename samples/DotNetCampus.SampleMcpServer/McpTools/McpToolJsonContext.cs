@@ -13,7 +13,6 @@ namespace DotNetCampus.SampleMcpServer.McpTools;
 [JsonSourceGenerationOptions(
     PropertyNameCaseInsensitive = true,
     PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,
-    DictionaryKeyPolicy = JsonKnownNamingPolicy.Unspecified,
     NumberHandling = JsonNumberHandling.AllowReadingFromString,
     UseStringEnumConverter = true,
     AllowOutOfOrderMetadataProperties = true)]

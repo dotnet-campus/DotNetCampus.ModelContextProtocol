@@ -1,4 +1,4 @@
-﻿using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis;
 
 namespace DotNetCampus.ModelContextProtocol.CodeAnalysis;
 
@@ -68,6 +68,16 @@ internal class JsonSchemaTypeInfo
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// 如果当前类型是 string key 字典类型，则返回其 value 类型；否则返回 <see langword="null"/>。
+    /// </summary>
+    public ITypeSymbol? AsDictionaryValueSymbol()
+    {
+        return SpecialKind is JsonSpecialType.Dictionary && TypeSymbol is INamedTypeSymbol { TypeArguments.Length: 2 } namedTypeSymbol
+            ? namedTypeSymbol.TypeArguments[1]
+            : null;
     }
 
     /// <summary>
@@ -195,7 +205,7 @@ internal class JsonSchemaTypeInfo
         // Dictionary
         if (notNullTypeSymbol is INamedTypeSymbol
             {
-                TypeArguments: [{ SpecialType: SpecialType.System_String }, { SpecialType: SpecialType.System_String }],
+                TypeArguments: [{ SpecialType: SpecialType.System_String }, _],
                 OriginalDefinition.Name: { } twoGenericName,
             } && AllowedDictionaryTypeNames.ContainsKey(twoGenericName))
         {

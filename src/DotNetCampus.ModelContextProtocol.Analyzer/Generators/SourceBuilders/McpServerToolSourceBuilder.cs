@@ -16,7 +16,7 @@ internal static class McpServerToolSourceBuilder
         McpServerToolGeneratingModel model)
     {
         return builder
-            .AddMethodDeclaration($"public {G.Tool} GetToolDefinition({G.CompiledSchemaJsonContext} jsonContext)", true,
+            .AddMethodDeclaration($"public {G.Tool} GetToolDefinition({G.CompiledSchemaJsonContext} jsonContext, global::System.Text.Json.Serialization.JsonSerializerContext jsonSerializerContext)", true,
                 m => m
                     .WithRawDocumentationComment("/// <inheritdoc />")
                     .AddBracketScope("new()", "{", "}", bs => bs
@@ -24,10 +24,10 @@ internal static class McpServerToolSourceBuilder
                         .AddStringAssignment("Title", model.Title)
                         .AddStringAssignment("Description", model.Description)
                         .AddRawStatement(
-                            $"InputSchema = {G.JsonSerializer}.SerializeToElement(GetInputSchema(jsonContext), jsonContext.CompiledJsonSchema),")
+                            $"InputSchema = {G.JsonSerializer}.SerializeToElement(GetInputSchema(jsonContext).ApplyJsonTypeInfo(jsonSerializerContext), jsonContext.CompiledJsonSchema),")
                         .Condition(model.GetReturnTypeSchemaInfo() is not null, output => output
                             .AddRawStatement(
-                                $"OutputSchema = {G.JsonSerializer}.SerializeToElement(GetOutputSchema(jsonContext), jsonContext.CompiledJsonSchema),"))
+                                $"OutputSchema = {G.JsonSerializer}.SerializeToElement(GetOutputSchema(jsonContext).ApplyJsonTypeInfo(jsonSerializerContext), jsonContext.CompiledJsonSchema),"))
                         .EndCondition()
                         .Condition(model.ShouldGenerateAnnotations(), anno => anno
                             .AddStatement("Annotations = ", ",", a => a.AddToolAnnotations(model)))
@@ -35,7 +35,6 @@ internal static class McpServerToolSourceBuilder
                     )
             );
     }
-
     /// <summary>
     /// 为 MCP 工具桥接类添加 GetInputSchema 方法。
     /// </summary>
@@ -207,9 +206,20 @@ var {parameter.Name} = jsonArguments.TryGetProperty("{jsonName}", out var {param
         }
         else if (collectionKind is CollectionReturnKind.BasicTypeCollection)
         {
-            // 基本类型集合 — 每个元素 ToString()
-            code = GenerateReturnBlock(isAsync, callMethodExpression,
-                $"{G.CallToolResult}.FromCollection(result, x => $\"{{x}}\")");
+            var elementType = model.GetCollectionElementType();
+            if (elementType?.ToJsonSchemaTypeInfo().SpecialKind is JsonSpecialType.Enum)
+            {
+                var elementTypeFullName = elementType.ToNullableDisabledGlobalDisplayString();
+                var elementTypeName = elementType.ToSimpleDisplayString();
+                code = GenerateReturnBlock(isAsync, callMethodExpression,
+                    $"{G.CallToolResult}.FromCollectionJsonStrings(result, context.EnsureJsonTypeInfo<{elementTypeFullName}>(\"{elementTypeName}\", \"{elementTypeFullName}\"))");
+            }
+            else
+            {
+                // 基本类型集合 — 每个元素 ToString()
+                code = GenerateReturnBlock(isAsync, callMethodExpression,
+                    $"{G.CallToolResult}.FromCollection(result, x => $\"{{x}}\")");
+            }
         }
         else if (collectionKind is CollectionReturnKind.ObjectCollection)
         {
@@ -306,7 +316,15 @@ var {parameter.Name} = jsonArguments.TryGetProperty("{jsonName}", out var {param
             return $"{G.CallToolResult}.FromResultUnstructured(result, context.EnsureJsonTypeInfo<{jsonGlobalTypeFullName}>(\"{jsonTypeName}\", \"{jsonTypeFullName}\"))";
         }
 
-        // 基本类型 / 枚举 / 兜底 → FromResult(result.ToString())
+        if (notNull.ToJsonSchemaTypeInfo().SpecialKind is JsonSpecialType.Enum)
+        {
+            var jsonTypeName = notNull.ToSimpleDisplayString();
+            var jsonTypeFullName = notNull.ToDisplayString();
+            var jsonGlobalTypeFullName = notNull.ToNullableDisabledGlobalDisplayString();
+            return $"{G.CallToolResult}.FromResultJsonString(result, context.EnsureJsonTypeInfo<{jsonGlobalTypeFullName}>(\"{jsonTypeName}\", \"{jsonTypeFullName}\"))";
+        }
+
+        // 基本类型 / 兜底 → FromResult(result.ToString())
         var toStringExpr = notNull.IsValueType
             ? "result.ToString()"
             : "result?.ToString() ?? \"\"";

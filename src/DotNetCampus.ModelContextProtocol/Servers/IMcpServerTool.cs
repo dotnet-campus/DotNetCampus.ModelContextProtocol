@@ -1,4 +1,5 @@
-﻿using DotNetCampus.ModelContextProtocol.CompilerServices;
+using System.Text.Json.Serialization;
+using DotNetCampus.ModelContextProtocol.CompilerServices;
 using DotNetCampus.ModelContextProtocol.Protocol.Messages;
 
 namespace DotNetCampus.ModelContextProtocol.Servers;
@@ -14,10 +15,10 @@ public interface IMcpServerTool
     public string ToolName { get; }
 
     /// <summary>
-    /// 获取工具的定义信息，这些信息将被 AI 查看，以了解工具的功能和使用方法。
+    /// 获取工具在指定业务 JSON 序列化上下文下的定义信息。
     /// </summary>
     /// <returns>工具的定义信息。</returns>
-    Tool GetToolDefinition(CompiledSchemaJsonContext jsonContext);
+    Tool GetToolDefinition(CompiledSchemaJsonContext schemaJsonContext, JsonSerializerContext jsonSerializerContext);
 
     /// <summary>
     /// 调用 MCP 服务器工具的方法。
@@ -39,9 +40,9 @@ public static class McpServerToolExtensions
         /// 获取工具的定义信息，这些信息将被 AI 查看，以了解工具的功能和使用方法。
         /// </summary>
         /// <returns>工具的定义信息。</returns>
-        public Tool GetToolDefinition()
+        public Tool GetToolDefinition(JsonSerializerContext jsonSerializerContext)
         {
-            return mcpServerTool.GetToolDefinition(CompiledSchemaJsonContext.Default);
+            return mcpServerTool.GetToolDefinition(CompiledSchemaJsonContext.Default, jsonSerializerContext);
         }
     }
 }

@@ -159,6 +159,16 @@ public record CallToolResult : Result
         };
     }
 
+
+    /// <summary>
+    /// 使用指定的 JSON 契约序列化结果，并将 JSON 字符串值作为文本结果返回。
+    /// </summary>
+    public static CallToolResult FromResultJsonString<TResult>(TResult result, JsonTypeInfo<TResult> jsonTypeInfo)
+    {
+        var json = JsonSerializer.SerializeToElement(result, jsonTypeInfo);
+        return FromResult(json.ValueKind is JsonValueKind.String ? json.GetString() : json.ToString());
+    }
+
     /// <summary>
     /// 直接返回 <paramref name="result"/> 实例本身。
     /// </summary>
@@ -242,6 +252,19 @@ public record CallToolResult : Result
         },
     };
 
+
+
+    /// <summary>
+    /// 将集合转换为 <see cref="CallToolResult"/>，每个元素使用指定 JSON 契约转换为文本。
+    /// </summary>
+    public static CallToolResult FromCollectionJsonStrings<TItem>(IEnumerable<TItem>? items, JsonTypeInfo<TItem> jsonTypeInfo)
+    {
+        return FromCollection(items, item =>
+        {
+            var json = JsonSerializer.SerializeToElement(item, jsonTypeInfo);
+            return json.ValueKind is JsonValueKind.String ? json.GetString() ?? string.Empty : json.ToString();
+        });
+    }
     /// <summary>
     /// 将集合转换为 <see cref="CallToolResult"/>，每个元素通过指定的文本提取函数转换为独立的 TextContentBlock。
     /// </summary>
