@@ -140,6 +140,7 @@ public record CallToolResult : Result
         {
             IsError = true,
             Content = [new TextContentBlock { Text = errorMessage ?? exception.Message }],
+            RawException = exception,
         };
     }
 
