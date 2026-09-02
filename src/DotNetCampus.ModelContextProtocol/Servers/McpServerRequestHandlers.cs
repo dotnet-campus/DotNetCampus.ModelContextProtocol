@@ -5,6 +5,7 @@ using DotNetCampus.ModelContextProtocol.Hosting.Logging;
 using DotNetCampus.ModelContextProtocol.Protocol;
 using DotNetCampus.ModelContextProtocol.Protocol.Messages;
 using DotNetCampus.ModelContextProtocol.Protocol.Messages.JsonRpc;
+using DotNetCampus.ModelContextProtocol.Transports;
 
 namespace DotNetCampus.ModelContextProtocol.Servers;
 
@@ -62,14 +63,29 @@ public class McpServerRequestHandlers
         CancellationToken cancellationToken)
     {
         var clientInfo = request.Params?.ClientInfo;
-        Logger.Info($"[McpServer][Mcp] Client initializing. ClientName={clientInfo?.Name}, ClientVersion={clientInfo?.Version}, ProtocolVersion={request.Params?.ProtocolVersion}");
+        var negotiatedProtocolVersion = ProtocolVersion.NegotiateStreamableHttpVersion(request.Params?.ProtocolVersion);
+        Logger.Info(
+            $"[McpServer][Mcp] Client initializing. ClientName={clientInfo?.Name}, ClientVersion={clientInfo?.Version}, RequestedProtocolVersion={request.Params?.ProtocolVersion}, NegotiatedProtocolVersion={negotiatedProtocolVersion}");
+
+        // 将客户端能力保存到当前传输层会话，以便后续服务器发起请求（如 sampling）时判断能力。
+        var session = (IServerTransportSession?)request.Services.GetService(typeof(IServerTransportSession));
+        if (session is not null)
+        {
+            session.NegotiatedProtocolVersion = negotiatedProtocolVersion;
+            session.ConnectedClientInfo = clientInfo;
+
+            if (request.Params?.Capabilities is { } capabilities)
+            {
+                session.ConnectedClientCapabilities = capabilities;
+            }
+        }
 
         var hasTools = _server.Tools.Count > 0;
         var hasResources = _server.Resources.Count > 0;
 
         var result = new InitializeResult
         {
-            ProtocolVersion = ProtocolVersion.Current,
+            ProtocolVersion = negotiatedProtocolVersion,
             ServerInfo = new Implementation
             {
                 Name = _server.ServerName,
@@ -89,7 +105,8 @@ public class McpServerRequestHandlers
             },
         };
 
-        Logger.Info($"[McpServer][Mcp] Server initialized. ServerName={_server.ServerName}, ServerVersion={_server.ServerVersion}, ToolCount={_server.Tools.Count}, ResourceCount={_server.Resources.Count}");
+        Logger.Info(
+            $"[McpServer][Mcp] Server initialized. ServerName={_server.ServerName}, ServerVersion={_server.ServerVersion}, ProtocolVersion={negotiatedProtocolVersion}, ToolCount={_server.Tools.Count}, ResourceCount={_server.Resources.Count}");
 
         return ValueTask.FromResult(result);
     }
@@ -193,7 +210,12 @@ public class McpServerRequestHandlers
         RequestContext<ListToolsRequestParams> request,
         CancellationToken cancellationToken)
     {
-        var tools = _server.Tools.Select(x => x.GetToolDefinition(CompiledSchemaJsonContext.Default)).ToList();
+        var jsonSerializerContext = _server.Context.JsonSerializer switch
+        {
+            McpServerToolJsonSerializer mcpSerializer => mcpSerializer.JsonSerializerContext ?? McpServerToolJsonContext.Default,
+            _ => McpServerToolJsonContext.Default,
+        };
+        var tools = _server.Tools.Select(x => x.GetToolDefinition(jsonSerializerContext)).ToList();
         Logger.Debug($"[McpServer][Mcp] Listing tools. Count={tools.Count}");
         return ValueTask.FromResult(new ListToolsResult
         {
@@ -226,8 +248,8 @@ public class McpServerRequestHandlers
                 Services = request.Services,
                 JsonSerializerContext = _server.Context.JsonSerializer switch
                 {
-                    McpServerToolJsonSerializer mcpSerializer => mcpSerializer.JsonSerializerContext ?? CompiledSchemaJsonContext.Default,
-                    _ => CompiledSchemaJsonContext.Default,
+                    McpServerToolJsonSerializer mcpSerializer => mcpSerializer.JsonSerializerContext ?? McpServerToolJsonContext.Default,
+                    _ => McpServerToolJsonContext.Default,
                 },
                 Meta = request.Params?.Meta ?? EmptyObject.JsonElement,
                 Name = toolName,
@@ -334,6 +356,12 @@ public class McpServerRequestHandlers
             Logger.Warn($"[McpServer][Mcp] Tool call failed. ToolName={toolName}, Arguments={rawRequest.Params}, Error={ex.Message}");
             return CallToolResult.FromException(ex);
         }
+        catch (McpClientException ex)
+        {
+            // 此错误来自 MCP 客户端（例如工具调用过程中，服务端反向发起了请求，但客户端未能正确响应请求）。
+            Logger.Warn($"[McpServer][Mcp] Tool call failed: Client error. ToolName={toolName}, Arguments={rawRequest.Params}, Error={ex.Message}");
+            return CallToolResult.FromException(ex);
+        }
         catch (Exception ex)
         {
             // 其他未知错误。
@@ -385,9 +413,8 @@ public class McpServerRequestHandlers
         RequestContext<ListResourcesRequestParams> request,
         CancellationToken cancellationToken)
     {
-        var jsonContext = CompiledSchemaJsonContext.Default;
         var resources = _server.Resources.GetStaticResources()
-            .Select(r => (Resource)r.GetResourceDefinition(jsonContext))
+            .Select(r => (Resource)r.GetResourceDefinition())
             .ToArray();
 
         Logger.Debug($"[McpServer][Mcp] Listing resources. Count={resources.Length}");
@@ -427,9 +454,8 @@ public class McpServerRequestHandlers
         RequestContext<ListResourceTemplatesRequestParams> request,
         CancellationToken cancellationToken)
     {
-        var jsonContext = CompiledSchemaJsonContext.Default;
         var templates = _server.Resources.GetTemplateResources()
-            .Select(r => (ResourceTemplate)r.GetResourceDefinition(jsonContext))
+            .Select(r => (ResourceTemplate)r.GetResourceDefinition())
             .ToArray();
 
         return ValueTask.FromResult(new ListResourceTemplatesResult
@@ -463,8 +489,8 @@ public class McpServerRequestHandlers
                 Services = request.Services,
                 JsonSerializerContext = _server.Context.JsonSerializer switch
                 {
-                    McpServerToolJsonSerializer mcpSerializer => mcpSerializer.JsonSerializerContext ?? CompiledSchemaJsonContext.Default,
-                    _ => CompiledSchemaJsonContext.Default,
+                    McpServerToolJsonSerializer mcpSerializer => mcpSerializer.JsonSerializerContext ?? McpServerToolJsonContext.Default,
+                    _ => McpServerToolJsonContext.Default,
                 },
                 Meta = request.Params?.Meta ?? EmptyObject.JsonElement,
                 Uri = uri,

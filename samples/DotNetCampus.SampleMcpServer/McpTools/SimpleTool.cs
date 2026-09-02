@@ -3,7 +3,7 @@ using DotNetCampus.ModelContextProtocol.Protocol.Messages;
 
 namespace DotNetCampus.SampleMcpServer.McpTools;
 
-public class SampleTool
+public class SimpleTool
 {
     /// <summary>
     /// 用于给 AI 调试使用的工具，原样返回一些信息

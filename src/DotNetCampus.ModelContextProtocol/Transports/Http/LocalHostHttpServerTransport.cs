@@ -1,10 +1,12 @@
-﻿using System.Collections.Concurrent;
+using System.Collections.Concurrent;
 using System.Net;
 using System.Text;
 using System.Text.Json;
 using DotNetCampus.ModelContextProtocol.Hosting.Logging;
+using DotNetCampus.ModelContextProtocol.Hosting.Services;
 using DotNetCampus.ModelContextProtocol.Protocol;
 using DotNetCampus.ModelContextProtocol.Protocol.Messages.JsonRpc;
+using DotNetCampus.ModelContextProtocol.Transports.Http.Legacy;
 
 namespace DotNetCampus.ModelContextProtocol.Transports.Http;
 
@@ -15,12 +17,15 @@ public class LocalHostHttpServerTransport : IServerTransport
 {
     private const string ProtocolVersionHeader = "MCP-Protocol-Version";
     private const string SessionIdHeader = "Mcp-Session-Id";
+    private const int SseKeepAliveIntervalMs = 60000;
     private static readonly ReadOnlyMemory<byte> PrimeEventBytes = ": \n\n"u8.ToArray();
+    private static readonly ReadOnlyMemory<byte> SseKeepAliveBytes = ": keep-alive\n\n"u8.ToArray();
 
     private readonly IServerTransportManager _manager;
     private readonly LocalHostHttpServerTransportOptions _options;
     private readonly HttpListener _listener = new();
-    private readonly ConcurrentDictionary<string, LocalHostHttpServerTransportSession> _sessions = new();
+    private readonly ConcurrentDictionary<string, HttpServerTransportSession> _sessions = new();
+    private readonly ConcurrentDictionary<string, LegacySseServerTransportSession> _legacySessions = new();
 
     /// <summary>
     /// 初始化 <see cref="LocalHostHttpServerTransport"/> 类的新实例。
@@ -124,7 +129,12 @@ public class LocalHostHttpServerTransport : IServerTransport
 
         // 1. 路径检查
         var requestPath = request.Url?.AbsolutePath ?? "/";
-        if (!requestPath.Equals(_options.EndPoint, StringComparison.OrdinalIgnoreCase))
+        var isModernEndpoint = requestPath.Equals(_options.EndPoint, StringComparison.OrdinalIgnoreCase);
+        var isLegacySseEndpoint = _options.IsCompatibleWithSse
+                                  && requestPath.Equals(_options.SseEndPoint, StringComparison.OrdinalIgnoreCase);
+        var isLegacyMessageEndpoint = _options.IsCompatibleWithSse
+                                      && requestPath.Equals(_options.SseMessageEndPoint, StringComparison.OrdinalIgnoreCase);
+        if (!isModernEndpoint && !isLegacySseEndpoint && !isLegacyMessageEndpoint)
         {
             await context.RespondHttpError(HttpStatusCode.NotFound);
             return;
@@ -153,13 +163,45 @@ public class LocalHostHttpServerTransport : IServerTransport
         switch (request.HttpMethod)
         {
             case "POST":
-                await HandlePostRequestAsync(context, cancellationToken);
+                if (isLegacyMessageEndpoint)
+                {
+                    await HandleLegacyPostRequestAsync(context, cancellationToken);
+                }
+                else if (isModernEndpoint)
+                {
+                    await HandlePostRequestAsync(context, cancellationToken);
+                }
+                else
+                {
+                    response.AddHeader("Allow", "GET, OPTIONS");
+                    await context.RespondHttpError(HttpStatusCode.MethodNotAllowed);
+                }
                 break;
             case "GET":
-                await HandleGetRequestAsync(context, cancellationToken);
+                if (isLegacySseEndpoint)
+                {
+                    await HandleLegacyGetRequestAsync(context, cancellationToken);
+                }
+                else if (isModernEndpoint)
+                {
+                    await HandleGetRequestAsync(context, cancellationToken);
+                }
+                else
+                {
+                    response.AddHeader("Allow", "POST, DELETE, OPTIONS");
+                    await context.RespondHttpError(HttpStatusCode.MethodNotAllowed);
+                }
                 break;
             case "DELETE":
-                await HandleDeleteRequestAsync(context);
+                if (isModernEndpoint)
+                {
+                    await HandleDeleteRequestAsync(context);
+                }
+                else
+                {
+                    response.AddHeader("Allow", "POST, OPTIONS");
+                    await context.RespondHttpError(HttpStatusCode.MethodNotAllowed);
+                }
                 break;
             default:
                 response.AddHeader("Allow", "POST, GET, DELETE, OPTIONS");
@@ -168,26 +210,72 @@ public class LocalHostHttpServerTransport : IServerTransport
         }
     }
 
-    private async Task HandlePostRequestAsync(HttpListenerContext context, CancellationToken cancellationToken)
+    private async Task HandleLegacyGetRequestAsync(HttpListenerContext context, CancellationToken cancellationToken)
     {
-        var request = context.Request;
-
-        // 协议版本检查
-        var protocolVersion = request.Headers[ProtocolVersionHeader];
-        if (!string.IsNullOrEmpty(protocolVersion))
+        var newSessionId = _manager.MakeNewSessionId();
+        var session = new LegacySseServerTransportSession(_manager, newSessionId.Id, "[McpServer][LegacySse]");
+        if (!_legacySessions.TryAdd(session.SessionId, session))
         {
-            // 如果比最小版本小则报错
-            if (protocolVersion < ProtocolVersion.Minimum)
-            {
-                await context.RespondHttpError(HttpStatusCode.BadRequest, $"Unsupported protocol version. Minimum required: {ProtocolVersion.Minimum}");
-                return;
-            }
+            await context.RespondHttpError(HttpStatusCode.InternalServerError, "Session ID collision");
+            return;
         }
 
-        JsonRpcRequest? jsonRpcRequest;
+        _manager.Add(session);
+
+        context.Response.StatusCode = (int)HttpStatusCode.OK;
+        context.Response.ContentType = "text/event-stream";
+        context.Response.Headers["Cache-Control"] = "no-cache";
+
+        var output = context.Response.OutputStream;
+        session.AttachSseStream(output);
+
         try
         {
-            jsonRpcRequest = await _manager.ReadRequestAsync(request.InputStream);
+            await output.WriteAsync(PrimeEventBytes, cancellationToken);
+            await session.WriteEndpointEventAsync(output, BuildLegacyMessageEndpointUri(context.Request, session.SessionId), cancellationToken);
+
+            while (!cancellationToken.IsCancellationRequested)
+            {
+                await Task.Delay(SseKeepAliveIntervalMs, cancellationToken);
+                await output.WriteAsync(SseKeepAliveBytes, cancellationToken);
+                await output.FlushAsync(cancellationToken);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            Log.Info($"[McpServer][LegacySse] SSE connection ended. SessionId={session.SessionId}");
+        }
+        catch (Exception ex)
+        {
+            Log.Info($"[McpServer][LegacySse] SSE connection ended. SessionId={session.SessionId}, Error={ex.Message}");
+        }
+        finally
+        {
+            session.DetachSseStream(output);
+            _legacySessions.TryRemove(session.SessionId, out _);
+            await session.DisposeAsync();
+            context.Response.SafeClose();
+        }
+    }
+
+    private async Task HandleLegacyPostRequestAsync(HttpListenerContext context, CancellationToken cancellationToken)
+    {
+        var requestBody = await TryReadRequestBodyAsync(context.Request.InputStream, context, cancellationToken);
+        if (requestBody is null)
+        {
+            return;
+        }
+
+        if (IsBatchMessage(requestBody.Value.Span))
+        {
+            await context.RespondHttpError(HttpStatusCode.BadRequest, "Batch JSON-RPC messages are not supported yet.");
+            return;
+        }
+
+        JsonRpcMessage? message;
+        try
+        {
+            message = await _manager.ReadMessageAsync(requestBody.Value);
         }
         catch (JsonException)
         {
@@ -195,71 +283,403 @@ public class LocalHostHttpServerTransport : IServerTransport
             return;
         }
 
-        if (jsonRpcRequest == null)
+        var sessionId = context.Request.QueryString["sessionId"];
+        if (message is not null)
         {
-            await context.RespondHttpError(HttpStatusCode.BadRequest, "Empty body");
+            _manager.LogRawIn("[LegacySse]", $"POST, SessionId={sessionId}", message);
+        }
+
+        switch (message)
+        {
+            case JsonRpcResponse jsonRpcResponse:
+                await HandleLegacyClientResponseAsync(context, sessionId, jsonRpcResponse);
+                return;
+            case JsonRpcNotification notification:
+                await HandleLegacyNotificationAsync(context, sessionId, notification, cancellationToken);
+                return;
+            case JsonRpcRequest jsonRpcRequest:
+                await HandleLegacyRpcRequestAsync(context, sessionId, jsonRpcRequest, cancellationToken);
+                return;
+            default:
+                await context.RespondHttpError(HttpStatusCode.BadRequest, "Invalid or unrecognized JSON-RPC message");
+                return;
+        }
+    }
+
+    private async Task HandleLegacyClientResponseAsync(HttpListenerContext context, string? sessionId, JsonRpcResponse response)
+    {
+        if (string.IsNullOrEmpty(sessionId))
+        {
+            await context.RespondHttpError(HttpStatusCode.BadRequest, "Missing sessionId query parameter");
             return;
         }
 
-        var isInitialize = jsonRpcRequest.Method == RequestMethods.Initialize;
-        var sessionIdStr = request.Headers[SessionIdHeader];
-        LocalHostHttpServerTransportSession? session;
-
-        if (isInitialize)
+        if (!_legacySessions.TryGetValue(sessionId, out var session))
         {
-            // 初始化请求，创建新 Session
-            var newSessionId = _manager.MakeNewSessionId();
-            var newSession = new LocalHostHttpServerTransportSession(_manager, newSessionId.Id);
+            await context.RespondHttpError(HttpStatusCode.NotFound, "Session not found");
+            return;
+        }
 
-            if (_sessions.TryAdd(newSessionId.Id, newSession))
+        session.HandleResponseAsync(response);
+        context.RespondHttpSuccess(HttpStatusCode.Accepted);
+    }
+
+    private async Task HandleLegacyNotificationAsync(HttpListenerContext context, string? sessionId, JsonRpcNotification notification,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrEmpty(sessionId))
+        {
+            await context.RespondHttpError(HttpStatusCode.BadRequest, "Missing sessionId query parameter");
+            return;
+        }
+
+        if (!_legacySessions.TryGetValue(sessionId, out var session))
+        {
+            await context.RespondHttpError(HttpStatusCode.NotFound, "Session not found");
+            return;
+        }
+
+        await _manager.HandleRequestAsync(
+            new JsonRpcRequest { Method = notification.Method, Params = notification.Params },
+            s => s
+                .AddTransportSession(session, Log)
+                .AddHttpTransportContext(session.SessionId, context.Request.Headers),
+            cancellationToken);
+        context.RespondHttpSuccess(HttpStatusCode.Accepted);
+    }
+
+    private async Task HandleLegacyRpcRequestAsync(HttpListenerContext context, string? sessionId, JsonRpcRequest jsonRpcRequest,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrEmpty(sessionId))
+        {
+            await context.RespondHttpError(HttpStatusCode.BadRequest, "Missing sessionId query parameter");
+            return;
+        }
+
+        if (!_legacySessions.TryGetValue(sessionId, out var session))
+        {
+            await context.RespondHttpError(HttpStatusCode.NotFound, "Session not found");
+            return;
+        }
+
+        if (!session.HasActiveSseStream)
+        {
+            await context.RespondHttpError(HttpStatusCode.NotFound, "Session not connected");
+            return;
+        }
+
+        var response = await _manager.HandleRequestAsync(
+            jsonRpcRequest,
+            s => s
+                .AddTransportSession(session, Log)
+                .AddHttpTransportContext(session.SessionId, context.Request.Headers),
+            cancellationToken);
+
+        if (response is not null)
+        {
+            if (jsonRpcRequest.Method == RequestMethods.Initialize)
             {
-                session = newSession;
-                _manager.Add(session);
-                context.Response.AppendHeader(SessionIdHeader, newSessionId.Id);
+                response = LegacySseInitializeResponseAdapter.Adapt(response);
             }
-            else
-            {
-                await context.RespondHttpError(HttpStatusCode.InternalServerError, "Session ID collision");
+
+            await session.WriteMessageEventAsync(response, cancellationToken);
+        }
+
+        context.RespondHttpSuccess(HttpStatusCode.Accepted);
+    }
+
+    private async Task HandlePostRequestAsync(HttpListenerContext context, CancellationToken cancellationToken)
+    {
+        var request = context.Request;
+        var protocolVersion = request.Headers[ProtocolVersionHeader];
+
+        var requestBody = await TryReadRequestBodyAsync(request.InputStream, context, cancellationToken);
+        if (requestBody is null)
+        {
+            return;
+        }
+
+        if (IsBatchMessage(requestBody.Value.Span))
+        {
+            await context.RespondHttpError(HttpStatusCode.BadRequest, "Batch JSON-RPC messages are not supported yet.");
+            return;
+        }
+
+        JsonRpcMessage? message;
+        try
+        {
+            message = await _manager.ReadMessageAsync(requestBody.Value);
+        }
+        catch (JsonException)
+        {
+            await context.RespondHttpError(HttpStatusCode.BadRequest, "Invalid JSON");
+            return;
+        }
+
+        var sessionIdStr = request.Headers[SessionIdHeader];
+
+        if (message is not null)
+        {
+            _manager.LogRawIn("[StreamableHttp]", $"POST, SessionId={sessionIdStr}", message);
+        }
+        switch (message)
+        {
+            case JsonRpcResponse jsonRpcResponse:
+                await HandleClientResponseAsync(context, sessionIdStr, protocolVersion, jsonRpcResponse);
                 return;
-            }
+            case JsonRpcNotification notification:
+                await HandleNotificationAsync(context, sessionIdStr, protocolVersion, notification, cancellationToken);
+                return;
+            case JsonRpcRequest jsonRpcRequest:
+                await HandleRpcRequestAsync(context, sessionIdStr, protocolVersion, jsonRpcRequest, cancellationToken);
+                return;
+            default:
+                await context.RespondHttpError(HttpStatusCode.BadRequest, "Invalid or unrecognized JSON-RPC message");
+                return;
+        }
+    }
+
+    /// <summary>
+    /// 客户端响应服务器发起的请求（如 sampling/createMessage）。
+    /// </summary>
+    /// <param name="context"></param>
+    /// <param name="sessionIdStr"></param>
+    /// <param name="protocolVersion"></param>
+    /// <param name="response"></param>
+    private async Task HandleClientResponseAsync(HttpListenerContext context, string? sessionIdStr, string? protocolVersion, JsonRpcResponse response)
+    {
+        var session = await GetExistingSessionAsync(context, sessionIdStr, protocolVersion);
+        if (session is null)
+        {
+            return;
+        }
+
+        session.HandleResponseAsync(response);
+        context.RespondHttpSuccess(HttpStatusCode.Accepted);
+    }
+
+    /// <summary>
+    /// 通知消息，无需响应。
+    /// </summary>
+    /// <param name="context"></param>
+    /// <param name="sessionIdStr"></param>
+    /// <param name="protocolVersion"></param>
+    /// <param name="notification"></param>
+    /// <param name="cancellationToken"></param>
+    private async Task HandleNotificationAsync(HttpListenerContext context, string? sessionIdStr, string? protocolVersion, JsonRpcNotification notification,
+        CancellationToken cancellationToken)
+    {
+        var session = await GetExistingSessionAsync(context, sessionIdStr, protocolVersion);
+        if (session is null)
+        {
+            return;
+        }
+
+        await _manager.HandleRequestAsync(
+            new JsonRpcRequest { Method = notification.Method, Params = notification.Params },
+            s => s
+                .AddTransportSession(session, Log)
+                .AddHttpTransportContext(session.SessionId, context.Request.Headers),
+            cancellationToken);
+        context.RespondHttpSuccess(HttpStatusCode.Accepted);
+    }
+
+    /// <summary>
+    /// JSON-RPC 请求（包含 initialize 和普通请求两种路径）。
+    /// </summary>
+    /// <param name="context"></param>
+    /// <param name="sessionIdStr"></param>
+    /// <param name="protocolVersion"></param>
+    /// <param name="jsonRpcRequest"></param>
+    /// <param name="cancellationToken"></param>
+    private async Task HandleRpcRequestAsync(HttpListenerContext context, string? sessionIdStr, string? protocolVersion, JsonRpcRequest jsonRpcRequest,
+        CancellationToken cancellationToken)
+    {
+        var session = await GetOrCreateSessionAsync(context, sessionIdStr, protocolVersion, jsonRpcRequest);
+        if (session is null) return;
+
+        if (jsonRpcRequest.Method == RequestMethods.Initialize)
+        {
+            await HandleInitializeAsync(context, session, jsonRpcRequest, cancellationToken);
         }
         else
         {
-            if (string.IsNullOrEmpty(sessionIdStr))
+            await HandleSseRequestAsync(context, session, jsonRpcRequest, cancellationToken);
+        }
+    }
+
+    /// <summary>
+    /// 查找已有 Session 或为 initialize 请求创建新 Session。失败时向客户端写入错误响应并返回 null。
+    /// </summary>
+    /// <param name="context"></param>
+    /// <param name="sessionIdStr"></param>
+    /// <param name="protocolVersion"></param>
+    /// <param name="jsonRpcRequest"></param>
+    /// <returns></returns>
+    private async Task<HttpServerTransportSession?> GetOrCreateSessionAsync(HttpListenerContext context, string? sessionIdStr, string? protocolVersion, JsonRpcRequest jsonRpcRequest)
+    {
+        if (jsonRpcRequest.Method == RequestMethods.Initialize)
+        {
+            if (!await ValidateProtocolVersionHeaderAsync(context, protocolVersion, null))
             {
-                await context.RespondHttpError(HttpStatusCode.BadRequest, "Missing Mcp-Session-Id header");
-                return;
+                return null;
             }
 
-            if (!_sessions.TryGetValue(sessionIdStr, out session))
+            var newSessionId = _manager.MakeNewSessionId();
+            var newSession = new HttpServerTransportSession(_manager, newSessionId.Id, "[McpServer][StreamableHttp]");
+            if (_sessions.TryAdd(newSessionId.Id, newSession))
             {
-                await context.RespondHttpError(HttpStatusCode.NotFound, "Session not found");
-                return;
+                _manager.Add(newSession);
+                context.Response.AppendHeader(SessionIdHeader, newSessionId.Id);
+                return newSession;
             }
+            await context.RespondHttpError(HttpStatusCode.InternalServerError, "Session ID collision");
+            return null;
         }
 
-        var jsonRpcResponse = await _manager.HandleRequestAsync(jsonRpcRequest, cancellationToken: cancellationToken);
+        return await GetExistingSessionAsync(context, sessionIdStr, protocolVersion);
+    }
 
-        if (jsonRpcResponse != null)
+    private async Task<HttpServerTransportSession?> GetExistingSessionAsync(HttpListenerContext context, string? sessionIdStr, string? protocolVersion)
+    {
+        if (string.IsNullOrEmpty(sessionIdStr))
         {
-            // Request: Success or Failed.
+            await context.RespondHttpError(HttpStatusCode.BadRequest, "Missing Mcp-Session-Id header");
+            return null;
+        }
+        if (!_sessions.TryGetValue(sessionIdStr, out var session))
+        {
+            await context.RespondHttpError(HttpStatusCode.NotFound, "Session not found");
+            return null;
+        }
+
+        if (!await ValidateProtocolVersionHeaderAsync(context, protocolVersion, session.NegotiatedProtocolVersion))
+        {
+            return null;
+        }
+
+        return session;
+    }
+
+    private async Task<bool> ValidateProtocolVersionHeaderAsync(HttpListenerContext context, string? protocolVersion, ProtocolVersion? negotiatedProtocolVersion)
+    {
+        if (protocolVersion is not null && string.IsNullOrWhiteSpace(protocolVersion))
+        {
+            await context.RespondHttpError(HttpStatusCode.BadRequest, "Invalid protocol version header.");
+            return false;
+        }
+
+        if (protocolVersion is not null && !ProtocolVersion.IsSupportedStreamableHttpVersion(protocolVersion))
+        {
+            await context.RespondHttpError(HttpStatusCode.BadRequest,
+                $"Unsupported protocol version. Supported versions: {ProtocolVersion.SupportedStreamableHttpVersionList}");
+            return false;
+        }
+
+        if (protocolVersion is not null
+            && negotiatedProtocolVersion is { } negotiated
+            && !string.Equals(protocolVersion, negotiated.ToString(), StringComparison.Ordinal))
+        {
+            await context.RespondHttpError(HttpStatusCode.BadRequest,
+                $"Protocol version mismatch. Expected: {negotiated}, Actual: {protocolVersion}");
+            return false;
+        }
+
+        return true;
+    }
+
+    private static bool IsBatchMessage(ReadOnlySpan<byte> requestBody)
+    {
+        using var document = JsonDocument.Parse(requestBody.ToArray());
+        return document.RootElement.ValueKind == JsonValueKind.Array;
+    }
+
+    private static async Task<ReadOnlyMemory<byte>?> TryReadRequestBodyAsync(Stream inputStream, HttpListenerContext context, CancellationToken cancellationToken)
+    {
+        try
+        {
+            using var memoryStream = new MemoryStream();
+            await inputStream.CopyToAsync(memoryStream, cancellationToken);
+            return memoryStream.ToArray();
+        }
+        catch
+        {
+            await context.RespondHttpError(HttpStatusCode.BadRequest, "Failed to read request body");
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// initialize 请求：同步返回 application/json，无需 SSE 流。
+    /// </summary>
+    /// <param name="context"></param>
+    /// <param name="session"></param>
+    /// <param name="jsonRpcRequest"></param>
+    /// <param name="cancellationToken"></param>
+    private async Task HandleInitializeAsync(HttpListenerContext context, HttpServerTransportSession session, JsonRpcRequest jsonRpcRequest,
+        CancellationToken cancellationToken)
+    {
+        var initResponse = await _manager.HandleRequestAsync(jsonRpcRequest,
+            s => s
+                .AddTransportSession(session, Log)
+                .AddHttpTransportContext(session.SessionId, context.Request.Headers),
+            cancellationToken);
+
+        if (initResponse != null)
+        {
             context.Response.ContentType = "application/json";
             context.Response.StatusCode = (int)HttpStatusCode.OK;
             try
             {
-                await _manager.WriteMessageAsync(context.Response.OutputStream, jsonRpcResponse, cancellationToken);
+                _manager.LogRawOut("[StreamableHttp]", $"POST/json, SessionId={session.SessionId}", initResponse);
+                await _manager.WriteMessageAsync(context.Response.OutputStream, initResponse, cancellationToken);
                 context.Response.SafeClose();
             }
             catch
             {
-                // Ignore write errors
+                // 忽略写入错误
             }
         }
         else
         {
-            // Notification: No need to respond.
             context.RespondHttpSuccess(HttpStatusCode.Accepted);
         }
+    }
+
+    /// <summary>
+    /// 非 initialize 请求：以 text/event-stream 响应，服务端可在处理期间通过 SSE 流发起采样请求。
+    /// 规范 §2.1 规则 6："The server MAY send JSON-RPC requests and notifications before sending
+    /// the JSON-RPC response. These messages SHOULD relate to the originating client request."
+    /// </summary>
+    /// <param name="context"></param>
+    /// <param name="session"></param>
+    /// <param name="jsonRpcRequest"></param>
+    /// <param name="cancellationToken"></param>
+    private async Task HandleSseRequestAsync(HttpListenerContext context, HttpServerTransportSession session, JsonRpcRequest jsonRpcRequest,
+        CancellationToken cancellationToken)
+    {
+        context.Response.StatusCode = (int)HttpStatusCode.OK;
+        context.Response.ContentType = "text/event-stream";
+        context.Response.Headers["Cache-Control"] = "no-cache";
+
+        var output = context.Response.OutputStream;
+        await output.WriteAsync(PrimeEventBytes, cancellationToken);
+        await output.FlushAsync(cancellationToken);
+
+        using var _ = session.SetRequestSseStream(output);
+
+        var response = await _manager.HandleRequestAsync(jsonRpcRequest,
+            s => s
+                .AddTransportSession(session, Log)
+                .AddHttpTransportContext(session.SessionId, context.Request.Headers),
+            cancellationToken);
+
+        if (response != null)
+        {
+            await session.WriteSseMessageAsync(output, response, cancellationToken);
+        }
+        context.Response.SafeClose();
     }
 
     private async Task HandleGetRequestAsync(HttpListenerContext context, CancellationToken cancellationToken)
@@ -278,13 +698,22 @@ public class LocalHostHttpServerTransport : IServerTransport
         var sessionId = request.Headers[SessionIdHeader];
         if (string.IsNullOrEmpty(sessionId))
         {
-            await context.RespondHttpError(HttpStatusCode.NotFound, "Missing Mcp-Session-Id header");
+            // 按照 MCP 协议规范 §2.5.2：若服务端要求会话 ID，收到不含 Mcp-Session-Id 的请求时应返回 400。
+            // Servers that require a session ID SHOULD respond to requests without an Mcp-Session-Id header with HTTP 400 Bad Request.
+            await context.RespondHttpError(HttpStatusCode.BadRequest, "Missing Mcp-Session-Id header");
             return;
         }
 
         if (!_sessions.TryGetValue(sessionId, out var session))
         {
+            // 按照 MCP 协议规范 §2.5.3：当会话 ID 过期或不存在时，返回 404。
+            // The server MUST respond to requests containing that session ID with HTTP 404 Not Found.
             await context.RespondHttpError(HttpStatusCode.NotFound, "Session not found");
+            return;
+        }
+
+        if (!await ValidateProtocolVersionHeaderAsync(context, request.Headers[ProtocolVersionHeader], session.NegotiatedProtocolVersion))
+        {
             return;
         }
 
@@ -292,17 +721,32 @@ public class LocalHostHttpServerTransport : IServerTransport
         context.Response.ContentType = "text/event-stream";
         context.Response.Headers["Cache-Control"] = "no-cache";
 
+        Log.Info($"[McpServer][StreamableHttp] SSE connection established. SessionId={sessionId}");
+
         try
         {
             var output = context.Response.OutputStream;
             await output.WriteAsync(PrimeEventBytes, cancellationToken);
             await output.FlushAsync(cancellationToken);
 
-            await session.RunSseConnectionAsync(output, cancellationToken);
+            // 定期发送 SSE 心跳，以便在客户端断开时通过写入/刷新失败尽快退出，
+            // 避免仅依赖外部 cancellationToken 导致连接长期悬挂。
+            while (!cancellationToken.IsCancellationRequested)
+            {
+                await Task.Delay(SseKeepAliveIntervalMs, cancellationToken);
+                await output.WriteAsync(SseKeepAliveBytes, cancellationToken);
+                await output.FlushAsync(cancellationToken);
+            }
+            Log.Info($"[McpServer][StreamableHttp] SSE connection cancelled. SessionId={sessionId}");
+        }
+        catch (OperationCanceledException)
+        {
+            // 正常关闭
+            Log.Info($"[McpServer][StreamableHttp] SSE connection ended. SessionId={sessionId}");
         }
         catch (Exception ex)
         {
-            Log.Debug($"[McpServer][StreamableHttp] SSE connection ended. SessionId={sessionId}, Error={ex.Message}");
+            Log.Info($"[McpServer][StreamableHttp] SSE connection ended. SessionId={sessionId}, Error={ex.Message}");
         }
         finally
         {
@@ -313,6 +757,14 @@ public class LocalHostHttpServerTransport : IServerTransport
     private async Task HandleDeleteRequestAsync(HttpListenerContext context)
     {
         var sessionId = context.Request.Headers[SessionIdHeader];
+        if (!string.IsNullOrEmpty(sessionId) && _sessions.TryGetValue(sessionId, out var existingSession))
+        {
+            if (!await ValidateProtocolVersionHeaderAsync(context, context.Request.Headers[ProtocolVersionHeader], existingSession.NegotiatedProtocolVersion))
+            {
+                return;
+            }
+        }
+
         if (!string.IsNullOrEmpty(sessionId))
         {
             if (_sessions.TryRemove(sessionId, out var session))
@@ -321,6 +773,17 @@ public class LocalHostHttpServerTransport : IServerTransport
             }
         }
         context.RespondHttpSuccess(HttpStatusCode.OK);
+    }
+
+    private string BuildLegacyMessageEndpointUri(HttpListenerRequest request, string sessionId)
+    {
+        var relativeEndpoint = $"{_options.SseMessageEndPoint}?sessionId={Uri.EscapeDataString(sessionId)}";
+        if (request.Url is { } requestUrl)
+        {
+            return new Uri(requestUrl, relativeEndpoint).AbsoluteUri;
+        }
+
+        return relativeEndpoint;
     }
 
     private static bool ValidateOrigin(string? origin)

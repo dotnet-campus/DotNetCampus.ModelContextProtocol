@@ -89,15 +89,15 @@ public async Task ListTools(HttpTransportType transportType)
 ### 3.2 传输层模拟方案
 
 #### 内存传输 (In-Process Transport)
-实现 `InProcessServerTransport` 和 `InProcessClientTransport`。
-*   利用字符串 Key 或共享内存对象进行配对。
-*   **优势**: 极快，无网络/IO开销，适合大量逻辑测试。
-*   **未来**: 成熟后的代码可移入主库供用户使用。
+当前主库已提供 `InProcessTransportPair`、`InProcessServerTransport` 和 `InProcessClientTransport`。
+*   使用 `McpServerBuilder.WithInProcess(out var pair)` 与 `McpClientBuilder.WithInProcess(pair)` 成对创建同进程连接。
+*   传输层内部以 JSON 文本作为消息信封，既避免网络/IO开销，又保留 JSON-RPC 序列化边界。
+*   **优势**: 极快，无端口占用，无外部进程，适合大量 Client + Server 端到端逻辑测试。
 
 #### Stdio 传输模拟
 改造现有的 `StdioServerTransport` 和 `StdioClientTransport`。
 *   **构造函数注入**: 允许传入 `Stream` (StandardInput/StandardOutput) 而非硬编码 Console。
-*   **测试方式**: 在测试中使用 `MemoryStream` 或 `PipeStream` 连接 Server 和 Client 实例，无需启动外部子进程即可测试流式协议逻辑（如 Header 解析、粘包处理）。
+*   **测试方式**: 在测试中使用 `MemoryStream` 或 `PipeStream` 连接 Server 和 Client 实例，无需启动外部子进程即可测试 stdio 的换行分隔 JSON-RPC 消息边界。
 
 ### 3.3 官方 Server 启动器 (`OfficialServerFixture`)
 编写一个帮助类，用于启动外部 Node.js 进程运行官方示例 Server。
@@ -118,10 +118,10 @@ public async Task ListTools(HttpTransportType transportType)
 
 ### Phase 2: 传输层增强 (Priority Medium)
 - [ ] **TestInfrastructure**:
-    - [ ] 实现 `InProcessTransport` 并验证其可靠性。
+    - [x] 实现 In-Process 传输层并验证其可靠性。
     - [ ] 改造 Stdio Transport 支持 Stream 注入。
 - [ ] **Transport/StdioTransportTests.cs**:
-    - [ ] 使用内存流模拟 Stdio，验证 `StreamJsonRpc` 或自定义流读写的粘包/分片处理能力。
+    - [ ] 使用内存流模拟 Stdio，验证换行分隔 JSON-RPC 消息的读取、连续消息和非法消息处理能力。
 
 ### Phase 3: 官方兼容性 (Priority Low/Validation)
 - [ ] **Compliance/OfficialIntegrationTests.cs**:

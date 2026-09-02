@@ -48,6 +48,48 @@ public class TestMcpFactory
     }
 
     /// <summary>
+    /// 创建一个简单的 In-Process 传输 MCP 测试包（仅包含 SimpleTool）。
+    /// </summary>
+    public async ValueTask<McpTestingPackage> CreateSimpleInProcessAsync()
+    {
+        return await CreateInProcessCoreAsync(builder => builder.WithTools(t => t.WithTool(() => new SimpleTool())));
+    }
+
+    /// <summary>
+    /// 创建一个启用 2024-11-05 HTTP+SSE 兼容模式的 HTTP 服务端测试包。
+    /// </summary>
+    public async ValueTask<LegacyHttpTestingPackage> CreateLegacyHttpAsync(HttpTransportType httpTransportType)
+    {
+        var port = Interlocked.Increment(ref _port);
+        var mcpServerBuilder = new McpServerBuilder("TestMcpServer", "1.0.0")
+            .WithLogger(DefaultLogger)
+            .WithTools(t => t.WithTool(() => new SimpleTool()));
+
+        mcpServerBuilder = httpTransportType switch
+        {
+            HttpTransportType.LocalHost => mcpServerBuilder.WithLocalHostHttp(new LocalHostHttpServerTransportOptions
+            {
+                Port = port,
+                EndPoint = "mcp",
+                IsCompatibleWithSse = true,
+            }),
+            HttpTransportType.TouchSocket => mcpServerBuilder.WithTouchSocketHttp(new TouchSocketHttpServerTransportOptions
+            {
+                Listen = [$"127.0.0.1:{port}", $"[::1]:{port}"],
+                EndPoint = "mcp",
+                IsCompatibleWithSse = true,
+            }),
+            _ => throw new NotSupportedException($"不支持的传输层类型：{httpTransportType}"),
+        };
+
+        var server = mcpServerBuilder.Build();
+        server.EnableDebugMode();
+        await server.StartAsync(CancellationToken.None);
+
+        return new LegacyHttpTestingPackage(server, new Uri($"http://127.0.0.1:{port}/mcp", UriKind.Absolute));
+    }
+
+    /// <summary>
     /// 创建一个仅包含 transient 计数工具的 HTTP 传输 MCP 测试包。
     /// 用于验证 CreationMode.Transient 的实例语义。
     /// </summary>
@@ -77,6 +119,27 @@ public class TestMcpFactory
             },
             TestToolJsonContext.Default,
             CreateDefaultServices());
+    }
+
+    /// <summary>
+    /// 创建一个完整的 In-Process 传输 MCP 测试包（包含所有测试工具）。
+    /// </summary>
+    public async ValueTask<McpTestingPackage> CreateFullInProcessAsync()
+    {
+        return await CreateInProcessCoreAsync(
+            builder => builder
+                .WithServices(CreateDefaultServices())
+                .WithJsonSerializer(TestToolJsonContext.Default)
+                .WithTools(t =>
+                {
+                    t.WithTool(() => new SimpleTool());
+                    t.WithTool(() => new CalculatorTool());
+                    t.WithTool(() => new EchoTool());
+                    t.WithTool(() => new ExceptionTool());
+                    t.WithTool(() => new LongTextTool());
+                    t.WithTool(() => new StatefulCounterTool());
+                    t.WithTool<InjectedConstructorTool>();
+                }));
     }
 
     /// <summary>
@@ -144,11 +207,12 @@ public class TestMcpFactory
     }
 
     /// <summary>
-    /// 核心方法：创建一个完全自定义的 HTTP 传输 MCP 测试包。
+    /// 核心方法：创建一个完全自定义的 HTTP 传输 MCP 测试包，支持同时配置服务端和客户端。
     /// </summary>
     public async ValueTask<McpTestingPackage> CreateHttpCoreAsync(
         HttpTransportType httpTransportType,
-        Action<McpServerBuilder> configureBuilder)
+        Action<McpServerBuilder> configureBuilder,
+        Action<McpClientBuilder>? configureClient = null)
     {
         var port = Interlocked.Increment(ref _port);
         var mcpServerBuilder = new McpServerBuilder("TestMcpServer", "1.0.0")
@@ -174,12 +238,97 @@ public class TestMcpFactory
         mcpServer.EnableDebugMode();
         await mcpServer.StartAsync(CancellationToken.None);
 
-        var mcpClient = new McpClientBuilder()
-            .WithLogger(DefaultLogger)
-            .WithHttp($"http://127.0.0.1:{port}/mcp")
-            .Build();
+        var endpoint = new Uri($"http://127.0.0.1:{port}/mcp", UriKind.Absolute);
 
-        return new McpTestingPackage(mcpServer, mcpClient);
+        var mcpClientBuilder = new McpClientBuilder("test-client", "1.0.0")
+            .WithLogger(DefaultLogger)
+            .WithHttp(endpoint.AbsoluteUri);
+        configureClient?.Invoke(mcpClientBuilder);
+        var builtClient = mcpClientBuilder.Build();
+
+        return new McpTestingPackage(mcpServer, builtClient, endpoint);
+    }
+
+    /// <summary>
+    /// 核心方法：创建一个完全自定义的 In-Process 传输 MCP 测试包，支持同时配置服务端和客户端。
+    /// </summary>
+    public async ValueTask<McpTestingPackage> CreateInProcessCoreAsync(
+        Action<McpServerBuilder> configureBuilder,
+        Action<McpClientBuilder>? configureClient = null)
+    {
+        var mcpServerBuilder = new McpServerBuilder("TestMcpServer", "1.0.0")
+            .WithLogger(DefaultLogger);
+
+        configureBuilder(mcpServerBuilder);
+        mcpServerBuilder.WithInProcess();
+
+        var mcpServer = mcpServerBuilder.Build();
+        mcpServer.EnableDebugMode();
+        await mcpServer.StartAsync(CancellationToken.None);
+
+        var mcpClientBuilder = new McpClientBuilder("test-client", "1.0.0")
+            .WithLogger(DefaultLogger)
+            .WithInProcess(mcpServer);
+        configureClient?.Invoke(mcpClientBuilder);
+        var builtClient = mcpClientBuilder.Build();
+
+        return new McpTestingPackage(mcpServer, builtClient, new Uri("inprocess://localhost/mcp", UriKind.Absolute));
+    }
+
+    /// <summary>
+    /// 创建一个简单的 IPC 传输 MCP 测试包（仅包含 SimpleTool）。
+    /// </summary>
+    public async ValueTask<McpTestingPackage> CreateSimpleIpcAsync()
+    {
+        return await CreateIpcCoreAsync(builder => builder.WithTools(t => t.WithTool(() => new SimpleTool())));
+    }
+
+    /// <summary>
+    /// 创建一个完整的 IPC 传输 MCP 测试包（包含所有测试工具）。
+    /// </summary>
+    public async ValueTask<McpTestingPackage> CreateFullIpcAsync()
+    {
+        return await CreateIpcCoreAsync(
+            builder => builder
+                .WithServices(CreateDefaultServices())
+                .WithJsonSerializer(TestToolJsonContext.Default)
+                .WithTools(t =>
+                {
+                    t.WithTool(() => new SimpleTool());
+                    t.WithTool(() => new CalculatorTool());
+                    t.WithTool(() => new EchoTool());
+                    t.WithTool(() => new ExceptionTool());
+                    t.WithTool(() => new LongTextTool());
+                    t.WithTool(() => new StatefulCounterTool());
+                    t.WithTool<InjectedConstructorTool>();
+                }));
+    }
+
+    /// <summary>
+    /// 核心方法：创建一个完全自定义的 IPC 传输 MCP 测试包，支持同时配置服务端和客户端。
+    /// </summary>
+    public async ValueTask<McpTestingPackage> CreateIpcCoreAsync(
+        Action<McpServerBuilder> configureBuilder,
+        Action<McpClientBuilder>? configureClient = null)
+    {
+        var pipeName = $"McpTest-{Guid.NewGuid():N}";
+        var mcpServerBuilder = new McpServerBuilder("TestMcpServer", "1.0.0")
+            .WithLogger(DefaultLogger);
+
+        configureBuilder(mcpServerBuilder);
+        mcpServerBuilder.WithDotNetCampusIpc(pipeName);
+
+        var mcpServer = mcpServerBuilder.Build();
+        mcpServer.EnableDebugMode();
+        await mcpServer.StartAsync(CancellationToken.None);
+
+        var mcpClientBuilder = new McpClientBuilder("test-client", "1.0.0")
+            .WithLogger(DefaultLogger)
+            .WithDotNetCampusIpc(pipeName);
+        configureClient?.Invoke(mcpClientBuilder);
+        var builtClient = mcpClientBuilder.Build();
+
+        return new McpTestingPackage(mcpServer, builtClient, new Uri($"ipc://{pipeName}", UriKind.Absolute));
     }
 
     private static IServiceProvider CreateDefaultServices()
@@ -191,15 +340,18 @@ public class TestMcpFactory
 
 public class McpTestingPackage : IAsyncDisposable
 {
-    public McpTestingPackage(McpServer server, McpClient client)
+    public McpTestingPackage(McpServer server, McpClient client, Uri endpoint)
     {
         Server = server;
         Client = client;
+        Endpoint = endpoint;
     }
 
     public McpServer Server { get; }
 
     public McpClient Client { get; }
+
+    public Uri Endpoint { get; }
 
     public async ValueTask DisposeAsync()
     {
@@ -208,6 +360,24 @@ public class McpTestingPackage : IAsyncDisposable
 
         // 停止服务端。
         await Server.StopAsync();
+    }
+}
+
+public class LegacyHttpTestingPackage : IAsyncDisposable
+{
+    public LegacyHttpTestingPackage(McpServer server, Uri endpoint)
+    {
+        Server = server;
+        Endpoint = endpoint;
+    }
+
+    public McpServer Server { get; }
+
+    public Uri Endpoint { get; }
+
+    public ValueTask DisposeAsync()
+    {
+        return new ValueTask(Server.StopAsync());
     }
 }
 

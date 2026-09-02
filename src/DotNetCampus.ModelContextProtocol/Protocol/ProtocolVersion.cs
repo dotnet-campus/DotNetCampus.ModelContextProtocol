@@ -1,8 +1,7 @@
 ﻿namespace DotNetCampus.ModelContextProtocol.Protocol;
 
 /// <summary>
-/// 协议版本信息<br/>
-/// Protocol version information
+/// 协议版本信息
 /// </summary>
 public readonly record struct ProtocolVersion
 {
@@ -20,8 +19,7 @@ public readonly record struct ProtocolVersion
     }
 
     /// <summary>
-    /// 从字符串隐式转换为 <see cref="ProtocolVersion"/>。<br/>
-    /// Implicitly converts a string to <see cref="ProtocolVersion"/>.
+    /// 从字符串隐式转换为 <see cref="ProtocolVersion"/>。
     /// </summary>
     public static implicit operator ProtocolVersion(string value)
     {
@@ -29,8 +27,7 @@ public readonly record struct ProtocolVersion
     }
 
     /// <summary>
-    /// 从 <see cref="ProtocolVersion"/> 隐式转换为字符串。<br/>
-    /// Implicitly converts a <see cref="ProtocolVersion"/> to string.
+    /// 从 <see cref="ProtocolVersion"/> 隐式转换为字符串。
     /// </summary>
     public static implicit operator string(ProtocolVersion version)
     {
@@ -38,8 +35,7 @@ public readonly record struct ProtocolVersion
     }
 
     /// <summary>
-    /// 比较两个协议版本，判断左侧是否大于右侧。<br/>
-    /// Compares two protocol versions to determine if left is greater than right.
+    /// 比较两个协议版本，判断左侧是否大于右侧。
     /// </summary>
     public static bool operator >(ProtocolVersion left, ProtocolVersion right)
     {
@@ -47,32 +43,65 @@ public readonly record struct ProtocolVersion
     }
 
     /// <summary>
-    /// 比较两个协议版本，判断左侧是否小于右侧。<br/>
-    /// Compares two protocol versions to determine if left is less than right.
+    /// 比较两个协议版本，判断左侧是否小于右侧。
     /// </summary>
     public static bool operator <(ProtocolVersion left, ProtocolVersion right)
     {
         return string.Compare(left.ToString(), right.ToString(), StringComparison.Ordinal) < 0;
     }
 
-    private const string CurrentVersion = "2025-11-25";
-    private const string MinimumVersion = "2024-11-05";
+    /// <summary>
+    /// 比较两个协议版本，判断左侧是否大于或等于右侧。
+    /// </summary>
+    public static bool operator >=(ProtocolVersion left, ProtocolVersion right)
+    {
+        return string.Compare(left.ToString(), right.ToString(), StringComparison.Ordinal) >= 0;
+    }
 
     /// <summary>
-    /// 当前使用的协议版本<br/>
-    /// The currently used protocol version
+    /// 比较两个协议版本，判断左侧是否小于或等于右侧。
+    /// </summary>
+    public static bool operator <=(ProtocolVersion left, ProtocolVersion right)
+    {
+        return string.Compare(left.ToString(), right.ToString(), StringComparison.Ordinal) <= 0;
+    }
+
+    private const string CurrentVersion = "2025-11-25";
+    private const string MinimumVersion = "2024-11-05";
+    private const string StreamableHttpMinimumVersion = "2025-03-26";
+
+    /// <summary>
+    /// 当前使用的协议版本
     /// </summary>
     public static readonly ProtocolVersion Current = new(CurrentVersion);
 
     /// <summary>
-    /// 大多数功能正常运行所需的最低版本<br/>
-    /// The minimum version required for most features to work properly
+    /// 所有已知协议版本中的最低版本
     /// </summary>
     public static readonly ProtocolVersion Minimum = new(MinimumVersion);
 
     /// <summary>
-    /// 历史版本列表，按时间倒序排列<br/>
-    /// List of historical versions, sorted in reverse chronological order
+    /// Streamable HTTP 传输层所需的最低协议版本（2025-03-26 引入 Streamable HTTP）
+    /// </summary>
+    public static readonly ProtocolVersion StreamableHttpMinimum = new(StreamableHttpMinimumVersion);
+
+    /// <summary>
+    /// 当前明确支持的 Streamable HTTP 协议版本列表。
+    /// </summary>
+    public static IReadOnlyList<string> SupportedStreamableHttpVersions { get; } =
+    [
+        "2025-11-25",
+        "2025-06-18",
+        "2025-03-26",
+    ];
+
+    /// <summary>
+    /// 以逗号分隔的 Streamable HTTP 支持版本字符串，可用于错误提示。
+    /// </summary>
+    public static string SupportedStreamableHttpVersionList => string.Join(", ", SupportedStreamableHttpVersions);
+
+    /// <summary>
+    /// 历史版本列表，按时间倒序排列
     /// </summary>
     internal static IReadOnlyList<string> HistoryVersions { get; } =
     [
@@ -81,4 +110,30 @@ public readonly record struct ProtocolVersion
         "2025-03-26",
         "2024-11-05",
     ];
+
+    /// <summary>
+    /// 判断指定版本是否为当前支持的 Streamable HTTP 协议版本。
+    /// </summary>
+    public static bool IsSupportedStreamableHttpVersion(string? version)
+    {
+        if (string.IsNullOrWhiteSpace(version))
+        {
+            return false;
+        }
+
+        return SupportedStreamableHttpVersions.Contains(version, StringComparer.Ordinal);
+    }
+
+    /// <summary>
+    /// 根据客户端在 initialize 中声明的版本，协商出当前服务端将使用的 Streamable HTTP 协议版本。
+    /// </summary>
+    public static ProtocolVersion NegotiateStreamableHttpVersion(string? clientVersion)
+    {
+        if (IsSupportedStreamableHttpVersion(clientVersion))
+        {
+            return clientVersion!;
+        }
+
+        return Current;
+    }
 }

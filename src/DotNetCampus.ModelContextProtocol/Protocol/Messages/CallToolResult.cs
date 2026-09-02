@@ -1,7 +1,9 @@
+using System.Buffers;
+using System.Text;
+using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using DotNetCampus.ModelContextProtocol.CompilerServices;
-using DotNetCampus.ModelContextProtocol.Servers;
+using System.Text.Json.Serialization.Metadata;
 
 namespace DotNetCampus.ModelContextProtocol.Protocol.Messages;
 
@@ -71,40 +73,30 @@ public record CallToolResult : Result
     /// <returns>表示当前实例的字符串。</returns>
     public override string ToString()
     {
-        return Content switch
+        if (StructuredContent is { } structuredContent)
         {
-            [] => "",
-            [TextContentBlock { Text: var text }] => text,
-            _ => $"CallToolResult with {Content.Count} content blocks.",
-        };
+            var buffer = new ArrayBufferWriter<byte>();
+            using var writer = new Utf8JsonWriter(buffer, new JsonWriterOptions
+            {
+                Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+            });
+            structuredContent.WriteTo(writer);
+            writer.Flush();
+            return Encoding.UTF8.GetString(buffer.WrittenSpan);
+        }
+
+        if (Content.Count == 0)
+        {
+            return IsError == true ? "{\"error\":\"Call tool failed.\"}" : string.Empty;
+        }
+
+        if (Content is [TextContentBlock { Text: var text }])
+        {
+            return text;
+        }
+
+        return string.Join("\n", Content.Select(x => x.ToString()));
     }
-
-    /// <summary>
-    /// 使用指定的 JSON 序列化上下文将当前实例序列化为结构化的 <see cref="CallToolResult"/> 实例。
-    /// 当然，如果当前实例不是结构化实例，则会原样返回当前实例。
-    /// </summary>
-    /// <param name="jsonSerializerContext">用于序列化的 JSON 序列化上下文。</param>
-    /// <returns>结构化的 <see cref="CallToolResult"/> 实例，或者当前实例本身（如果它不是结构化实例）。</returns>
-    public CallToolResult Structure(JsonSerializerContext jsonSerializerContext) => this switch
-    {
-        ICallToolResultJsonSerializer s => s.SerializeToCallToolResult(jsonSerializerContext),
-        _ => this,
-    };
-
-    /// <summary>
-    /// 使用指定的 JSON 序列化上下文将当前实例序列化为结构化的 <see cref="CallToolResult"/> 实例。
-    /// 当然，如果当前实例不是结构化实例，则会原样返回当前实例。
-    /// </summary>
-    /// <param name="context">调用工具的上下文。</param>
-    /// <param name="sourceGeneratedJsonTypeName">由源生成器提供的要被反序列化的类型名称。</param>
-    /// <param name="sourceGeneratedJsonTypeFullName">由源生成器提供的要被反序列化的类型完整名称。</param>
-    /// <returns>结构化的 <see cref="CallToolResult"/> 实例，或者当前实例本身（如果它不是结构化实例）。</returns>
-    public CallToolResult Structure(IMcpServerCallToolContext context,
-        string sourceGeneratedJsonTypeName, string sourceGeneratedJsonTypeFullName) => this switch
-    {
-        ICallToolResultJsonSerializer s => s.SerializeToCallToolResult(context, sourceGeneratedJsonTypeName, sourceGeneratedJsonTypeFullName),
-        _ => this,
-    };
 
     /// <summary>
     /// 隐式将字符串转换为一个表示成功的 <see cref="CallToolResult"/> 实例。
@@ -148,6 +140,7 @@ public record CallToolResult : Result
         {
             IsError = true,
             Content = [new TextContentBlock { Text = errorMessage ?? exception.Message }],
+            RawException = exception,
         };
     }
 
@@ -162,13 +155,23 @@ public record CallToolResult : Result
         {
             IsError = false,
             Content = textContent is null
-                ? []
+                ? [new TextContentBlock { Text = "" }]
                 : [new TextContentBlock { Text = textContent }],
         };
     }
 
+
     /// <summary>
-    /// 直接返回 <paramref name="result"/> 实例本身。本方法存在的唯一作用，是让源生成器生成的代码能具有完全统一的调用形式。
+    /// 使用指定的 JSON 契约序列化结果，并将 JSON 字符串值作为文本结果返回。
+    /// </summary>
+    public static CallToolResult FromResultJsonString<TResult>(TResult result, JsonTypeInfo<TResult> jsonTypeInfo)
+    {
+        var json = JsonSerializer.SerializeToElement(result, jsonTypeInfo);
+        return FromResult(json.ValueKind is JsonValueKind.String ? json.GetString() : json.ToString());
+    }
+
+    /// <summary>
+    /// 直接返回 <paramref name="result"/> 实例本身。
     /// </summary>
     /// <param name="result">要返回的结果实例。</param>
     /// <returns>传入的结果实例本身。</returns>
@@ -178,48 +181,111 @@ public record CallToolResult : Result
     }
 
     /// <summary>
-    /// 直接返回 <paramref name="result"/> 实例本身。本方法存在的唯一作用，是让源生成器生成的代码能具有完全统一的调用形式。
+    /// 使用指定的 <see cref="JsonTypeInfo{T}"/> 立即序列化结果，创建同时包含
+    /// Content（JSON 文本）和 StructuredContent（JSON 对象）的 <see cref="CallToolResult"/>。
     /// </summary>
-    /// <param name="result">要返回的结果实例。</param>
+    /// <param name="result">要序列化的结果值。</param>
+    /// <param name="jsonTypeInfo">用于序列化结果的 <see cref="JsonTypeInfo{T}"/>。</param>
     /// <typeparam name="TResult">结果的类型。</typeparam>
-    /// <returns>传入的结果实例本身。</returns>
-    public static CallToolResult<TResult> FromResult<TResult>(CallToolResult<TResult> result)
+    /// <returns>序列化后的 <see cref="CallToolResult"/> 实例。</returns>
+    public static CallToolResult FromResultStructured<TResult>(TResult? result, JsonTypeInfo<TResult> jsonTypeInfo)
     {
-        return result;
+        if (result is null)
+        {
+            // 对于结构化返回值，null 是 MCP 协议明确不支持的。
+            //   对于编译时可判定的情况，我们已经让开发者通过设置 McpServerToolAttribute.Structured = false 来避免进行结构化；
+            //   但编译时尽力了，运行时得到了 null，已经无法生成符合要求的结构化返回值了。
+            //   无论我们返回什么，都会导致 MCP 客户端校验不通过；不如实际上就不要返回任何除协议之外的内容了。
+            // 开发者可通过 MCP 客户端的报错得知这个 bug。
+            return new CallToolResult
+            {
+                IsError = false,
+                Content = [],
+            };
+        }
+
+        if (result is CallToolResult r)
+        {
+            return r;
+        }
+
+        var json = JsonSerializer.SerializeToElement(result, jsonTypeInfo);
+        return new CallToolResult
+        {
+            IsError = false,
+            Content = [new TextContentBlock { Text = json.ToString() }],
+            StructuredContent = json,
+        };
     }
 
     /// <summary>
-    /// 创建一个表示成功的，包含指定结果的 <see cref="CallToolResult{TResult}"/> 实例。
+    /// 使用指定的 <see cref="JsonTypeInfo{T}"/> 立即序列化结果，创建仅包含
+    /// Content（JSON 文本）的 <see cref="CallToolResult"/>，不包含 StructuredContent。
     /// </summary>
-    /// <param name="result">要包含的结果。</param>
+    /// <param name="result">要序列化的结果值。</param>
+    /// <param name="typeInfo">用于序列化结果的 <see cref="JsonTypeInfo{T}"/>。</param>
     /// <typeparam name="TResult">结果的类型。</typeparam>
-    /// <returns>一个可以被序列化成 <see cref="CallToolResult"/> 的延迟实例。</returns>
-    public static CallToolResult FromResult<TResult>(TResult? result) => result switch
+    /// <returns>序列化后的 <see cref="CallToolResult"/> 实例。</returns>
+    public static CallToolResult FromResultUnstructured<TResult>(TResult? result, JsonTypeInfo<TResult> typeInfo) => result switch
     {
+        // 对于非结构化返回值，我们可以在 MCP 协议层兜底，返回空字符串避免一部分 MCP 客户端的失败。
+        null => new CallToolResult
+        {
+            IsError = false,
+            Content = [new TextContentBlock { Text = "" }],
+        },
+        CallToolResult r => r,
+        string s => new CallToolResult
+        {
+            IsError = false,
+            Content = [new TextContentBlock { Text = s }],
+        },
+        _ => new CallToolResult
+        {
+            IsError = false,
+            Content =
+            [
+                new TextContentBlock
+                {
+                    Text = JsonSerializer.SerializeToElement(result, typeInfo).ToString(),
+                },
+            ],
+        },
+    };
+
+
+
+    /// <summary>
+    /// 将集合转换为 <see cref="CallToolResult"/>，每个元素使用指定 JSON 契约转换为文本。
+    /// </summary>
+    public static CallToolResult FromCollectionJsonStrings<TItem>(IEnumerable<TItem>? items, JsonTypeInfo<TItem> jsonTypeInfo)
+    {
+        return FromCollection(items, item =>
+        {
+            var json = JsonSerializer.SerializeToElement(item, jsonTypeInfo);
+            return json.ValueKind is JsonValueKind.String ? json.GetString() ?? string.Empty : json.ToString();
+        });
+    }
+    /// <summary>
+    /// 将集合转换为 <see cref="CallToolResult"/>，每个元素通过指定的文本提取函数转换为独立的 TextContentBlock。
+    /// </summary>
+    /// <typeparam name="TItem">集合元素的类型。</typeparam>
+    /// <param name="items">集合。</param>
+    /// <param name="textContentGenerator">从元素中生成可填入 <see cref="TextContentBlock"/> 文本的函数。</param>
+    /// <returns>包含多个 TextContentBlock 的 <see cref="CallToolResult"/> 实例。</returns>
+    public static CallToolResult FromCollection<TItem>(IEnumerable<TItem>? items, Func<TItem, string> textContentGenerator) => items switch
+    {
+        // 对于集合，即便我们不返回空内容 `[]`，也会因为集合本身没有任何项而导致生成空内容 `[]`；
+        // 所以虽然 `[]` 可能无法通过一部分客户端的校验，但也只能这样返回了。
         null => new CallToolResult
         {
             IsError = false,
             Content = [],
         },
-        CallToolResult r => r,
-        _ => new CallToolResult<TResult>(result)
+        _ => new CallToolResult
         {
             IsError = false,
-            ResultFactory = (r, t) =>
-            {
-                var json = JsonSerializer.SerializeToElement(r, t);
-                return new CallToolResult
-                {
-                    Content =
-                    [
-                        new TextContentBlock
-                        {
-                            Text = json.ToString(),
-                        },
-                    ],
-                    StructuredContent = json,
-                };
-            },
+            Content = [.. items.Select(item => new TextContentBlock { Text = textContentGenerator(item) })],
         },
     };
 }

@@ -22,12 +22,30 @@
     <value>發生了未知錯誤。{0}</value>
   </data>
   <data name="DM0101" xml:space="preserve">
-    <value>MCP 工具不支援集合傳回類型</value>
+    <value>MCP 工具不允許此傳回類型產生結構化內容</value>
   </data>
   <data name="DM0101_Message" xml:space="preserve">
-    <value>方法 '{0}' 的傳回類型 '{1}' 是集合類型，不受 MCP 協議支援。請改為包裝物件，或直接傳回 CallToolResult。</value>
+    <value>方法 '{0}' 的傳回類型 '{1}' 無法產生結構化內容。請從 McpServerTool 屬性中移除 'Structured = true'。</value>
   </data>
   <data name="DM0101_Description" xml:space="preserve">
-    <value>MCP 協議規範要求 outputSchema 類型為 object，CallToolResult.StructuredContent 必須是物件而非陣列。請將集合包裝在物件中，或使用 CallToolResult 自行構建內容。</value>
+    <value>該傳回類型無法產生有效的 outputSchema（必須為 'object' 類型）。Structured = true 僅適用於可序列化為 JSON 物件的非空物件類型。</value>
+  </data>
+  <data name="DM0102" xml:space="preserve">
+    <value>MCP 工具的可空或集合傳回類型需要顯式設定 Structured</value>
+  </data>
+  <data name="DM0102_Message" xml:space="preserve">
+    <value>方法 '{0}' 的傳回類型 '{1}' 是可空物件或物件集合類型。必須在 McpServerTool 屬性中顯式設定 'Structured = false'。</value>
+  </data>
+  <data name="DM0102_Description" xml:space="preserve">
+    <value>可空物件類型（Foo?）和物件集合類型（Foo[]）無法保證執行時 structuredContent 的合規性。請設定 Structured = false 以確認此限制。</value>
+  </data>
+  <data name="DM0103" xml:space="preserve">
+    <value>MCP 工具的可空或集合傳回類型不允許結構化內容</value>
+  </data>
+  <data name="DM0103_Message" xml:space="preserve">
+    <value>方法 '{0}' 的傳回類型 '{1}' 無法保證 structuredContent 的合規性。請將 McpServerTool 屬性中的 'Structured = true' 改為 'Structured = false'。</value>
+  </data>
+  <data name="DM0103_Description" xml:space="preserve">
+    <value>可空物件類型（Foo?）在執行時可能傳回 null，物件集合類型（Foo[]）序列化為 JSON 陣列——兩者均無法滿足 MCP 協定要求的 structuredContent 必須是 JSON 物件。</value>
   </data>
 </root>

@@ -1,4 +1,5 @@
-﻿using dotnetCampus.Ipc.Context;
+﻿using System;
+using dotnetCampus.Ipc.Context;
 using dotnetCampus.Ipc.Pipes;
 using DotNetCampus.ModelContextProtocol.Transports.Ipc;
 

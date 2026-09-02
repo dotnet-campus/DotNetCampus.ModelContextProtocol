@@ -1,7 +1,12 @@
-﻿using System.Net.Http.Headers;
+using System.Net.Http.Headers;
+using System.Net;
 using System.Text;
 using System.Text.Json;
+using DotNetCampus.ModelContextProtocol.CompilerServices;
+using DotNetCampus.ModelContextProtocol.Exceptions;
 using DotNetCampus.ModelContextProtocol.Hosting.Logging;
+using DotNetCampus.ModelContextProtocol.Protocol;
+using DotNetCampus.ModelContextProtocol.Protocol.Messages;
 using DotNetCampus.ModelContextProtocol.Protocol.Messages.JsonRpc;
 
 namespace DotNetCampus.ModelContextProtocol.Transports.Http;
@@ -20,6 +25,8 @@ public class HttpClientTransport : IClientTransport
     // 会话状态
     private string? _sessionId;
     private string? _protocolVersion;
+    private InitializeRequestParams? _initializeRequestParams;
+    private readonly SemaphoreSlim _sessionRecoveryLock = new(1, 1);
 
     // 后台接收循环 (GET Loop)
     private Task? _receiveLoopTask;
@@ -79,6 +86,13 @@ public class HttpClientTransport : IClientTransport
                 using var request = new HttpRequestMessage(HttpMethod.Delete, _options.ServerUrl);
                 request.Headers.Add("Mcp-Session-Id", _sessionId);
 
+                // 按照 MCP 协议规范 §2.7：客户端必须在所有后续请求中携带 MCP-Protocol-Version 头。
+                // The client MUST include the MCP-Protocol-Version header on all subsequent requests.
+                if (!string.IsNullOrEmpty(_protocolVersion))
+                {
+                    request.Headers.TryAddWithoutValidation("Mcp-Protocol-Version", _protocolVersion);
+                }
+
                 // 设置较短的超时，避免长时间卡住断开流程
                 using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
                 var response = await _httpClient.SendAsync(request, cts.Token);
@@ -122,9 +136,14 @@ public class HttpClientTransport : IClientTransport
         }
     }
 
-    private async ValueTask SendRequestCoreAsync(JsonRpcMessage message, CancellationToken cancellationToken)
+    private async ValueTask SendRequestCoreAsync(JsonRpcMessage message, CancellationToken cancellationToken, bool allowSessionRecovery = true)
     {
         var isInitialize = message is JsonRpcRequest { Method: "initialize" };
+        if (isInitialize && message is JsonRpcRequest initializeRequest)
+        {
+            CaptureInitializeRequestParams(initializeRequest);
+        }
+
         var requestUrl = _options.ServerUrl;
 
         // 1. 构建请求
@@ -151,10 +170,22 @@ public class HttpClientTransport : IClientTransport
         content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
         request.Content = content;
 
-        _logger.Debug($"[McpClient][Http] Sending POST request. Url={requestUrl}, Type={(isInitialize ? "Initialize" : message.GetType().Name)}");
+        _manager.LogRawOut("[Http]", $"POST, SessionId={_sessionId}", jsonContent);
 
         // 4. 发送请求 (ResponseHeadersRead 以支持流式响应)
-        var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+        using var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+
+        var requestSessionId = GetSingleHeaderValue(request.Headers, "Mcp-Session-Id");
+        if (response.StatusCode == HttpStatusCode.NotFound && requestSessionId is not null)
+        {
+            if (allowSessionRecovery && await TryRecoverExpiredSessionAsync(requestSessionId, cancellationToken))
+            {
+                await SendRequestCoreAsync(message, cancellationToken, allowSessionRecovery: false);
+                return;
+            }
+
+            throw new McpClientException("HTTP session expired and could not be reinitialized.");
+        }
 
         // 5. 检查握手响应 (Initialize) 提取 SessionId
         if (isInitialize && response.Headers.TryGetValues("Mcp-Session-Id", out var headers))
@@ -164,9 +195,6 @@ public class HttpClientTransport : IClientTransport
             {
                 _sessionId = newId;
                 _logger.Info($"[McpClient][Http] Session negotiated. SessionId={_sessionId}");
-
-                // 握手成功，启动后台接收循环
-                StartReceiveLoop();
             }
         }
 
@@ -181,10 +209,10 @@ public class HttpClientTransport : IClientTransport
             _logger.Debug($"[McpClient][Http] Received SSE stream response.");
 
             await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
-            await ProcessSseStreamAsync(stream, cancellationToken, isInitialize
-                ? (json) =>
+            await ProcessSseStreamAsync(stream, cancellationToken, $"POST/sse, SessionId={_sessionId ?? "init"}", isInitialize
+                ? (msg) =>
                 {
-                    if (json.TryGetProperty("result", out var resultElement))
+                    if (msg is JsonRpcResponse { Result: { ValueKind: JsonValueKind.Object } resultElement })
                     {
                         _protocolVersion = TryExtractProtocolVersion(resultElement, "SSE");
                     }
@@ -212,8 +240,14 @@ public class HttpClientTransport : IClientTransport
                     _protocolVersion = TryExtractProtocolVersion(resultElement, "POST");
                 }
 
+                _manager.LogRawIn("[Http]", $"POST/json, SessionId={_sessionId ?? "init"}", rpcResponse);
                 await _manager.HandleRespondAsync(rpcResponse, cancellationToken);
             }
+        }
+
+        if (isInitialize && !string.IsNullOrEmpty(_sessionId))
+        {
+            StartReceiveLoop();
         }
     }
 
@@ -231,9 +265,101 @@ public class HttpClientTransport : IClientTransport
             var version = pv.GetString();
             if (!string.IsNullOrEmpty(version))
             {
-                _logger.Info($"[McpClient][Http] Server protocol version extracted. Source={source}, Version={_protocolVersion}");
+                _logger.Info($"[McpClient][Http] Server protocol version extracted. Source={source}, Version={version}");
                 return version;
             }
+        }
+
+        return null;
+    }
+
+    private void CaptureInitializeRequestParams(JsonRpcRequest initializeRequest)
+    {
+        if (initializeRequest.Params is not { } paramsElement)
+        {
+            return;
+        }
+
+        var requestParams = paramsElement.Deserialize(McpInternalJsonContext.Default.InitializeRequestParams);
+        if (requestParams is not null)
+        {
+            _initializeRequestParams = requestParams;
+        }
+    }
+
+    private async Task<bool> TryRecoverExpiredSessionAsync(string expiredSessionId, CancellationToken cancellationToken)
+    {
+        var manager = _manager as ClientTransportManager;
+        if (manager is null || _initializeRequestParams is null)
+        {
+            InvalidateSessionState();
+            return false;
+        }
+
+        await _sessionRecoveryLock.WaitAsync(cancellationToken);
+        try
+        {
+            if (!string.IsNullOrEmpty(_sessionId)
+                && !string.Equals(_sessionId, expiredSessionId, StringComparison.Ordinal))
+            {
+                return true;
+            }
+
+            _logger.Warn($"[McpClient][Http] Session expired. SessionId={expiredSessionId}, reinitializing.");
+            InvalidateSessionState();
+
+            var initializeRequest = new JsonRpcRequest
+            {
+                Id = manager.MakeNewRequestId().ToJsonElement(),
+                Method = RequestMethods.Initialize,
+                Params = JsonSerializer.SerializeToElement(_initializeRequestParams, McpInternalJsonContext.Default.InitializeRequestParams),
+            };
+
+            var response = await manager.SendRequestAsync(initializeRequest, cancellationToken).ConfigureAwait(false);
+            if (response.Error is not null)
+            {
+                throw new McpClientException($"Session reinitialization failed: {response.Error.Message}");
+            }
+
+            if (response.Result is not { } responseResult)
+            {
+                throw new McpClientException("Session reinitialization response is invalid.");
+            }
+
+            var result = responseResult.Deserialize<InitializeResult>(McpInternalJsonContext.Default.InitializeResult)
+                         ?? throw new McpClientException("Failed to deserialize session reinitialization response.");
+
+            if (!ProtocolVersion.IsSupportedStreamableHttpVersion(result.ProtocolVersion))
+            {
+                throw new McpClientException($"Server returned an unsupported protocol version during reinitialization: {result.ProtocolVersion}");
+            }
+
+            await manager.SendNotificationAsync(new JsonRpcNotification
+            {
+                Method = RequestMethods.NotificationsInitialized,
+            }, cancellationToken).ConfigureAwait(false);
+
+            _logger.Info($"[McpClient][Http] Session reinitialized. SessionId={_sessionId}");
+            return true;
+        }
+        finally
+        {
+            _sessionRecoveryLock.Release();
+        }
+    }
+
+    private void InvalidateSessionState()
+    {
+        StopReceiveLoop();
+        _sessionId = null;
+        _protocolVersion = null;
+    }
+
+    private static string? GetSingleHeaderValue(HttpHeaders headers, string headerName)
+    {
+        if (headers.TryGetValues(headerName, out var values))
+        {
+            return values.FirstOrDefault();
         }
 
         return null;
@@ -282,6 +408,13 @@ public class HttpClientTransport : IClientTransport
                 request.Headers.Add("Mcp-Session-Id", _sessionId);
                 request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("text/event-stream"));
 
+                // 按照 MCP 协议规范 §2.7：客户端必须在所有后续请求中携带 MCP-Protocol-Version 头。
+                // The client MUST include the MCP-Protocol-Version header on all subsequent requests.
+                if (!string.IsNullOrEmpty(_protocolVersion))
+                {
+                    request.Headers.TryAddWithoutValidation("Mcp-Protocol-Version", _protocolVersion);
+                }
+
                 HttpResponseMessage response;
                 try
                 {
@@ -296,6 +429,17 @@ public class HttpClientTransport : IClientTransport
 
                 using (response)
                 {
+                    if (response.StatusCode == HttpStatusCode.NotFound && _sessionId is { } expiredSessionId)
+                    {
+                        if (await TryRecoverExpiredSessionAsync(expiredSessionId, token))
+                        {
+                            break;
+                        }
+
+                        _logger.Warn($"[McpClient][Http] Session expired during SSE polling and could not be reinitialized. SessionId={expiredSessionId}");
+                        break;
+                    }
+
                     if (!response.IsSuccessStatusCode)
                     {
                         _logger.Warn($"[McpClient][Http] SSE received unexpected status code, retrying. StatusCode={response.StatusCode}");
@@ -304,7 +448,7 @@ public class HttpClientTransport : IClientTransport
                     }
 
                     await using var stream = await response.Content.ReadAsStreamAsync(token);
-                    await ProcessSseStreamAsync(stream, token);
+                    await ProcessSseStreamAsync(stream, token, $"GET/sse, SessionId={_sessionId}");
                 }
                 _logger.Info($"[McpClient][Http] SSE stream ended, reconnecting.");
             }
@@ -331,7 +475,7 @@ public class HttpClientTransport : IClientTransport
 
     // --- SSE 解析核心逻辑 ---
 
-    private async Task ProcessSseStreamAsync(Stream stream, CancellationToken token, Action<JsonElement>? messageInspector = null)
+    private async Task ProcessSseStreamAsync(Stream stream, CancellationToken token, string channel, Action<JsonRpcMessage>? messageInspector = null)
     {
         using var reader = new StreamReader(stream, Encoding.UTF8, leaveOpen: true);
 
@@ -351,7 +495,7 @@ public class HttpClientTransport : IClientTransport
             {
                 if (dataBuffer.Length > 0)
                 {
-                    await DispatchSseEventAsync(currentEvent, dataBuffer.ToString(), token, messageInspector);
+                    await DispatchSseEventAsync(currentEvent, dataBuffer.ToString(), token, channel, messageInspector);
                     dataBuffer.Clear();
                     currentEvent = null;
                 }
@@ -372,33 +516,45 @@ public class HttpClientTransport : IClientTransport
         }
     }
 
-    private async Task DispatchSseEventAsync(string? eventName, string data, CancellationToken token, Action<JsonElement>? messageInspector)
+    private async Task DispatchSseEventAsync(string? eventName, string data, CancellationToken token, string channel, Action<JsonRpcMessage>? messageInspector)
     {
         if (string.IsNullOrEmpty(data) || data == "[DONE]") return;
 
         if (string.IsNullOrEmpty(eventName) || string.Equals(eventName, "message", StringComparison.OrdinalIgnoreCase))
         {
+            _manager.LogRawIn("[Http]", channel, data);
+
             try
             {
-                // 先尝试用 JsonDocument 解析来执行检查器，因为 _manager.ReadResponseAsync 会直接反序列化为对象，
-                // 而我们需要 inspect 具体字段（如 protocolVersion）
-                if (messageInspector != null)
+                // 一次解析即可分类：有 method → 服务器主动请求；有 result/error → 对客户端请求的响应。
+                JsonRpcMessage? message;
+                try
                 {
-                    try
-                    {
-                        using var doc = JsonDocument.Parse(data);
-                        messageInspector(doc.RootElement);
-                    }
-                    catch
-                    {
-                        // 忽略解析错误，后续 _manager 会处理
-                    }
+                    message = await _manager.ReadMessageAsync(data);
+                }
+                catch
+                {
+                    _logger.Warn($"[McpClient][Http] Failed to parse SSE message.");
+                    return;
                 }
 
-                var response = await _manager.ReadResponseAsync(data);
-                if (response != null)
+                // 传入 messageInspector（如需检查初始化响应中的协议版本等字段）
+                if (message is not null)
                 {
-                    await _manager.HandleRespondAsync(response, token);
+                    messageInspector?.Invoke(message);
+                }
+
+                switch (message)
+                {
+                    case JsonRpcRequest request:
+                        await _manager.HandleServerRequestAsync(request, token);
+                        break;
+                    case JsonRpcResponse response:
+                        await _manager.HandleRespondAsync(response, token);
+                        break;
+                    default:
+                        _logger.Warn($"[McpClient][Http] Unrecognized SSE message received.");
+                        break;
                 }
             }
             catch (Exception ex)
@@ -407,4 +563,5 @@ public class HttpClientTransport : IClientTransport
             }
         }
     }
+
 }

@@ -123,7 +123,7 @@ public sealed record CreateMessageResult : Result
     /// Message content
     /// </summary>
     [JsonPropertyName("content")]
-    public required SamplingMessageContent Content { get; init; }
+    public required ContentBlock Content { get; init; }
 
     /// <summary>
     /// 生成消息的模型名称。<br/>
@@ -161,7 +161,7 @@ public sealed record SamplingMessage
     /// Message content
     /// </summary>
     [JsonPropertyName("content")]
-    public required SamplingMessageContent Content { get; init; }
+    public required ContentBlock Content { get; init; }
 
     /// <summary>
     /// 元数据字段<br/>
@@ -171,20 +171,6 @@ public sealed record SamplingMessage
     [JsonPropertyName("_meta")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public JsonElement? Meta { get; init; }
-}
-
-/// <summary>
-/// 采样消息内容（文本、图像、音频、工具使用或工具结果）<br/>
-/// Sampling message content (text, image, audio, tool use or tool result)
-/// </summary>
-[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
-[JsonDerivedType(typeof(TextContentBlock), typeDiscriminator: "text")]
-[JsonDerivedType(typeof(ImageContentBlock), typeDiscriminator: "image")]
-[JsonDerivedType(typeof(AudioContentBlock), typeDiscriminator: "audio")]
-[JsonDerivedType(typeof(ToolUseContent), typeDiscriminator: "toolUse")]
-[JsonDerivedType(typeof(ToolResultContent), typeDiscriminator: "toolResult")]
-public abstract record SamplingMessageContent
-{
 }
 
 /// <summary>

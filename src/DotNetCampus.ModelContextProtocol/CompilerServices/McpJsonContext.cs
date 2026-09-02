@@ -1,4 +1,5 @@
-﻿using System.Text.Json;
+using System.Text.Encodings.Web;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.Json.Serialization.Metadata;
 using DotNetCampus.ModelContextProtocol.Exceptions;
@@ -60,13 +61,27 @@ internal sealed class McpServerToolCompositeJsonContext(JsonSerializerContext ex
 // 用于编译期可确定的默认值（请参见 JsonPropertySchemaInfo 编译期代码）
 [JsonSerializable(typeof(bool))]
 [JsonSerializable(typeof(decimal))]
+[JsonSerializable(typeof(int))]
 [JsonSerializable(typeof(long))]
 [JsonSerializable(typeof(string))]
 [JsonSerializable(typeof(string[]))]
 // 协议类型
 [JsonSerializable(typeof(CompiledJsonSchema))]
-[JsonSourceGenerationOptions(GenerationMode = JsonSourceGenerationMode.Serialization)]
-public partial class CompiledSchemaJsonContext : JsonSerializerContext;
+// CompiledJsonSchema 内部引用的集合类型
+[JsonSerializable(typeof(IReadOnlyDictionary<string, CompiledJsonSchema>))]
+[JsonSerializable(typeof(IReadOnlyList<string>))]
+[JsonSerializable(typeof(IReadOnlyList<CompiledJsonSchema>))]
+[JsonSourceGenerationOptions(GenerationMode = JsonSourceGenerationMode.Default)]
+public partial class CompiledSchemaJsonContext : JsonSerializerContext
+{
+    static CompiledSchemaJsonContext()
+    {
+        Default = new CompiledSchemaJsonContext(new JsonSerializerOptions(s_defaultOptions)
+        {
+            Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+        });
+    }
+}
 
 /// <summary>
 /// 与业务自己定义的 MCP 工具一起合并成 <see cref="McpServerToolJsonSerializer"/> 以序列化和反序列化业务定义的 MCP 工具参数、返回值和相关类型。
@@ -105,65 +120,77 @@ public partial class CompiledSchemaJsonContext : JsonSerializerContext;
 [JsonSourceGenerationOptions(
     PropertyNameCaseInsensitive = true,
     PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,
-    DictionaryKeyPolicy = JsonKnownNamingPolicy.Unspecified,
     NumberHandling = JsonNumberHandling.AllowReadingFromString,
     UseStringEnumConverter = true,
     WriteIndented = false)]
-internal partial class McpServerToolJsonContext : JsonSerializerContext;
+internal partial class McpServerToolJsonContext : JsonSerializerContext
+{
+    static McpServerToolJsonContext()
+    {
+        Default = new McpServerToolJsonContext(new JsonSerializerOptions(s_defaultOptions)
+        {
+            Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+        });
+    }
+}
 
 /// <summary>
-/// 提供给 MCP 协议中，服务端收到来自客户端的请求数据时使用的 JSON 序列化上下文。
-/// </summary>
-[JsonSerializable(typeof(CallToolRequestParams))]
-[JsonSerializable(typeof(GetPromptRequestParams))]
-[JsonSerializable(typeof(InitializeRequestParams))]
-[JsonSerializable(typeof(JsonElement))]
-[JsonSerializable(typeof(ListPromptsRequestParams))]
-[JsonSerializable(typeof(JsonRpcNotification))]
-[JsonSerializable(typeof(JsonRpcRequest))]
-[JsonSerializable(typeof(ListResourcesRequestParams))]
-[JsonSerializable(typeof(ListResourceTemplatesRequestParams))]
-[JsonSerializable(typeof(ListToolsRequestParams))]
-[JsonSerializable(typeof(LoggingLevel))]
-[JsonSerializable(typeof(PingRequestParams))]
-[JsonSerializable(typeof(ReadResourceRequestParams))]
-[JsonSerializable(typeof(SetLevelRequestParams))]
-[JsonSourceGenerationOptions(
-    PropertyNameCaseInsensitive = true,
-    PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,
-    UseStringEnumConverter = true,
-    WriteIndented = false)]
-internal partial class McpServerRequestJsonContext : JsonSerializerContext;
-
-/// <summary>
-/// 提供给 MCP 协议中，服务端发送给客户端的响应数据时使用的 JSON 序列化上下文。
+/// MCP 协议内部使用的统一 JSON 序列化上下文，涵盖所有请求参数类型和响应结果类型。
 /// </summary>
 [JsonSerializable(typeof(Annotations))]
 [JsonSerializable(typeof(AudioContentBlock))]
 [JsonSerializable(typeof(BlobResourceContents))]
+[JsonSerializable(typeof(CallToolRequestParams))]
 [JsonSerializable(typeof(CallToolResult))]
 [JsonSerializable(typeof(CompiledJsonSchema))]
 [JsonSerializable(typeof(ContentBlock))]
+[JsonSerializable(typeof(CreateMessageRequestParams))]
+[JsonSerializable(typeof(CreateMessageResult))]
 [JsonSerializable(typeof(EmbeddedResourceContentBlock))]
 [JsonSerializable(typeof(EmptyObject))]
+[JsonSerializable(typeof(GetPromptRequestParams))]
 [JsonSerializable(typeof(GetPromptResult))]
 [JsonSerializable(typeof(ImageContentBlock))]
+[JsonSerializable(typeof(InitializeRequestParams))]
 [JsonSerializable(typeof(InitializeResult))]
 [JsonSerializable(typeof(JsonElement))]
+[JsonSerializable(typeof(JsonRpcNotification))]
+[JsonSerializable(typeof(JsonRpcRequest))]
 [JsonSerializable(typeof(JsonRpcResponse))]
+[JsonSerializable(typeof(ListPromptsRequestParams))]
 [JsonSerializable(typeof(ListPromptsResult))]
+[JsonSerializable(typeof(ListResourcesRequestParams))]
 [JsonSerializable(typeof(ListResourcesResult))]
+[JsonSerializable(typeof(ListResourceTemplatesRequestParams))]
 [JsonSerializable(typeof(ListResourceTemplatesResult))]
+[JsonSerializable(typeof(ListToolsRequestParams))]
 [JsonSerializable(typeof(ListToolsResult))]
+[JsonSerializable(typeof(LoggingLevel))]
 [JsonSerializable(typeof(McpExceptionData))]
+[JsonSerializable(typeof(ModelHint))]
+[JsonSerializable(typeof(ModelPreferences))]
+[JsonSerializable(typeof(PingRequestParams))]
+[JsonSerializable(typeof(ReadResourceRequestParams))]
 [JsonSerializable(typeof(ReadResourceResult))]
 [JsonSerializable(typeof(ResourceContents))]
 [JsonSerializable(typeof(ResourceLinkContentBlock))]
+[JsonSerializable(typeof(SamplingMessage))]
+[JsonSerializable(typeof(SetLevelRequestParams))]
 [JsonSerializable(typeof(TextContentBlock))]
 [JsonSerializable(typeof(TextResourceContents))]
+[JsonSerializable(typeof(ToolChoice))]
 [JsonSourceGenerationOptions(
     PropertyNameCaseInsensitive = true,
     PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,
     UseStringEnumConverter = true,
     WriteIndented = false)]
-internal partial class McpServerResponseJsonContext : JsonSerializerContext;
+internal partial class McpInternalJsonContext : JsonSerializerContext
+{
+    static McpInternalJsonContext()
+    {
+        Default = new McpInternalJsonContext(new JsonSerializerOptions(s_defaultOptions)
+        {
+            Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+        });
+    }
+}

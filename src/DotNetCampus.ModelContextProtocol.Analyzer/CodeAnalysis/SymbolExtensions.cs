@@ -76,7 +76,9 @@ public static class SymbolExtensions
         };
 
         /// <summary>
-        /// 如果 <paramref name="typeSymbol"/> 是可空值类型，则递归返回其基础类型，否则直接返回 <paramref name="typeSymbol"/> 本身。<br/>
+        /// 如果 <paramref name="typeSymbol"/> 是可空值类型，则递归返回其基础类型；
+        /// 如果 <paramref name="typeSymbol"/> 是可空引用类型，则返回其非空引用类型；
+        /// 否则直接返回 <paramref name="typeSymbol"/> 本身。<br/>
         /// 不会处理其泛型参数的可空性。
         /// </summary>
         /// <returns>基础类型符号。</returns>
@@ -87,7 +89,12 @@ public static class SymbolExtensions
                 IsValueType: true,
                 IsGenericType: true,
                 OriginalDefinition.SpecialType: SpecialType.System_Nullable_T,
-            } nullableTypeSymbol => nullableTypeSymbol.TypeArguments[0],
+            } nullableValueTypeSymbol => nullableValueTypeSymbol.TypeArguments[0],
+            INamedTypeSymbol
+            {
+                IsValueType: false,
+                NullableAnnotation: NullableAnnotation.Annotated,
+            } nullableTypeSymbol => nullableTypeSymbol.WithNullableAnnotation(NullableAnnotation.NotAnnotated),
             _ => typeSymbol,
         };
 

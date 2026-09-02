@@ -2,6 +2,29 @@
 
 > 本文档描述 DotNetCampus.ModelContextProtocol 库的传输层抽象设计，支持 stdio、HTTP (Streamable HTTP + SSE)、InProcess 和 IPC 等多种传输协议。
 
+## 当前实现备注
+
+当前主库的传输层抽象以 `IClientTransport`、`IServerTransport`、`IClientTransportManager`、`IServerTransportManager` 和 `ServerTransportSession` 为准。In-Process 传输层已采用一对一的 `InProcessTransportPair` 连接对实现，内部通过两条内存队列传递完整 JSON-RPC 文本消息。
+
+使用示例：
+
+```csharp
+var server = new McpServerBuilder("TestMcpServer", "1.0.0")
+    .WithInProcess(out var transportPair)
+    .WithTools(t => t.WithTool(() => new SimpleTool()))
+    .Build();
+
+await server.StartAsync();
+
+var client = new McpClientBuilder()
+    .WithInProcess(transportPair)
+    .Build();
+
+var tools = await client.ListToolsAsync();
+```
+
+本文后续部分包含较早期的架构草案和示例；如与当前代码不一致，以本节和源码为准。
+
 ## 📋 目录
 
 - [设计目标](#设计目标)

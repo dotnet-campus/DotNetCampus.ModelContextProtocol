@@ -5,6 +5,7 @@ namespace DotNetCampus.SampleMcpServer.McpTools;
 [JsonSerializable(typeof(EchoExtraData))]
 [JsonSerializable(typeof(EchoOptions))]
 [JsonSerializable(typeof(SampleInputObject))]
+[JsonSerializable(typeof(CollectionContainerInfo))]
 [JsonSerializable(typeof(SampleComplexInputObject))]
 [JsonSerializable(typeof(PolymorphicBase))]
 [JsonSerializable(typeof(LocalTimeInfo))]
@@ -12,7 +13,6 @@ namespace DotNetCampus.SampleMcpServer.McpTools;
 [JsonSourceGenerationOptions(
     PropertyNameCaseInsensitive = true,
     PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,
-    DictionaryKeyPolicy = JsonKnownNamingPolicy.Unspecified,
     NumberHandling = JsonNumberHandling.AllowReadingFromString,
     UseStringEnumConverter = true,
     AllowOutOfOrderMetadataProperties = true)]

@@ -3,6 +3,7 @@ using System.Text.Json;
 using DotNetCampus.ModelContextProtocol.Clients;
 using DotNetCampus.ModelContextProtocol.CompilerServices;
 using DotNetCampus.ModelContextProtocol.Exceptions;
+using DotNetCampus.ModelContextProtocol.Hosting.Logging;
 using DotNetCampus.ModelContextProtocol.Protocol;
 using DotNetCampus.ModelContextProtocol.Protocol.Messages;
 using DotNetCampus.ModelContextProtocol.Protocol.Messages.JsonRpc;
@@ -13,13 +14,20 @@ namespace DotNetCampus.ModelContextProtocol.Transports;
 /// <summary>
 /// 用于管理 MCP 客户端传输层的管理器。
 /// </summary>
-internal class ClientTransportManager(IClientTransportContext context) : IClientTransportManager
+internal class ClientTransportManager(IClientTransportContext context) : IClientTransportManager, IMcpTransportLogger
 {
     private readonly ConcurrentDictionary<string, TaskCompletionSource<JsonRpcResponse>> _pendingRequests = [];
     private IClientTransport? _transport;
+    private Func<CreateMessageRequestParams, CancellationToken, Task<CreateMessageResult>>? _samplingHandler;
 
     /// <inheritdoc />
     public IClientTransportContext Context { get; } = context;
+
+    /// <inheritdoc />
+    public IMcpLogger Logger => Context.Logger;
+
+    /// <inheritdoc />
+    public McpTransportRawMessageLoggingDetailLevel RawMessageLoggingDetailLevel { get; init; }
 
     /// <summary>
     /// 设置传输层实例。
@@ -29,6 +37,28 @@ internal class ClientTransportManager(IClientTransportContext context) : IClient
         _transport = transport;
     }
 
+    /// <summary>
+    /// 设置 Sampling 请求处理器，供服务器主动发起 sampling/createMessage 请求时调用。
+    /// </summary>
+    internal void SetSamplingHandler(Func<CreateMessageRequestParams, CancellationToken, Task<CreateMessageResult>> handler)
+    {
+        _samplingHandler = handler;
+    }
+
+    /// <summary>
+    /// 取消所有正在等待响应的客户端请求。
+    /// </summary>
+    internal void CancelAllPendingRequests()
+    {
+        foreach (var pendingRequest in _pendingRequests)
+        {
+            if (_pendingRequests.TryRemove(pendingRequest.Key, out var taskCompletionSource))
+            {
+                taskCompletionSource.TrySetCanceled();
+            }
+        }
+    }
+
     /// <inheritdoc />
     public RequestId MakeNewRequestId()
     {
@@ -36,24 +66,50 @@ internal class ClientTransportManager(IClientTransportContext context) : IClient
     }
 
     /// <inheritdoc />
+    public ValueTask<JsonRpcMessage?> ReadMessageAsync(string messageLine)
+    {
+        var message = JsonElement.Parse(messageLine);
+        return ValueTask.FromResult(ClassifyAndDeserialize(message));
+    }
+
+    /// <summary>
+    /// 根据 JSON-RPC 2.0 字段特征将 <paramref name="element"/> 分类并反序列化为具体消息类型。
+    /// </summary>
+    private static JsonRpcMessage? ClassifyAndDeserialize(JsonElement element)
+    {
+        if (element.TryGetProperty("method", out _))
+        {
+            return element.Deserialize(McpInternalJsonContext.Default.JsonRpcRequest);
+        }
+
+        if (element.TryGetProperty("result", out _) || element.TryGetProperty("error", out _))
+        {
+            return element.Deserialize(McpInternalJsonContext.Default.JsonRpcResponse);
+        }
+
+        return null;
+    }
+
+    /// <inheritdoc />
     public ValueTask<JsonRpcResponse?> ReadResponseAsync(string responseLine)
     {
-        var message = JsonSerializer.Deserialize(responseLine, McpServerResponseJsonContext.Default.JsonRpcResponse);
+        var message = JsonSerializer.Deserialize(responseLine, McpInternalJsonContext.Default.JsonRpcResponse);
         return ValueTask.FromResult<JsonRpcResponse?>(message);
     }
 
     /// <inheritdoc />
     public ValueTask<JsonRpcResponse?> ReadResponseAsync(Stream responseStream)
     {
-        var message = JsonSerializer.Deserialize(responseStream, McpServerResponseJsonContext.Default.JsonRpcResponse);
+        var message = JsonSerializer.Deserialize(responseStream, McpInternalJsonContext.Default.JsonRpcResponse);
         return ValueTask.FromResult<JsonRpcResponse?>(message);
     }
 
     /// <inheritdoc />
     public string WriteMessageAsync(JsonRpcMessage message) => message switch
     {
-        JsonRpcRequest request => JsonSerializer.Serialize(request, McpServerRequestJsonContext.Default.JsonRpcRequest),
-        JsonRpcNotification notification => JsonSerializer.Serialize(notification, McpServerRequestJsonContext.Default.JsonRpcNotification),
+        JsonRpcRequest request => JsonSerializer.Serialize(request, McpInternalJsonContext.Default.JsonRpcRequest),
+        JsonRpcResponse response => JsonSerializer.Serialize(response, McpInternalJsonContext.Default.JsonRpcResponse),
+        JsonRpcNotification notification => JsonSerializer.Serialize(notification, McpInternalJsonContext.Default.JsonRpcNotification),
         _ => throw new ArgumentException($"不支持的消息类型：{message.GetType().FullName}."),
     };
 
@@ -63,9 +119,11 @@ internal class ClientTransportManager(IClientTransportContext context) : IClient
         await (message switch
         {
             JsonRpcRequest request => JsonSerializer.SerializeAsync(
-                requestStream, request, McpServerRequestJsonContext.Default.JsonRpcRequest, cancellationToken),
+                requestStream, request, McpInternalJsonContext.Default.JsonRpcRequest, cancellationToken),
+            JsonRpcResponse response => JsonSerializer.SerializeAsync(
+                requestStream, response, McpInternalJsonContext.Default.JsonRpcResponse, cancellationToken),
             JsonRpcNotification notification => JsonSerializer.SerializeAsync(
-                requestStream, notification, McpServerRequestJsonContext.Default.JsonRpcNotification, cancellationToken),
+                requestStream, notification, McpInternalJsonContext.Default.JsonRpcNotification, cancellationToken),
             _ => throw new ArgumentException($"不支持的消息类型：{message.GetType().FullName}."),
         });
     }
@@ -82,12 +140,79 @@ internal class ClientTransportManager(IClientTransportContext context) : IClient
 
         if (_pendingRequests.TryRemove(id, out var tcs))
         {
+            Context.Logger.Debug($"[McpClient][Mcp] Response matched to pending request. Id={id}");
             tcs.SetResult(response);
+        }
+        else
+        {
+            Context.Logger.Warn($"[McpClient][Mcp] Received unmatched response. Id={id}");
         }
 
         return ValueTask.CompletedTask;
     }
 
+    /// <inheritdoc />
+    public async ValueTask HandleServerRequestAsync(JsonRpcRequest request, CancellationToken cancellationToken = default)
+    {
+        if (request.Id is null)
+        {
+            // JSON-RPC 2.0 规定：通知（notification）没有 id，不应发送响应。
+            return;
+        }
+
+        Context.Logger.Info($"[McpClient][Mcp] Received server-initiated request. Method={request.Method}, Id={request.Id}");
+
+        JsonRpcResponse response;
+
+        if (request.Method == RequestMethods.SamplingCreateMessage && _samplingHandler is { } handler)
+        {
+            try
+            {
+                CreateMessageRequestParams? requestParams = null;
+                if (request.Params is { } paramsElement)
+                {
+                    requestParams = paramsElement.Deserialize(McpInternalJsonContext.Default.CreateMessageRequestParams);
+                }
+                requestParams ??= new CreateMessageRequestParams { Messages = [], MaxTokens = 1024 };
+
+                var result = await handler(requestParams, cancellationToken).ConfigureAwait(false);
+                Context.Logger.Debug($"[McpClient][Mcp] Sampling request handled successfully. Id={request.Id}");
+                response = new JsonRpcResponse
+                {
+                    Id = request.Id,
+                    Result = JsonSerializer.SerializeToElement(result, McpInternalJsonContext.Default.CreateMessageResult),
+                };
+            }
+            catch (Exception ex)
+            {
+                Context.Logger.Error($"[McpClient][Mcp] Sampling request handler threw exception. Id={request.Id}, Error={ex.Message}");
+                response = new JsonRpcResponse
+                {
+                    Id = request.Id,
+                    Error = new JsonRpcError
+                    {
+                        Code = (int)JsonRpcErrorCode.InternalError,
+                        Message = ex.Message,
+                    },
+                };
+            }
+        }
+        else
+        {
+            Context.Logger.Warn($"[McpClient][Mcp] Unsupported server-initiated request method. Method={request.Method}, Id={request.Id}");
+            response = new JsonRpcResponse
+            {
+                Id = request.Id,
+                Error = new JsonRpcError
+                {
+                    Code = (int)JsonRpcErrorCode.MethodNotFound,
+                    Message = $"Method '{request.Method}' not found or no handler registered.",
+                },
+            };
+        }
+
+        await SendMessageAsync(response, cancellationToken).ConfigureAwait(false);
+    }
     /// <summary>
     /// 发送请求并等待响应。
     /// </summary>
@@ -107,7 +232,18 @@ internal class ClientTransportManager(IClientTransportContext context) : IClient
         }
 
         var tcs = new TaskCompletionSource<JsonRpcResponse>(TaskCreationOptions.RunContinuationsAsynchronously);
-        _pendingRequests[id] = tcs;
+        if (!_pendingRequests.TryAdd(id, tcs))
+        {
+            throw new InvalidOperationException($"已存在相同 ID 的挂起请求：{id}。");
+        }
+
+        using var registration = cancellationToken.Register(() =>
+        {
+            if (_pendingRequests.TryRemove(id, out var removed))
+            {
+                removed.TrySetCanceled(cancellationToken);
+            }
+        });
 
         try
         {
@@ -159,7 +295,7 @@ internal class ClientTransportManager(IClientTransportContext context) : IClient
                     Version = client.ClientVersion,
                 },
                 Capabilities = client.Capabilities,
-            }, McpServerRequestJsonContext.Default.InitializeRequestParams),
+            }, McpInternalJsonContext.Default.InitializeRequestParams),
         };
 
         var response = await SendRequestAsync(request, cancellationToken).ConfigureAwait(false);
@@ -174,8 +310,28 @@ internal class ClientTransportManager(IClientTransportContext context) : IClient
             throw new McpClientException("初始化响应格式不正确");
         }
 
-        var result = responseResult.Deserialize<InitializeResult>(McpServerResponseJsonContext.Default.InitializeResult)
+        var result = responseResult.Deserialize<InitializeResult>(McpInternalJsonContext.Default.InitializeResult)
                      ?? throw new McpClientException("无法解析初始化响应");
+
+        if (!ProtocolVersion.IsSupportedStreamableHttpVersion(result.ProtocolVersion))
+        {
+            try
+            {
+                await DisconnectAsync(cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                Context.Logger.Warn($"[McpClient][Mcp] Failed to disconnect after receiving an unsupported protocol version. Error={ex.Message}");
+            }
+
+            throw new McpClientException($"服务器返回了客户端不支持的协议版本：{result.ProtocolVersion}");
+        }
+
+        if (!string.Equals(result.ProtocolVersion, ProtocolVersion.Current, StringComparison.Ordinal))
+        {
+            Context.Logger.Info(
+                $"[McpClient][Mcp] Protocol version negotiated. Requested={ProtocolVersion.Current}, Negotiated={result.ProtocolVersion}");
+        }
 
         // 发送 initialized 通知。
         await SendNotificationAsync(new JsonRpcNotification

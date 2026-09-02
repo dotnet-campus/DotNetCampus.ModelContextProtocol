@@ -1,9 +1,14 @@
-﻿using System.Collections.Concurrent;
+﻿using System;
+using System.Collections.Concurrent;
+using System.IO;
+using System.Threading;
+using System.Threading.Tasks;
 using dotnetCampus.Ipc.Context;
 using dotnetCampus.Ipc.Messages;
 using dotnetCampus.Ipc.Pipes;
 using dotnetCampus.Ipc.Utils.Extensions;
 using DotNetCampus.ModelContextProtocol.Hosting.Logging;
+using DotNetCampus.ModelContextProtocol.Hosting.Services;
 using DotNetCampus.ModelContextProtocol.Protocol.Messages.JsonRpc;
 
 namespace DotNetCampus.ModelContextProtocol.Transports.Ipc;
@@ -15,13 +20,14 @@ public class IpcServerTransport : IServerTransport
 {
     // System.Runtime.InteropServices.MemoryMarshal.Read<ulong>("Dncp.Mcp"u8).ToString("X")
     // 小端写入时，可在 IPC 传输序列中看到 Dncp.Mcp = DotNetCampus.ModelContextProtocol 的 ASCII 字符串。
-    private const ulong McpIpcHeader = 0x70634D2E70636E44;
+    private const ulong McpIpcHeader = IpcServerTransportSession.McpIpcHeader;
 
     private readonly IServerTransportManager _manager;
     private readonly TaskCompletionSource _taskCompletionSource = new();
     private readonly IpcProvider _server;
     private readonly bool _isExternalIpcProvider;
     private readonly ConcurrentDictionary<string, IpcServerTransportSession> _sessions = [];
+    private CancellationToken _runningCancellationToken;
 
     /// <summary>
     /// 初始化 <see cref="IpcServerTransport"/> 类的新实例。
@@ -39,8 +45,8 @@ public class IpcServerTransport : IServerTransport
     /// 初始化 <see cref="IpcServerTransport"/> 类的新实例。
     /// </summary>
     /// <param name="manager">辅助管理 MCP 传输层的管理器。</param>
-    /// <param name="pipeName">本地服务名，将作为管道名，管道服务端名</param>
-    /// <param name="ipcConfiguration"></param>
+    /// <param name="pipeName">本地服务名，用作 IPC 管道名。</param>
+    /// <param name="ipcConfiguration">IPC 配置。</param>
     public IpcServerTransport(IServerTransportManager manager, string pipeName, IpcConfiguration? ipcConfiguration = null)
     {
         _manager = manager;
@@ -56,8 +62,9 @@ public class IpcServerTransport : IServerTransport
         Log.Info($"[McpServer][Ipc] Transport started.");
 
         _server.StartServer();
-        _server.PeerConnected += OnPeerConnected;
+        _server.IpcServerService.MessageReceived += OnMessageReceived;
 
+        _runningCancellationToken = runningCancellationToken;
         runningCancellationToken.Register(() => _taskCompletionSource.TrySetResult());
         return Task.FromResult<Task>(_taskCompletionSource.Task);
     }
@@ -75,35 +82,26 @@ public class IpcServerTransport : IServerTransport
         return ValueTask.CompletedTask;
     }
 
-    private void OnPeerConnected(object? sender, PeerConnectedArgs e)
+    private void OnMessageReceived(object? sender, PeerMessageArgs e)
     {
-        _sessions[e.Peer.PeerName] = new IpcServerTransportSession(e.Peer.PeerName);
-        e.Peer.PeerConnectionBroken += OnPeerConnectionBroken;
-        e.Peer.PeerReconnected += OnPeerReconnected;
-        e.Peer.MessageReceived += OnMessageReceived;
-    }
+        _sessions.AddOrUpdate(e.PeerName,
+            peerName => new IpcServerTransportSession(_manager, _server, peerName),
+            (_, existedSession) => existedSession);
+        _ = OnMessageReceivedCore(e.PeerName, e.Message);
 
-    private void OnPeerConnectionBroken(object? sender, IPeerConnectionBrokenArgs e)
-    {
-        var peer = (PeerProxy)sender!;
-        _sessions.TryRemove(peer.PeerName, out _);
-    }
-
-    private void OnPeerReconnected(object? sender, IPeerReconnectedArgs e)
-    {
-        var peer = (PeerProxy)sender!;
-        _sessions[peer.PeerName] = new IpcServerTransportSession(peer.PeerName);
-    }
-
-    private void OnMessageReceived(object? sender, IPeerMessageArgs e)
-    {
-        _ = OnMessageReceivedCore((PeerProxy)sender!, e.Message);
-
-        async Task OnMessageReceivedCore(PeerProxy peer, IpcMessage message)
+        async Task OnMessageReceivedCore(string peerName, IpcMessage message)
         {
             try
             {
-                await HandleMessageAsync(peer, message);
+                var result = await _server.TryConnectToExistingPeerAsync(peerName, true);
+                if (result.IsSuccess)
+                {
+                    await HandleMessageAsync(result.PeerProxy, message);
+                }
+                else
+                {
+                    Log.Error($"[McpServer][Ipc] Error handling IPC peer message because the peer {peerName} may be existed.");
+                }
             }
             catch (Exception ex)
             {
@@ -120,29 +118,72 @@ public class IpcServerTransport : IServerTransport
             return;
         }
 
-        var request = await _manager.ParseAndCatchRequestAsync(payload.Body.ToMemoryStream());
-        if (request is null)
+        JsonRpcMessage? parsed;
+        try
         {
-            await _manager.RespondJsonRpcAsync(peer, new JsonRpcResponse
-            {
-                Error = new JsonRpcError
+            parsed = await _manager.ReadMessageAsync(payload.Body.ToMemoryStream());
+        }
+        catch
+        {
+            parsed = null;
+        }
+
+        if (parsed is not null)
+        {
+            _manager.LogRawIn("[Ipc]", parsed);
+        }
+
+        switch (parsed)
+        {
+            case JsonRpcResponse response:
+                // 将响应路由到等待的请求（如 sampling/createMessage 回调）。
+                if (_sessions.TryGetValue(peer.PeerName, out var responseSession))
                 {
-                    Code = (int)JsonRpcErrorCode.InvalidRequest,
-                    Message = "Invalid request message.",
-                },
-            }, CancellationToken.None);
-            return;
-        }
+                    responseSession.HandleResponseAsync(response);
+                }
+                return;
 
-        var response = await _manager.HandleRequestAsync(request, null, CancellationToken.None);
-        if (response is null)
-        {
-            // 按照 MCP 协议规范，本次请求仅需响应而无需回复。
-            // 而 IPC 不需要响应。
-            return;
-        }
+            case JsonRpcNotification notification:
+                // 通知，路由到处理器，无需回复。
+                if (_sessions.TryGetValue(peer.PeerName, out var notificationSession))
+                {
+                    await _manager.HandleRequestAsync(
+                        new JsonRpcRequest { Method = notification.Method, Params = notification.Params },
+                        services => services.AddTransportSession(notificationSession, Log),
+                        _runningCancellationToken);
+                }
+                return;
 
-        await _manager.RespondJsonRpcAsync(peer, response, CancellationToken.None);
+            case JsonRpcRequest request:
+            {
+                if (!_sessions.TryGetValue(peer.PeerName, out var requestSession))
+                {
+                    return;
+                }
+                var response2 = await _manager.HandleRequestAsync(request,
+                    services => services.AddTransportSession(requestSession, Log),
+                    _runningCancellationToken);
+                if (response2 is null)
+                {
+                    // 按照 MCP 协议规范，本次请求仅需响应而无需回复。
+                    // 而 IPC 不需要响应。
+                    return;
+                }
+                await _manager.RespondJsonRpcAsync(peer, response2, _runningCancellationToken);
+                return;
+            }
+
+            default:
+                await _manager.RespondJsonRpcAsync(peer, new JsonRpcResponse
+                {
+                    Error = new JsonRpcError
+                    {
+                        Code = (int)JsonRpcErrorCode.InvalidRequest,
+                        Message = "Invalid request message.",
+                    },
+                }, _runningCancellationToken);
+                return;
+        }
     }
 }
 
@@ -150,26 +191,14 @@ file static class Extensions
 {
     extension(IServerTransportManager manager)
     {
-        public async ValueTask<JsonRpcRequest?> ParseAndCatchRequestAsync(Stream data)
-        {
-            try
-            {
-                return await manager.ReadRequestAsync(data);
-            }
-            catch
-            {
-                // 请求消息格式不正确，返回 null 后，原样给 MCP 客户端报告错误。
-                return null;
-            }
-        }
-
         public async ValueTask RespondJsonRpcAsync(PeerProxy peer, JsonRpcResponse response, CancellationToken cancellationToken)
         {
             try
             {
+                manager.LogRawOut("[Ipc]", response);
                 using var ms = new MemoryStream();
                 await manager.WriteMessageAsync(ms, response, cancellationToken);
-                await peer.NotifyAsync(new IpcMessage("", new IpcMessageBody(ms.GetBuffer(), 0, (int)ms.Length)));
+                await peer.NotifyAsync(new IpcMessage("", new IpcMessageBody(ms.GetBuffer(), 0, (int)ms.Length), IpcServerTransportSession.McpIpcHeader));
             }
             catch
             {

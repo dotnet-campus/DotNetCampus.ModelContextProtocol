@@ -1,11 +1,12 @@
 ﻿using System.Diagnostics.CodeAnalysis;
+using DotNetCampus.ModelContextProtocol.Transports.Http.Legacy;
 
 namespace DotNetCampus.ModelContextProtocol.Transports.Http;
 
 /// <summary>
 /// HTTP 传输层配置选项。
 /// </summary>
-public record LocalHostHttpServerTransportOptions
+public record LocalHostHttpServerTransportOptions : ILegacySseTransportOptions
 {
     /// <summary>
     /// 指定用于传输的端口号。
@@ -36,10 +37,15 @@ public record LocalHostHttpServerTransportOptions
     public bool EnableDnsRebindingProtection { get; init; } = true;
 
     /// <summary>
-    /// 指定是否兼容旧的 SSE 传输层协议（2024-11-05）。默认为 <see langword="false"/>。
+    /// 指定是否兼容旧的 SSE 传输层协议（2024-11-05）。默认为 <see langword="true"/>。
     /// </summary>
+    /// <remarks>
+    /// 2024-11-05 已被服务端明确支持，兼容端点仅为旧客户端额外开放入口，
+    /// 不会改变现代客户端使用的 <c>/mcp</c> 行为。这样旧客户端可直接接入；若调用方只希望暴露现代端点，
+    /// 可显式设为 <see langword="false"/> 以彰显开发者的底气。
+    /// </remarks>
     [MemberNotNullWhen(true, nameof(SseEndPoint), nameof(SseMessageEndPoint))]
-    public bool IsCompatibleWithSse { get; init; }
+    public bool IsCompatibleWithSse { get; init; } = true;
 
     /// <summary>
     /// SSE endpoint - 用于旧协议 HTTP+SSE (2024-11-05) 兼容。

@@ -20,7 +20,7 @@ public readonly record struct SessionId(string Id)
     /// </summary>
     public JsonElement ToJsonElement()
     {
-        return JsonSerializer.SerializeToElement(Id, CompiledSchemaJsonContext.Default.String);
+        return JsonSerializer.SerializeToElement(Id, McpInternalJsonContext.Default.String);
     }
 
     /// <summary>

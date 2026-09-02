@@ -47,34 +47,34 @@ public interface IServerTransportManager
     bool TryGetSession<T>(string sessionId, [NotNullWhen(true)] out T? session) where T : class, IServerTransportSession;
 
     /// <summary>
-    /// 提供给传输层调用。当传输层收到请求字符串行后，调用此方法可以将字符串读取为 JSON-RPC 请求对象。
+    /// 提供给传输层调用。当传输层收到一行文本消息后，调用此方法将其解析为具体的 JSON-RPC 消息类型。
     /// </summary>
-    /// <param name="requestLine">请求字符串行。</param>
-    /// <returns>读取出来的 JSON-RPC 请求对象，如果无法读取则返回 <see langword="null"/>。</returns>
-    /// <remarks>
-    /// 如果读取失败，此方法会暴露底层的任何读取异常，传输层需处理好此异常（说明请求消息不正确）。
-    /// </remarks>
-    ValueTask<JsonRpcRequest?> ReadRequestAsync(string requestLine);
+    /// <param name="messageLine">消息文本行。</param>
+    /// <returns>
+    /// 解析出的消息对象，实际类型为 <see cref="JsonRpcRequest"/>（有 id）、<see cref="JsonRpcNotification"/>（无 id）
+    /// 或 <see cref="JsonRpcResponse"/>（无 method）之一；无法解析时返回 <see langword="null"/>。
+    /// </returns>
+    ValueTask<JsonRpcMessage?> ReadMessageAsync(string messageLine);
 
     /// <summary>
-    /// 提供给传输层调用。当传输层收到请求流后，调用此方法可以将请求流读取为 JSON-RPC 请求对象。
+    /// 提供给传输层调用。当传输层收到字节流消息后，调用此方法将其解析为具体的 JSON-RPC 消息类型。
     /// </summary>
-    /// <param name="requestStream">请求流。</param>
-    /// <returns>读取出来的 JSON-RPC 请求对象，如果无法读取则返回 <see langword="null"/>。</returns>
-    /// <remarks>
-    /// 如果读取失败，此方法会暴露底层的任何读取异常，传输层需处理好此异常（说明请求消息不正确或连接关闭等）。
-    /// </remarks>
-    ValueTask<JsonRpcRequest?> ReadRequestAsync(Stream requestStream);
+    /// <param name="messageStream">消息流。</param>
+    /// <returns>
+    /// 解析出的消息对象，实际类型为 <see cref="JsonRpcRequest"/>（有 id）、<see cref="JsonRpcNotification"/>（无 id）
+    /// 或 <see cref="JsonRpcResponse"/>（无 method）之一；无法解析时返回 <see langword="null"/>。
+    /// </returns>
+    ValueTask<JsonRpcMessage?> ReadMessageAsync(Stream messageStream);
 
     /// <summary>
-    /// 提供给传输层调用。当传输层收到请求流后，调用此方法可以将请求流读取为 JSON-RPC 请求对象。
+    /// 提供给传输层调用。当传输层收到字节内存消息后，调用此方法将其解析为具体的 JSON-RPC 消息类型。
     /// </summary>
-    /// <param name="requestMemory">请求流。</param>
-    /// <returns>读取出来的 JSON-RPC 请求对象，如果无法读取则返回 <see langword="null"/>。</returns>
-    /// <remarks>
-    /// 如果读取失败，此方法会暴露底层的任何读取异常，传输层需处理好此异常（说明请求消息不正确或连接关闭等）。
-    /// </remarks>
-    ValueTask<JsonRpcRequest?> ReadRequestAsync(ReadOnlyMemory<byte> requestMemory);
+    /// <param name="messageMemory">消息字节内存。</param>
+    /// <returns>
+    /// 解析出的消息对象，实际类型为 <see cref="JsonRpcRequest"/>（有 id）、<see cref="JsonRpcNotification"/>（无 id）
+    /// 或 <see cref="JsonRpcResponse"/>（无 method）之一；无法解析时返回 <see langword="null"/>。
+    /// </returns>
+    ValueTask<JsonRpcMessage?> ReadMessageAsync(ReadOnlyMemory<byte> messageMemory);
 
     /// <summary>
     /// 提供给传输层调用，用于发送消息给 MCP 客户端。

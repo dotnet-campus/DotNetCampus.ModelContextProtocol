@@ -5,6 +5,7 @@ using DotNetCampus.ModelContextProtocol.CompilerServices;
 using DotNetCampus.ModelContextProtocol.Hosting.Logging;
 using DotNetCampus.ModelContextProtocol.Transports;
 using DotNetCampus.ModelContextProtocol.Transports.Http;
+using DotNetCampus.ModelContextProtocol.Transports.InProcess;
 using DotNetCampus.ModelContextProtocol.Transports.Stdio;
 using DotNetCampus.ModelContextProtocol.Utils;
 
@@ -21,6 +22,7 @@ public class McpServerBuilder(string serverName, string serverVersion)
     private readonly McpServerToolsProvider _tools = new();
     private readonly McpServerResourcesProvider _resources = new();
     private IMcpLogger? _logger;
+    private McpTransportRawMessageLoggingDetailLevel _rawMessageLoggingDetailLevel = McpTransportRawMessageLoggingDetailLevel.None;
     private IMcpServerToolJsonSerializer? _jsonSerializer;
     private string? _jsonSerializerTypeName;
     private IServiceProvider? _serviceProvider;
@@ -37,12 +39,33 @@ public class McpServerBuilder(string serverName, string serverVersion)
     }
 
     /// <summary>
+    /// 允许此 MCP 服务器通过 In-Process 传输层在同进程内提供服务，支持多个客户端同时连接。
+    /// </summary>
+    /// <returns>用于链式调用的 MCP 服务器生成器。</returns>
+    public McpServerBuilder WithInProcess()
+    {
+        _transportFactories.Add(m => new InProcessServerTransport(m));
+        return this;
+    }
+
+    /// <summary>
+    /// 允许此 MCP 服务器通过 In-Process 传输层在同进程内提供服务，支持多个客户端同时连接。
+    /// </summary>
+    /// <param name="options">In-Process 传输层选项。</param>
+    /// <returns>用于链式调用的 MCP 服务器生成器。</returns>
+    public McpServerBuilder WithInProcess(InProcessTransportOptions options)
+    {
+        _transportFactories.Add(m => new InProcessServerTransport(m, options));
+        return this;
+    }
+
+    /// <summary>
     /// 允许此 MCP 服务器通过 HTTP 提供服务。
     /// </summary>
     /// <param name="port">MCP 服务器将监听 http://localhost:{port} 上的请求。</param>
     /// <param name="endPoint">
     /// MCP 服务器将监听的路由端点，例如指定为 mcp 时，完整的 URL 为 http://localhost:{port}/mcp。<br/>
-    /// 所有的 MCP 请求都将发送到该端点；除非客户端使用旧版本（2024-11-05）的 SSE 协议传输时，会自动改为使用 /mcp/sse 端点。<br/>
+    /// 所有的 MCP 请求都将发送到该端点。<br/>
     /// 如果不指定，会使用默认的 /mcp 端点；如果希望监听根路径，请指定为空字符串 ""。
     /// </param>
     /// <returns>用于链式调用的 MCP 服务器生成器。</returns>
@@ -93,6 +116,19 @@ public class McpServerBuilder(string serverName, string serverVersion)
     public McpServerBuilder WithLogger(IMcpLogger logger)
     {
         _logger = logger;
+        return this;
+    }
+
+    /// <summary>
+    /// 配置 MCP 服务器的日志记录器。
+    /// </summary>
+    /// <param name="logger">日志记录器。</param>
+    /// <param name="rawMessageLoggingDetailLevel">传输层原始消息的日志记录详细级别。</param>
+    /// <returns>用于链式调用的 MCP 服务器生成器。</returns>
+    public McpServerBuilder WithLogger(IMcpLogger logger, McpTransportRawMessageLoggingDetailLevel rawMessageLoggingDetailLevel)
+    {
+        _logger = logger;
+        _rawMessageLoggingDetailLevel = rawMessageLoggingDetailLevel;
         return this;
     }
 
@@ -187,7 +223,10 @@ public class McpServerBuilder(string serverName, string serverVersion)
         context.Handlers = _requestHandlers is { } requestHandlers
             ? requestHandlers(server)
             : new McpServerRequestHandlers(server);
-        var transportManager = new ServerTransportManager(server, context);
+        var transportManager = new ServerTransportManager(server, context)
+        {
+            RawMessageLoggingDetailLevel = _rawMessageLoggingDetailLevel,
+        };
         context.Transport = transportManager;
         foreach (var factory in _transportFactories)
         {
