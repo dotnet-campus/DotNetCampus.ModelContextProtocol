@@ -1,6 +1,7 @@
-﻿using System.Text;
+using System.Text;
 using DotNetCampus.ModelContextProtocol.Hosting.Logging;
 using DotNetCampus.ModelContextProtocol.Protocol.Messages.JsonRpc;
+using DotNetCampus.ModelContextProtocol.Servers;
 
 namespace DotNetCampus.ModelContextProtocol.Transports.Stdio;
 
@@ -28,7 +29,7 @@ public class StdioServerTransport : IServerTransport
     public StdioServerTransport(IServerTransportManager manager)
     {
         _manager = manager;
-        _session = new StdioServerTransportSession();
+        _session = new StdioServerTransportSession(manager);
     }
 
     private IMcpLogger Log => _manager.Context.Logger;
@@ -50,6 +51,7 @@ public class StdioServerTransport : IServerTransport
             StandardInput = input,
             StandardOutput = output,
         };
+        _session.SetOutput(output);
         _manager.Add(_session);
 
         return Task.FromResult(RunLoopAsync(runningCancellationToken));
@@ -81,32 +83,80 @@ public class StdioServerTransport : IServerTransport
             var line = await input.ReadLineAsync(cancellationToken);
             if (line is null)
             {
+                Log.Info($"[McpServer][Stdio] Client disconnected (end of input stream).");
                 break;
             }
 
-            var request = await _manager.ParseAndCatchRequestAsync(line);
-            if (request is null)
+            if (string.IsNullOrWhiteSpace(line))
             {
-                await _manager.RespondJsonRpcAsync(output, new JsonRpcResponse
+                continue;
+            }
+
+            _manager.LogRawIn("[Stdio]", line);
+
+            JsonRpcMessage? message;
+            try
+            {
+                message = await _manager.ReadMessageAsync(line);
+            }
+            catch
+            {
+                message = null;
+            }
+
+            switch (message)
+            {
+                case JsonRpcResponse response:
+                    // 将响应路由到等待的请求。
+                    Log.Debug($"[McpServer][Stdio] Routing client response to session.");
+                    _session.HandleResponseAsync(response);
+                    continue;
+
+                case JsonRpcNotification notification:
+                    // 通知，路由到处理器，无需回复。
+                    await _manager.HandleRequestAsync(
+                        new JsonRpcRequest { Method = notification.Method, Params = notification.Params },
+                        s =>
+                        {
+                            s.AddScoped<IServerTransportSession>(_session);
+                            s.AddScoped<IMcpServerSampling>(new McpServerSampling(_session, Log));
+                        },
+                        cancellationToken);
+                    continue;
+
+                case JsonRpcRequest request:
                 {
-                    Error = new JsonRpcError
+                    var session = _session;
+                    var response2 = await _manager.HandleRequestAsync(request,
+                        s =>
+                        {
+                            s.AddScoped<IServerTransportSession>(session);
+                            s.AddScoped<IMcpServerSampling>(new McpServerSampling(session, Log));
+                        },
+                        cancellationToken);
+                    if (response2 is null)
                     {
-                        Code = (int)JsonRpcErrorCode.InvalidRequest,
-                        Message = $"Invalid request message: {line}",
-                    },
-                }, cancellationToken);
-                continue;
-            }
+                        // 按照 MCP 协议规范，本次请求仅需响应而无需回复。
+                        await output.WriteLineAsync();
+                        continue;
+                    }
+                    await _manager.RespondJsonRpcAsync(output, response2, cancellationToken);
+                    continue;
+                }
 
-            var response = await _manager.HandleRequestAsync(request, null, cancellationToken);
-            if (response is null)
-            {
-                // 按照 MCP 协议规范，本次请求仅需响应而无需回复。
-                await output.WriteLineAsync();
-                continue;
+                default:
+                    // 无法解析的消息，回复错误。
+                    Log.Warn($"[McpServer][Stdio] Received unrecognizable message, responding with error.");
+                    await _manager.RespondJsonRpcAsync(output, new JsonRpcResponse
+                    {
+                        Error = new JsonRpcError
+                        {
+                            Code = (int)JsonRpcErrorCode.InvalidRequest,
+                            Message = $"Invalid request message: {line}",
+                        },
+                    }, cancellationToken);
+                    continue;
             }
-
-            await _manager.RespondJsonRpcAsync(output, response, cancellationToken);
         }
     }
 
@@ -128,23 +178,11 @@ file static class Extensions
 {
     extension(IServerTransportManager manager)
     {
-        public async ValueTask<JsonRpcRequest?> ParseAndCatchRequestAsync(string inputMessageText)
-        {
-            try
-            {
-                return await manager.ReadRequestAsync(inputMessageText);
-            }
-            catch
-            {
-                // 请求消息格式不正确，返回 null 后，原样给 MCP 客户端报告错误。
-                return null;
-            }
-        }
-
         public async ValueTask RespondJsonRpcAsync(StreamWriter writer, JsonRpcResponse response, CancellationToken cancellationToken)
         {
             try
             {
+                manager.LogRawOut("[Stdio]", response);
                 await manager.WriteMessageAsync(writer.BaseStream, response, cancellationToken);
                 await writer.WriteLineAsync();
             }

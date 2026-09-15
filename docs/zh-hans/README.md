@@ -1,0 +1,23 @@
+# DotNetCampus.ModelContextProtocol
+
+- 快速开始
+    - [快速开始](QuickStart.md)
+- MCP 工具与资源
+    - [Tools](Tools.md)
+    - [Resources](Resources.md)
+    - [Prompts](Prompts.md)
+    - [Roots](Roots.md)
+    - [Sampling](Sampling.md)
+- 智能体集成
+    - [McpServerManager](McpServerManager.md)
+- MCP 机制
+    - [Authorization](Authorization.md)
+    - [Elicitation](Elicitation.md)
+    - [Utilities](Utilities.md)
+    - [_meta](Meta.md)
+- MCP 传输层
+    - [选择传输层](Transport.md)
+- 库机制
+    - [依赖注入](DependencyInjection.md)
+    - [多态类型](Polymorphism.md)
+    - [编译期 JSON Schema 生成](JsonSchemaGeneration.md)

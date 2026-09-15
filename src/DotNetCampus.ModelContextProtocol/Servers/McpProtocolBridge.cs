@@ -1,4 +1,3 @@
-﻿using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
 using DotNetCampus.ModelContextProtocol.CompilerServices;
@@ -122,28 +121,28 @@ internal sealed class McpProtocolBridge(McpServerContext context)
                 },
             },
             Initialize => await HandleRequestAsync(request, services, context.Handlers.HandleInitializeAsync,
-                McpServerRequestJsonContext.Default.InitializeRequestParams, McpServerResponseJsonContext.Default.InitializeResult,
+                McpInternalJsonContext.Default.InitializeRequestParams, McpInternalJsonContext.Default.InitializeResult,
                 cancellationToken),
             Ping => await HandleRequestAsync(request, services, context.Handlers.HandlePingAsync,
-                McpServerRequestJsonContext.Default.PingRequestParams, McpServerResponseJsonContext.Default.EmptyObject,
+                McpInternalJsonContext.Default.PingRequestParams, McpInternalJsonContext.Default.EmptyObject,
                 cancellationToken),
             LoggingSetLevel => await HandleRequestAsync(request, services, context.Handlers.HandleSetLoggingLevelAsync,
-                McpServerRequestJsonContext.Default.SetLevelRequestParams, McpServerResponseJsonContext.Default.EmptyObject,
+                McpInternalJsonContext.Default.SetLevelRequestParams, McpInternalJsonContext.Default.EmptyObject,
                 cancellationToken),
             ToolsList => await HandleRequestAsync(request, services, context.Handlers.HandleListToolsAsync,
-                McpServerRequestJsonContext.Default.ListToolsRequestParams, McpServerResponseJsonContext.Default.ListToolsResult,
+                McpInternalJsonContext.Default.ListToolsRequestParams, McpInternalJsonContext.Default.ListToolsResult,
                 cancellationToken),
             ToolsCall => await HandleRequestAsync(request, services, context.Handlers.HandleCallToolAsync,
-                McpServerRequestJsonContext.Default.CallToolRequestParams, McpServerResponseJsonContext.Default.CallToolResult,
+                McpInternalJsonContext.Default.CallToolRequestParams, McpInternalJsonContext.Default.CallToolResult,
                 cancellationToken),
             ResourcesList => await HandleRequestAsync(request, services, context.Handlers.HandleListResourcesAsync,
-                McpServerRequestJsonContext.Default.ListResourcesRequestParams, McpServerResponseJsonContext.Default.ListResourcesResult,
+                McpInternalJsonContext.Default.ListResourcesRequestParams, McpInternalJsonContext.Default.ListResourcesResult,
                 cancellationToken),
             ResourcesTemplatesList => await HandleRequestAsync(request, services, context.Handlers.HandleListResourceTemplatesAsync,
-                McpServerRequestJsonContext.Default.ListResourceTemplatesRequestParams, McpServerResponseJsonContext.Default.ListResourceTemplatesResult,
+                McpInternalJsonContext.Default.ListResourceTemplatesRequestParams, McpInternalJsonContext.Default.ListResourceTemplatesResult,
                 cancellationToken),
             ResourcesRead => await HandleRequestAsync(request, services, context.Handlers.HandleReadResourceAsync,
-                McpServerRequestJsonContext.Default.ReadResourceRequestParams, McpServerResponseJsonContext.Default.ReadResourceResult,
+                McpInternalJsonContext.Default.ReadResourceRequestParams, McpInternalJsonContext.Default.ReadResourceResult,
                 cancellationToken),
             _ => new JsonRpcResponse
             {
@@ -164,11 +163,7 @@ internal sealed class McpProtocolBridge(McpServerContext context)
         JsonTypeInfo<TParams> paramsTypeInfo, JsonTypeInfo<TResult> resultTypeInfo,
         CancellationToken cancellationToken)
     {
-        if (!EnsureParams(request, out var paramsElement, out var errorResponse))
-        {
-            return errorResponse;
-        }
-
+        var paramsElement = request.Params ?? EmptyObject.JsonElement;
         var requestParams = paramsElement.Deserialize(paramsTypeInfo);
         var requestContext = new RequestContext<TParams>(services, requestParams);
 
@@ -218,26 +213,4 @@ internal sealed class McpProtocolBridge(McpServerContext context)
         }
     }
 
-    private bool EnsureParams(JsonRpcRequest request,
-        out JsonElement paramsElement,
-        [NotNullWhen(false)] out JsonRpcResponse? errorResponse)
-    {
-        if (request.Params is { } element)
-        {
-            paramsElement = element;
-            errorResponse = null;
-            return true;
-        }
-        errorResponse = new JsonRpcResponse
-        {
-            Id = request.Id,
-            Error = new JsonRpcError
-            {
-                Code = (int)JsonRpcErrorCode.InvalidParams,
-                Message = "The params field is missing or not a valid JSON object.",
-            },
-        };
-        paramsElement = default;
-        return false;
-    }
 }

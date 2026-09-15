@@ -1,4 +1,4 @@
-﻿using DotNetCampus.ModelContextProtocol.CodeAnalysis;
+using DotNetCampus.ModelContextProtocol.CodeAnalysis;
 using DotNetCampus.ModelContextProtocol.CompilerServices;
 using DotNetCampus.ModelContextProtocol.Generators.Builders;
 using DotNetCampus.ModelContextProtocol.Generators.Models;
@@ -16,7 +16,7 @@ internal static class McpServerToolSourceBuilder
         McpServerToolGeneratingModel model)
     {
         return builder
-            .AddMethodDeclaration($"public {G.Tool} GetToolDefinition({G.CompiledSchemaJsonContext} jsonContext)", true,
+            .AddMethodDeclaration($"public {G.Tool} GetToolDefinition(global::System.Text.Json.Serialization.JsonSerializerContext jsonSerializerContext)", true,
                 m => m
                     .WithRawDocumentationComment("/// <inheritdoc />")
                     .AddBracketScope("new()", "{", "}", bs => bs
@@ -24,10 +24,10 @@ internal static class McpServerToolSourceBuilder
                         .AddStringAssignment("Title", model.Title)
                         .AddStringAssignment("Description", model.Description)
                         .AddRawStatement(
-                            $"InputSchema = {G.JsonSerializer}.SerializeToElement(GetInputSchema(jsonContext), jsonContext.CompiledJsonSchema),")
+                            $"InputSchema = GetInputSchema().ToJsonElement(jsonSerializerContext),")
                         .Condition(model.GetReturnTypeSchemaInfo() is not null, output => output
                             .AddRawStatement(
-                                $"OutputSchema = {G.JsonSerializer}.SerializeToElement(GetOutputSchema(jsonContext), jsonContext.CompiledJsonSchema),"))
+                                $"OutputSchema = GetOutputSchema().ToJsonElement(jsonSerializerContext),"))
                         .EndCondition()
                         .Condition(model.ShouldGenerateAnnotations(), anno => anno
                             .AddStatement("Annotations = ", ",", a => a.AddToolAnnotations(model)))
@@ -35,7 +35,6 @@ internal static class McpServerToolSourceBuilder
                     )
             );
     }
-
     /// <summary>
     /// 为 MCP 工具桥接类添加 GetInputSchema 方法。
     /// </summary>
@@ -43,8 +42,8 @@ internal static class McpServerToolSourceBuilder
         McpServerToolGeneratingModel model)
     {
         return builder
-            .AddMethodDeclaration($"private {G.CompiledJsonSchema} GetInputSchema({G.CompiledSchemaJsonContext} jsonContext)", true,
-                m => m.AddInputSchemaExpression(JsonPropertySchemaInfo.From(model))
+            .AddMethodDeclaration($"private {G.CompiledJsonSchema} GetInputSchema()", true,
+                m => m.AddCompiledJsonSchemaExpression(JsonPropertySchemaInfo.From(model))
             );
     }
 
@@ -60,85 +59,8 @@ internal static class McpServerToolSourceBuilder
         }
 
         return builder
-            .AddMethodDeclaration($"private {G.CompiledJsonSchema} GetOutputSchema({G.CompiledSchemaJsonContext} jsonContext)", true,
-                m => m.AddInputSchemaExpression(schemaInfo)
-            );
-    }
-
-    /// <summary>
-    /// 添加生成 InputSchema 的表达式。
-    /// </summary>
-    private static IAllowStatement AddInputSchemaExpression(this IAllowStatement builder, JsonPropertySchemaInfo info)
-    {
-        var itemSchema = info.GetItemSchemaOfArrayOrDefault();
-        var properties = info.GetProperties();
-        var polymorphicDerivedTypes = info.GetPolymorphicDerivedTypes();
-        var isJsonElementType = info.PropertyType.IsAnyJsonElementType();
-
-        return builder
-            .AddBracketScope($"new {G.CompiledJsonSchema}", "{", "}", true, bs => bs
-                .AddPropertyAssignment("Type", info.GetJsonSchemaTypeExpression())
-                .AddPropertyAssignment("Default", info.DefaultValueJsonElement)
-                .AddStringAssignment("Description", info.GetEnhancedDescription())
-                .AddPropertyAssignment("Enum", info.GetJsonEnumNameExpressionOrDefault())
-                .Condition(itemSchema is not null, i => i
-                    .AddStatement("Items = ", null, c => c.AddInputSchemaExpression(itemSchema!)))
-                .EndCondition()
-                // 如果是多态类型，只输出 Required 和 AnyOf，不输出 Properties
-                .Condition(polymorphicDerivedTypes.Count > 0, poly => poly
-                    .AddPropertyAssignment("Required", $"[ \"{info.PolymorphicInfo!.DiscriminatorPropertyName}\" ]")
-                    .AddBracketScope("AnyOf = ", "[", "],", rbs => rbs
-                        .AddStatements(polymorphicDerivedTypes, (d, derivedType) => d
-                            .AddStatement("", ",", c => c.AddPolymorphicDerivedTypeSchema(derivedType, info))
-                        )))
-                // 非多态类型，正常处理
-                .Otherwise(nonPoly => nonPoly
-                    .AddPropertyAssignment("Required", info.GetJsonRequiredPropertiesExpressionOrDefault())
-                    .Condition(properties.Count > 0, i => i
-                        .AddBracketScope($"Properties = new {G.Dictionary}<string, {G.CompiledJsonSchema}>", "{", "},", rbs => rbs
-                            .AddStatements(properties, (d, p) => d
-                                .AddStatement($"[ \"{p.JsonPropertyName}\" ] = ", ",", c => c
-                                    .AddInputSchemaExpression(p))
-                            )))
-                    .EndCondition()
-                )
-                .EndCondition()
-            );
-    }
-
-    /// <summary>
-    /// 为多态派生类型添加 Schema 表达式（包含鉴别器约束）。
-    /// </summary>
-    private static IAllowStatement AddPolymorphicDerivedTypeSchema(
-        this IAllowStatement builder,
-        JsonPropertySchemaInfo derivedType,
-        JsonPropertySchemaInfo baseInfo)
-    {
-        var discriminatorPropertyName = baseInfo.PolymorphicInfo!.DiscriminatorPropertyName;
-        var discriminatorValue = baseInfo.PolymorphicInfo.DerivedTypes
-            .FirstOrDefault(d => SymbolEqualityComparer.Default.Equals(d.Type, derivedType.PropertyType))
-            ?.DiscriminatorValue ?? derivedType.PropertyType.Name;
-
-        var properties = derivedType.GetProperties();
-
-        return builder
-            .AddBracketScope($"new {G.CompiledJsonSchema}", "{", "}", true, bs => bs
-                .AddPropertyAssignment("Type", null)
-                .AddBracketScope($"Properties = new {G.Dictionary}<string, {G.CompiledJsonSchema}>", "{", "},", rbs => rbs
-                    .AddStatement($"[ \"{discriminatorPropertyName}\" ] = ", ",", c => c
-                        .AddBracketScope($"new {G.CompiledJsonSchema}", "{", "}", false, ds => ds
-                            .AddPropertyAssignment("Type", null)
-                            .AddStringAssignment("Const", discriminatorValue)
-                        ))
-                    // 添加派生类型的所有属性
-                    .AddStatements(properties, (d, p) => d
-                        .AddStatement($"[ \"{p.JsonPropertyName}\" ] = ", ",", c => c
-                            .AddInputSchemaExpression(p))
-                    )
-                )
-                .Condition(properties.Any(p => p.IsRequired), req => req
-                    .AddPropertyAssignment("Required", derivedType.GetJsonRequiredPropertiesExpressionOrDefault()))
-                .EndCondition()
+            .AddMethodDeclaration($"private {G.CompiledJsonSchema} GetOutputSchema()", true,
+                m => m.AddCompiledJsonSchemaExpression(schemaInfo)
             );
     }
 
@@ -246,45 +168,167 @@ var {parameter.Name} = jsonArguments.TryGetProperty("{jsonName}", out var {param
         var callMethodExpression = $"Target.{model.Method.Name}({string.Join(", ", arguments)})";
 
         var isAsync = model.GetIsAsync();
-        var typeName = model.GetReturnTypeName(false);
-        var typeFullName = model.GetReturnTypeName(true);
-        var hasStructureReturn = typeName is not null && typeFullName is not null;
-        var isVoid = model.GetReturnType() is null;
 
-        builder.AddRawStatement((isAsync, isVoid, hasStructureReturn) switch
+        var schemaInfo = model.GetReturnTypeSchemaInfo();
+        var typeName = schemaInfo?.PropertyType.ToSimpleDisplayString();
+        var typeFullName = schemaInfo?.PropertyType.ToDisplayString();
+        var hasStructureReturn = typeName is not null && typeFullName is not null;
+        var returnType = model.GetReturnType();
+        var isVoid = returnType is null;
+        var collectionKind = model.GetCollectionReturnKind();
+        var isBareCallToolResult = returnType?.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat) == G.CallToolResult;
+
+        // Generate the return expression/statement based on priority
+        string code;
+
+        if (isVoid)
         {
-            // async void (Task/ValueTask without result)
-            (true, true, _) => $"""
-                await {callMethodExpression}.ConfigureAwait(false);
-                return {G.CallToolResult}.Empty;
-                """,
-            // async with structured return
-            (true, false, true) => $"""
-                var result = await {callMethodExpression}.ConfigureAwait(false);
-                return {G.CallToolResult}.FromResult(result).Structure(context, "{typeName}", "{typeFullName}");
-                """,
-            // async without structured return
-            (true, false, false) => $"""
-                var result = await {callMethodExpression}.ConfigureAwait(false);
-                return {G.CallToolResult}.FromResult(result).Structure(jsonSerializerContext);
-                """,
-            // sync void
-            (false, true, _) => $"""
-                {callMethodExpression};
-                return {G.ValueTask}.FromResult({G.CallToolResult}.Empty);
-                """,
-            // sync with structured return
-            (false, false, true) => $"""
-                var result = {callMethodExpression};
-                return {G.ValueTask}.FromResult({G.CallToolResult}.FromResult(result).Structure(context, "{typeName}", "{typeFullName}"));
-                """,
-            // sync without structured return
-            (false, false, false) => $"""
-                var result = {callMethodExpression};
-                return {G.ValueTask}.FromResult({G.CallToolResult}.FromResult(result).Structure(jsonSerializerContext));
-                """,
-        });
+            // void / Task / ValueTask
+            if (isAsync)
+            {
+                code = $"""
+                    await {callMethodExpression}.ConfigureAwait(false);
+                    return {G.CallToolResult}.Empty;
+                    """;
+            }
+            else
+            {
+                code = $"""
+                    {callMethodExpression};
+                    return {G.ValueTask}.FromResult({G.CallToolResult}.Empty);
+                    """;
+            }
+        }
+        else if (isBareCallToolResult)
+        {
+            // 裸 CallToolResult — 直接返回，不依赖用户的 JsonSerializerContext
+            code = GenerateReturnBlock(isAsync, callMethodExpression, "result");
+        }
+        else if (collectionKind is CollectionReturnKind.BasicTypeCollection)
+        {
+            var elementType = model.GetCollectionElementType();
+            if (elementType?.ToJsonSchemaTypeInfo().SpecialKind is JsonSpecialType.Enum)
+            {
+                var elementTypeFullName = elementType.ToNullableDisabledGlobalDisplayString();
+                var elementTypeName = elementType.ToSimpleDisplayString();
+                code = GenerateReturnBlock(isAsync, callMethodExpression,
+                    $"{G.CallToolResult}.FromCollectionJsonStrings(result, context.EnsureJsonTypeInfo<{elementTypeFullName}>(\"{elementTypeName}\", \"{elementTypeFullName}\"))");
+            }
+            else
+            {
+                // 基本类型集合 — 每个元素 ToString()
+                code = GenerateReturnBlock(isAsync, callMethodExpression,
+                    $"{G.CallToolResult}.FromCollection(result, x => $\"{{x}}\")");
+            }
+        }
+        else if (collectionKind is CollectionReturnKind.ObjectCollection)
+        {
+            // 对象集合 — 每个元素 JSON 序列化
+            var elementTypeFullName = model.GetCollectionElementTypeName(true)!;
+            var elementTypeName = model.GetCollectionElementTypeName(false)!;
+            code = GenerateReturnBlock(isAsync, callMethodExpression,
+                $"{G.CallToolResult}.FromCollection(result, x => {G.JsonSerializer}.Serialize(x, context.EnsureJsonTypeInfo<{elementTypeFullName}>(\"{elementTypeName}\", \"{elementTypeFullName}\")))");
+        }
+        else if (hasStructureReturn)
+        {
+            // 可结构化对象
+            var notNull = returnType!.GetNotNullTypeSymbol();
+            var globalTypeFullName = notNull.ToNullableDisabledGlobalDisplayString();
+            code = GenerateReturnBlock(isAsync, callMethodExpression,
+                $"{G.CallToolResult}.FromResultStructured(result, context.EnsureJsonTypeInfo<{globalTypeFullName}>(\"{typeName}\", \"{typeFullName}\"))");
+        }
+        else if (returnType is not null && IsObjectLike(returnType))
+        {
+            // 不可结构化对象
+            var notNull = returnType.GetNotNullTypeSymbol();
+            var uTypeName = notNull.ToSimpleDisplayString();
+            var uTypeFullName = notNull.ToDisplayString();
+            var globalTypeFullName = notNull.ToNullableDisabledGlobalDisplayString();
+            code = GenerateReturnBlock(isAsync, callMethodExpression,
+                $"{G.CallToolResult}.FromResultUnstructured(result, context.EnsureJsonTypeInfo<{globalTypeFullName}>(\"{uTypeName}\", \"{uTypeFullName}\"))");
+        }
+        else
+        {
+            // 其他（string / 基本类型 / 枚举 / JsonElement）
+            code = GenerateReturnBlock(isAsync, callMethodExpression, GenerateOtherReturnExpression(returnType));
+        }
+
+        builder.AddRawStatement(code);
         return builder;
+    }
+
+    /// <summary>
+    /// 生成标准的 "var result = ...; return ..." 代码块。
+    /// </summary>
+    private static string GenerateReturnBlock(bool isAsync, string callMethodExpression, string returnExpression)
+    {
+        if (isAsync)
+        {
+            return $"""
+                var result = await {callMethodExpression}.ConfigureAwait(false);
+                return {returnExpression};
+                """;
+        }
+        else
+        {
+            return $"""
+                var result = {callMethodExpression};
+                return {G.ValueTask}.FromResult({returnExpression});
+                """;
+        }
+    }
+
+    /// <summary>
+    /// 判断类型是否为对象类型（非基本类型、非字符串、非枚举、非 JsonElement）。
+    /// </summary>
+    private static bool IsObjectLike(ITypeSymbol returnType)
+    {
+        var notNull = returnType.GetNotNullTypeSymbol();
+        var info = notNull.ToJsonSchemaTypeInfo();
+        return info.SpecialKind is JsonSpecialType.Object or JsonSpecialType.Dictionary
+               && !notNull.IsAnyJsonElementType();
+    }
+
+    /// <summary>
+    /// 为 string / 基本类型 / 枚举 / JsonElement 生成返回表达式。
+    /// </summary>
+    private static string GenerateOtherReturnExpression(ITypeSymbol? returnType)
+    {
+        if (returnType is null)
+        {
+            return $"{G.CallToolResult}.Empty";
+        }
+
+        var notNull = returnType.GetNotNullTypeSymbol();
+
+        // string → FromResult(result)
+        if (notNull.SpecialType == SpecialType.System_String)
+        {
+            return $"{G.CallToolResult}.FromResult(result)";
+        }
+
+        // JsonElement / JsonNode → FromResultUnstructured + EnsureJsonTypeInfo
+        if (notNull.IsAnyJsonElementType())
+        {
+            var jsonTypeName = notNull.ToSimpleDisplayString();
+            var jsonTypeFullName = notNull.ToDisplayString();
+            var jsonGlobalTypeFullName = notNull.ToNullableDisabledGlobalDisplayString();
+            return $"{G.CallToolResult}.FromResultUnstructured(result, context.EnsureJsonTypeInfo<{jsonGlobalTypeFullName}>(\"{jsonTypeName}\", \"{jsonTypeFullName}\"))";
+        }
+
+        if (notNull.ToJsonSchemaTypeInfo().SpecialKind is JsonSpecialType.Enum)
+        {
+            var jsonTypeName = notNull.ToSimpleDisplayString();
+            var jsonTypeFullName = notNull.ToDisplayString();
+            var jsonGlobalTypeFullName = notNull.ToNullableDisabledGlobalDisplayString();
+            return $"{G.CallToolResult}.FromResultJsonString(result, context.EnsureJsonTypeInfo<{jsonGlobalTypeFullName}>(\"{jsonTypeName}\", \"{jsonTypeFullName}\"))";
+        }
+
+        // 基本类型 / 兜底 → FromResult(result.ToString())
+        var toStringExpr = notNull.IsValueType
+            ? "result.ToString()"
+            : "result?.ToString() ?? \"\"";
+        return $"{G.CallToolResult}.FromResult({toStringExpr})";
     }
 
     /// <summary>
@@ -350,20 +394,6 @@ var {parameter.Name} = jsonArguments.TryGetProperty("{jsonName}", out var {param
             };
 
             builder.AddRawText($"{propertyName} = {value},");
-        }
-        return builder;
-    }
-
-    /// <summary>
-    /// 添加属性赋值（用于对象初始化器）。
-    /// </summary>
-    private static TBuilder AddPropertyAssignment<TBuilder>(this TBuilder builder,
-        string property, string? expression)
-        where TBuilder : ISourceTextBuilder
-    {
-        if (expression is not null)
-        {
-            builder.AddRawText($"{property} = {expression},");
         }
         return builder;
     }

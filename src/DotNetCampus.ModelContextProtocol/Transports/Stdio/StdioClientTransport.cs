@@ -1,4 +1,4 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 using System.Diagnostics.Contracts;
 using System.Text;
 using DotNetCampus.ModelContextProtocol.Hosting.Logging;
@@ -42,6 +42,10 @@ public class StdioClientTransport : IClientTransport
         if (process is { } stdio)
         {
             _ = RunLoopAsync(stdio, cancellationToken);
+            // 按照 MCP 协议规范对 STDIO 传输层的要求：
+            // 客户端不应假设 stderr 输出表示错误条件，但必须持续消耗 stderr，
+            // 否则当 stderr 管道缓冲区填满后，服务器进程会因写入 stderr 而阻塞。
+            _ = RunStderrLoopAsync(stdio, cancellationToken);
         }
 
         _stdio = process;
@@ -68,6 +72,7 @@ public class StdioClientTransport : IClientTransport
         }
 
         var line = _manager.WriteMessageAsync(message);
+        _manager.LogRawOut("[Stdio]", line);
         await stdio.StandardInput.WriteAsync(line);
         await stdio.StandardInput.WriteAsync('\n');
         await stdio.StandardInput.FlushAsync();
@@ -98,14 +103,54 @@ public class StdioClientTransport : IClientTransport
                 break;
             }
 
-            var response = await _manager.ParseAndCatchResponseAsync(line);
-            if (response is null)
+            if (string.IsNullOrWhiteSpace(line))
+            {
+                continue;
+            }
+
+            _manager.LogRawIn("[Stdio]", line);
+
+            // 一次解析即可分类：有 method → 服务器主动请求；有 result/error → 对客户端请求的响应。
+            JsonRpcMessage? message;
+            try
+            {
+                message = await _manager.ReadMessageAsync(line);
+            }
+            catch
             {
                 Log.Warn($"[McpClient][Stdio] Invalid server message received.");
                 continue;
             }
 
-            await _manager.HandleRespondAsync(response, cancellationToken);
+            switch (message)
+            {
+                case JsonRpcRequest request:
+                    await _manager.HandleServerRequestAsync(request, cancellationToken);
+                    break;
+                case JsonRpcResponse response:
+                    await _manager.HandleRespondAsync(response, cancellationToken);
+                    break;
+                default:
+                    Log.Warn($"[McpClient][Stdio] Unrecognized server message received.");
+                    break;
+            }
+        }
+    }
+
+    private async Task RunStderrLoopAsync(StdioProcessInfo stdio, CancellationToken cancellationToken)
+    {
+        // 持续消耗服务器进程的 stderr 输出，防止管道缓冲区填满导致服务器进程阻塞。
+        // 按照 MCP 协议规范对 STDIO 传输层的要求：
+        // 客户端不应假设 stderr 输出表示错误条件。
+        // The client SHOULD NOT assume stderr output indicates error conditions.
+        while (!cancellationToken.IsCancellationRequested)
+        {
+            var line = await stdio.StandardError.ReadLineAsync(cancellationToken);
+            if (line is null)
+            {
+                break;
+            }
+            Log.Debug($"[McpClient][Stdio] Server stderr: {line}");
         }
     }
 
@@ -194,24 +239,5 @@ public class StdioClientTransport : IClientTransport
         public required StreamReader StandardOutput { get; init; }
 
         public required StreamReader StandardError { get; init; }
-    }
-}
-
-file static class Extensions
-{
-    extension(IClientTransportManager manager)
-    {
-        public async ValueTask<JsonRpcResponse?> ParseAndCatchResponseAsync(string inputMessageText)
-        {
-            try
-            {
-                return await manager.ReadResponseAsync(inputMessageText);
-            }
-            catch
-            {
-                // 响应消息格式不正确，返回 null 后，原样给 MCP 客户端报告错误。
-                return null;
-            }
-        }
     }
 }

@@ -20,7 +20,7 @@ internal static class McpServerResourceSourceBuilder
         var definitionType = model.IsTemplate ? G.ResourceTemplate : G.Resource;
 
         return builder
-            .AddMethodDeclaration($"public object GetResourceDefinition({G.CompiledSchemaJsonContext} jsonContext)", true,
+            .AddMethodDeclaration($"public object GetResourceDefinition()", true,
                 m => m
                     .WithRawDocumentationComment("/// <inheritdoc />")
                     .AddBracketScope($"new {definitionType}", bs => bs

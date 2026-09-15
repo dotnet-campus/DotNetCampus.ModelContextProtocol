@@ -1,7 +1,9 @@
 ﻿using DotNetCampus.ModelContextProtocol.Hosting.Logging;
 using DotNetCampus.ModelContextProtocol.Protocol.Messages;
+using DotNetCampus.ModelContextProtocol.Servers;
 using DotNetCampus.ModelContextProtocol.Transports;
 using DotNetCampus.ModelContextProtocol.Transports.Http;
+using DotNetCampus.ModelContextProtocol.Transports.InProcess;
 using DotNetCampus.ModelContextProtocol.Transports.Stdio;
 using DotNetCampus.ModelContextProtocol.Utils;
 
@@ -10,27 +12,17 @@ namespace DotNetCampus.ModelContextProtocol.Clients;
 /// <summary>
 /// 用于构建 MCP 客户端的生成器。
 /// </summary>
-public class McpClientBuilder
+/// <param name="clientName">MCP 客户端名称。</param>
+/// <param name="clientVersion">MCP 客户端版本。</param>
+public class McpClientBuilder(string clientName, string clientVersion)
 {
-    private string _clientName = "<Unknown>";
-    private string _clientVersion = "0.0.0";
     private IMcpLogger? _logger;
+    private McpTransportRawMessageLoggingDetailLevel _rawMessageLoggingDetailLevel = McpTransportRawMessageLoggingDetailLevel.None;
     private IServiceProvider? _serviceProvider;
     private Func<IClientTransportManager, IClientTransport>? _transportFactory;
     private ClientCapabilities _capabilities = new();
-
-    /// <summary>
-    /// 设置客户端名称和版本。
-    /// </summary>
-    /// <param name="clientName">客户端名称。</param>
-    /// <param name="clientVersion">客户端版本。</param>
-    /// <returns>用于链式调用的 MCP 客户端生成器。</returns>
-    public McpClientBuilder WithClientInfo(string clientName, string clientVersion)
-    {
-        _clientName = clientName;
-        _clientVersion = clientVersion;
-        return this;
-    }
+    private Func<CreateMessageRequestParams, CancellationToken, Task<CreateMessageResult>>? _samplingHandler;
+    private Func<McpClient, McpClientRequestHandlers>? _requestHandlers;
 
     /// <summary>
     /// 配置 MCP 客户端的日志记录器。
@@ -40,6 +32,19 @@ public class McpClientBuilder
     public McpClientBuilder WithLogger(IMcpLogger logger)
     {
         _logger = logger;
+        return this;
+    }
+
+    /// <summary>
+    /// 配置 MCP 客户端的日志记录器。
+    /// </summary>
+    /// <param name="logger">日志记录器。</param>
+    /// <param name="rawMessageLoggingDetailLevel">传输层原始消息的日志记录详细级别。</param>
+    /// <returns>用于链式调用的 MCP 客户端生成器。</returns>
+    public McpClientBuilder WithLogger(IMcpLogger logger, McpTransportRawMessageLoggingDetailLevel rawMessageLoggingDetailLevel)
+    {
+        _logger = logger;
+        _rawMessageLoggingDetailLevel = rawMessageLoggingDetailLevel;
         return this;
     }
 
@@ -82,16 +87,32 @@ public class McpClientBuilder
     }
 
     /// <summary>
+    /// 使用 In-Process 传输层连接到同进程内的 MCP 服务器。
+    /// </summary>
+    /// <param name="server">要连接的 MCP 服务器实例。服务器必须已配置 In-Process 传输层（通过 <see cref="McpServerBuilder.WithInProcess()"/> 方法）。</param>
+    /// <returns>用于链式调用的 MCP 客户端生成器。</returns>
+    public McpClientBuilder WithInProcess(McpServer server)
+    {
+        return WithTransport(m =>
+        {
+            var transport = server.Transports.OfType<InProcessServerTransport>().FirstOrDefault()
+                ?? throw new InvalidOperationException(
+                    "MCP 服务器未配置 In-Process 传输层。请在构建服务器时调用 McpServerBuilder.WithInProcess() 方法。");
+            return new InProcessClientTransport(m, transport);
+        });
+    }
+
+    /// <summary>
     /// 使用 Streamable HTTP 传输层连接到 MCP 服务器。
     /// </summary>
     /// <param name="serverUrl">要连接的 MCP 服务器的 URL。</param>
     /// <returns>用于链式调用的 MCP 客户端生成器。</returns>
     public McpClientBuilder WithHttp(string serverUrl)
     {
-        return WithTransport(m => new HttpClientTransport(m, new HttpClientTransportOptions
+        return WithHttp(new HttpClientTransportOptions
         {
             ServerUrl = serverUrl,
-        }));
+        });
     }
 
     /// <summary>
@@ -132,6 +153,57 @@ public class McpClientBuilder
     }
 
     /// <summary>
+    /// 配置 Sampling 处理器，使客户端支持服务器发起的 sampling/createMessage 请求。
+    /// 调用此方法会自动在客户端能力中声明 Sampling 支持。
+    /// </summary>
+    /// <param name="handler">
+    /// 当服务器请求采样时的处理函数。接收 <see cref="CreateMessageRequestParams"/> 并返回 <see cref="CreateMessageResult"/>。
+    /// </param>
+    /// <returns>用于链式调用的 MCP 客户端生成器。</returns>
+    public McpClientBuilder WithSamplingHandler(
+        Func<CreateMessageRequestParams, CancellationToken, Task<CreateMessageResult>> handler)
+    {
+        _samplingHandler = handler;
+        _capabilities = _capabilities with
+        {
+            Sampling = _capabilities.Sampling ?? new SamplingCapability(),
+        };
+        return this;
+    }
+
+    /// <summary>
+    /// 配置 Sampling 处理器，使客户端支持服务器发起的 sampling/createMessage 请求。
+    /// 调用此方法会自动在客户端能力中声明 Sampling 支持。
+    /// </summary>
+    /// <param name="handlerFactory">
+    /// 处理函数工厂，接收 <see cref="IServiceProvider"/> 以便从中获取所需服务。
+    /// </param>
+    /// <returns>用于链式调用的 MCP 客户端生成器。</returns>
+    public McpClientBuilder WithSamplingHandler(
+        Func<IServiceProvider?, Func<CreateMessageRequestParams, CancellationToken, Task<CreateMessageResult>>> handlerFactory)
+    {
+        return WithSamplingHandler((p, ct) =>
+        {
+            var handler = handlerFactory(_serviceProvider);
+            return handler(p, ct);
+        });
+    }
+
+    /// <summary>
+    /// 配置自定义的 MCP 请求处理器。<br/>
+    /// 通过继承 <see cref="McpClientRequestHandlers"/> 并重写方法，可以在请求发送前拦截、修改请求参数（如注入 <c>_meta</c>），或对响应做后处理。<br/>
+    /// </summary>
+    /// <typeparam name="THandlers">自定义 MCP 请求处理器的类型。</typeparam>
+    /// <param name="factory">请求处理器工厂方法。</param>
+    /// <returns>用于链式调用的 MCP 客户端生成器。</returns>
+    public McpClientBuilder WithRequestHandlers<THandlers>(Func<McpClient, THandlers> factory)
+        where THandlers : McpClientRequestHandlers
+    {
+        _requestHandlers = factory;
+        return this;
+    }
+
+    /// <summary>
     /// 构建 MCP 客户端实例。
     /// </summary>
     /// <returns>构建好的 MCP 客户端。</returns>
@@ -148,17 +220,31 @@ public class McpClientBuilder
             ServiceProvider = _serviceProvider,
         };
 
-        var transportManager = new ClientTransportManager(context);
+        var transportManager = new ClientTransportManager(context)
+        {
+            RawMessageLoggingDetailLevel = _rawMessageLoggingDetailLevel,
+        };
         context.Transport = transportManager;
+
+        if (_samplingHandler is { } handler)
+        {
+            transportManager.SetSamplingHandler(handler);
+        }
 
         var transport = _transportFactory(transportManager);
         transportManager.SetTransport(transport);
 
-        return new McpClient(context)
+        var client = new McpClient(context)
         {
-            ClientName = _clientName,
-            ClientVersion = _clientVersion,
+            ClientName = clientName,
+            ClientVersion = clientVersion,
             Capabilities = _capabilities,
         };
+
+        context.Handlers = _requestHandlers is { } requestHandlers
+            ? requestHandlers(client)
+            : new McpClientRequestHandlers(client);
+
+        return client;
     }
 }

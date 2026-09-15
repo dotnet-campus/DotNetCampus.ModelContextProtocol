@@ -1,3 +1,4 @@
+using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace DotNetCampus.ModelContextProtocol.Protocol.Messages;
@@ -50,7 +51,7 @@ public record ClientCapabilities
     /// </summary>
     [JsonPropertyName("experimental")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public Dictionary<string, object>? Experimental { get; init; }
+    public Dictionary<string, JsonElement>? Experimental { get; init; }
 }
 
 /// <summary>
@@ -65,7 +66,7 @@ public sealed record SamplingCapability
     /// </summary>
     [JsonPropertyName("context")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public object? Context { get; init; }
+    public JsonElement? Context { get; init; }
 
     /// <summary>
     /// 支持工具调用。<br/>
@@ -73,7 +74,7 @@ public sealed record SamplingCapability
     /// </summary>
     [JsonPropertyName("tools")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public object? Tools { get; init; }
+    public JsonElement? Tools { get; init; }
 }
 
 /// <summary>
@@ -88,7 +89,7 @@ public sealed record ElicitationCapability
     /// </summary>
     [JsonPropertyName("form")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public object? Form { get; init; }
+    public JsonElement? Form { get; init; }
 
     /// <summary>
     /// 支持 URL 模式引出。<br/>
@@ -96,5 +97,5 @@ public sealed record ElicitationCapability
     /// </summary>
     [JsonPropertyName("url")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public object? Url { get; init; }
+    public JsonElement? Url { get; init; }
 }

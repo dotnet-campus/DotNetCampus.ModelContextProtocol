@@ -1,4 +1,7 @@
-﻿#pragma warning disable CS9113
+﻿using System.Threading;
+using System.Threading.Tasks;
+
+#pragma warning disable CS9113
 
 #if NET7_0_OR_GREATER
 #else

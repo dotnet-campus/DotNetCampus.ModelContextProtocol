@@ -1,9 +1,11 @@
+using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using DotNetCampus.ModelContextProtocol.Transports.Http;
+using DotNetCampus.ModelContextProtocol.Transports.Http.Legacy;
 
 namespace DotNetCampus.ModelContextProtocol.Transports.TouchSocket;
 
-internal interface ITouchSocketHttpServerTransportOptions
+internal interface ITouchSocketHttpServerTransportOptions : ILegacySseTransportOptions
 {
     /// <summary>
     /// 指定用于传输的端点。
@@ -14,10 +16,6 @@ internal interface ITouchSocketHttpServerTransportOptions
 /// <summary>
 /// TouchSocket HTTP 服务端传输层配置选项。
 /// </summary>
-/// <remarks>
-/// TouchSocket.Http 的服务端传输层暂时没考虑兼容旧的 SSE 传输层协议（2024-11-05），
-/// 若要兼容 SSE，请使用 MCP 库自带的 <see cref="LocalHostHttpServerTransport"/> 传输层。
-/// </remarks>
 public record TouchSocketHttpServerTransportOptions : ITouchSocketHttpServerTransportOptions
 {
     /// <summary>
@@ -45,15 +43,28 @@ public record TouchSocketHttpServerTransportOptions : ITouchSocketHttpServerTran
             _ => value.StartsWith('/') ? value : "/" + value,
         };
     }
+
+    /// <summary>
+    /// 指定是否兼容旧的 SSE 传输层协议（2024-11-05）。默认为 <see langword="true"/>。
+    /// </summary>
+    /// <remarks>
+    /// 2024-11-05 已被服务端明确支持，兼容端点仅为旧客户端额外开放入口，
+    /// 不会改变现代客户端使用的 <c>/mcp</c> 行为。这样旧客户端可直接接入；若调用方只希望暴露现代端点，
+    /// 可显式设为 <see langword="false"/> 以彰显开发者的底气。
+    /// </remarks>
+    [MemberNotNullWhen(true, nameof(SseEndPoint), nameof(SseMessageEndPoint))]
+    public bool IsCompatibleWithSse { get; init; } = true;
+
+    /// <inheritdoc />
+    public string? SseEndPoint => IsCompatibleWithSse ? $"{EndPoint}/sse" : null;
+
+    /// <inheritdoc />
+    public string? SseMessageEndPoint => IsCompatibleWithSse ? $"{EndPoint}/messages" : null;
 }
 
 /// <summary>
 /// 从外部传入的 TouchSocket HTTP 服务端传输层配置选项。
 /// </summary>
-/// <remarks>
-/// TouchSocket.Http 的服务端传输层暂时没考虑兼容旧的 SSE 传输层协议（2024-11-05），
-/// 若要兼容 SSE，请使用 MCP 库自带的 <see cref="LocalHostHttpServerTransport"/> 传输层。
-/// </remarks>
 public record ExternalTouchSocketHttpServerTransportOptions : ITouchSocketHttpServerTransportOptions
 {
     /// <inheritdoc />
@@ -67,4 +78,21 @@ public record ExternalTouchSocketHttpServerTransportOptions : ITouchSocketHttpSe
             _ => value.StartsWith('/') ? value : "/" + value,
         };
     }
+
+    /// <summary>
+    /// 指定是否兼容旧的 SSE 传输层协议（2024-11-05）。默认为 <see langword="true"/>。
+    /// </summary>
+    /// <remarks>
+    /// 2024-11-05 已被服务端明确支持，兼容端点仅为旧客户端额外开放入口，
+    /// 不会改变现代客户端使用的 <c>/mcp</c> 行为。这样旧客户端可直接接入；若调用方只希望暴露现代端点，
+    /// 可显式设为 <see langword="false"/> 以彰显开发者的底气。
+    /// </remarks>
+    [MemberNotNullWhen(true, nameof(SseEndPoint), nameof(SseMessageEndPoint))]
+    public bool IsCompatibleWithSse { get; init; } = true;
+
+    /// <inheritdoc />
+    public string? SseEndPoint => IsCompatibleWithSse ? $"{EndPoint}/sse" : null;
+
+    /// <inheritdoc />
+    public string? SseMessageEndPoint => IsCompatibleWithSse ? $"{EndPoint}/messages" : null;
 }

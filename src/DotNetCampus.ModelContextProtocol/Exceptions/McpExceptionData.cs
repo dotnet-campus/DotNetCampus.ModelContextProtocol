@@ -1,4 +1,4 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 using DotNetCampus.ModelContextProtocol.CompilerServices;
 
@@ -33,7 +33,7 @@ public record McpExceptionData
     /// <returns>表示当前实例的 <see cref="JsonElement"/>。</returns>
     public JsonElement ToJsonElement()
     {
-        return JsonSerializer.SerializeToElement(this, McpServerResponseJsonContext.Default.McpExceptionData);
+        return JsonSerializer.SerializeToElement(this, McpInternalJsonContext.Default.McpExceptionData);
     }
 
     /// <summary>
@@ -42,7 +42,7 @@ public record McpExceptionData
     /// <returns>表示当前实例的 JSON 字符串。</returns>
     public string ToJsonString()
     {
-        return JsonSerializer.Serialize(this, McpServerResponseJsonContext.Default.McpExceptionData);
+        return JsonSerializer.Serialize(this, McpInternalJsonContext.Default.McpExceptionData);
     }
 
     /// <summary>

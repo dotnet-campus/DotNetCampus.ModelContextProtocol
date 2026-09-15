@@ -366,6 +366,78 @@ Log.Warn($"[McpClient][Http] SSE connection error, reconnecting. Error={ex.Messa
 Log.Error($"[McpServer][StreamableHttp] Failed to start listener: {ex}");
 ```
 
+## 原始消息日志（Raw Message Log）
+
+原始消息日志专门用于记录 MCP 传输层收发的完整 JSON-RPC 消息内容，是与官方参考实现对比验证的核心手段。
+
+### 使用方式
+
+不要直接调用 `IMcpLogger`，而是通过传输层管理器上的扩展方法：
+
+```csharp
+// 服务端接收（传输层 _manager 为 IServerTransportManager）
+_manager.LogRawIn("[StreamableHttp]", channel, message);
+
+// 服务端发送
+_manager.LogRawOut("[StreamableHttp]", channel, message);
+
+// 客户端接收（传输层 _manager 为 IClientTransportManager）
+_manager.LogRawIn("[Http]", channel, data);
+
+// 客户端发送
+_manager.LogRawOut("[Http]", channel, jsonContent);
+```
+
+- 由 `McpTransportRawMessageLoggingDetailLevel` 控制是否记录及记录多少（`None` / `Trimmed` / `Full`）
+- 日志级别固定为 `Debug`
+- 只有在 `Debug` 级别启用时才实际输出，方法内部自行判断，调用方无需包裹 `if (IsEnabled(Debug))`
+
+### 输出格式
+
+```
+{role}{tag} {direction} [via {channel}] {rawMessage}
+```
+
+示例：
+
+```
+[McpServer][StreamableHttp] ← [via POST, SessionId=abc123] {"jsonrpc":"2.0","method":"initialize",...}
+[McpServer][StreamableHttp] → [via POST/json, SessionId=abc123] {"jsonrpc":"2.0","id":"1","result":{...}}
+[McpServer][StreamableHttp] → [via POST/sse, SessionId=abc123] {"jsonrpc":"2.0","method":"sampling/createMessage",...}
+[McpClient][Http] → [via POST] {"jsonrpc":"2.0","method":"initialize",...}
+[McpClient][Http] ← [via POST/json, SessionId=init] {"jsonrpc":"2.0","id":"1","result":{...}}
+[McpClient][Http] ← [via GET/sse, SessionId=abc123] {"jsonrpc":"2.0","id":"2","result":{...}}
+[McpServer][Stdio] → {"jsonrpc":"2.0","id":"1","result":{...}}
+[McpClient][Stdio] → {"jsonrpc":"2.0","method":"initialize",...}
+[McpServer][Ipc] ← {"jsonrpc":"2.0","method":"tools/call",...}
+```
+
+### 渠道标识（channel）规范
+
+`channel` 参数描述消息经由的具体 HTTP/传输渠道，格式为 `"类型[, SessionId=xxx]"`。
+
+| 场景 | channel 值 |
+|------|------------|
+| 服务端接收 POST 请求体（初始化前，无会话） | `"POST"` |
+| 服务端接收 POST 请求体（有会话） | `$"POST, SessionId={sessionId}"` |
+| 服务端发送 POST application/json 响应 | `$"POST/json, SessionId={session.SessionId}"` |
+| 服务端发送 POST 内嵌瞬态 SSE | `$"POST/sse, SessionId={SessionId}"` |
+| 客户端发送 POST 请求（初始化前） | `"POST"` |
+| 客户端发送 POST 请求（有会话） | `$"POST, SessionId={_sessionId}"` |
+| 客户端接收 POST application/json 响应 | `$"POST/json, SessionId={_sessionId ?? "init"}"` |
+| 客户端接收 POST 内嵌瞬态 SSE | `$"POST/sse, SessionId={_sessionId ?? "init"}"` |
+| 客户端接收 GET SSE 后台循环 | `$"GET/sse, SessionId={_sessionId}"` |
+| STDIO / IPC | 无需 channel（渠道唯一，省略参数即可） |
+
+### 覆盖要求
+
+每条 JSON-RPC 消息必须在以下两个时刻之一被记录，且只记录一次：
+
+- **接收侧**：解析完成后（有 `JsonRpcMessage` 对象）、分发给上层逻辑之前
+- **发送侧**：序列化写入流/通道之前
+
+---
+
 ## 代码实现
 
 ### 日志属性命名

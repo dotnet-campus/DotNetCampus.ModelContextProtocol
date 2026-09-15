@@ -9,9 +9,9 @@
 | **最新**   | 2025-11-25 | Streamable HTTP | `/mcp`                      | `Mcp-Session-Id` header  | ✅ 已支持 |
 |            | 2025-06-18 | Streamable HTTP | `/mcp`                      | `Mcp-Session-Id` header  | ✅ 已支持 |
 | **变更**   | 2025-03-26 | Streamable HTTP | `/mcp`                      | `Mcp-Session-Id` header  | ✅ 已支持 |
-| **旧协议** | 2024-11-05 | HTTP+SSE        | `/mcp/sse`, `/mcp/messages` | query string `sessionId` | ✅ 兼容   |
+| **旧协议** | 2024-11-05 | HTTP+SSE        | `/mcp/sse`, `/mcp/messages` | query string `sessionId` | ❌ 未实现 |
 
-> **说明**: 2025-11-25、2025-06-18 和 2025-03-26 在传输层上完全兼容，我们的实现同时支持这些版本。
+> **说明**: 2025-11-25、2025-06-18 和 2025-03-26 在传输层上完全兼容，我们的实现同时支持这些版本。旧版 HTTP+SSE 协议（2024-11-05）目前未实现，如有需要请提 issue。
 
 ## 🔑 关键区别
 
@@ -70,26 +70,33 @@ endpoint.Equals(EndPoint, StringComparison.OrdinalIgnoreCase)
 
 ## 📁 代码组织
 
-```csharp
-#region 新协议实现 (Streamable HTTP - 2025-03-26+)
-// HandleSseConnectionAsync()
-// HandleJsonRpcRequestAsync()
-// HandleDeleteSessionAsync()
-#endregion
+POST 处理逻辑被拆分为职责单一的方法（LocalHost 和 TouchSocket 两版结构完全对称）：
 
-#region 旧协议兼容 (HTTP+SSE - 2024-11-05)
-// HandleLegacySseConnectionAsync()      // 带 Legacy 前缀
-// HandleLegacyMessageRequestAsync()
-#endregion
 ```
+HandlePostRequestAsync（入口）
+  ├── HandleClientResponseAsync   // 客户端响应服务端采样请求（JsonRpcResponse）
+  ├── HandleNotificationAsync     // 通知消息，返回 202 Accepted
+  └── HandleRpcRequestAsync       // JSON-RPC 请求
+        ├── GetOrCreateSessionAsync // Session 查找/创建
+        ├── HandleInitializeAsync   // initialize：返回 application/json
+        └── HandleSseRequestAsync   // 其他请求：返回 text/event-stream SSE
+```
+
+> **POST 响应规则**：
+> - `initialize` 请求 → `Content-Type: application/json`，直接返回
+> - 所有其他 JSON-RPC 请求 → `Content-Type: text/event-stream`，
+>   采样等服务端发起的消息在此流上推送，最终响应也写入此流后关闭
 
 ## ✅ 测试清单
 
-- [ ] 新协议：POST `/mcp` 返回 `Mcp-Session-Id`
-- [ ] 新协议：GET `/mcp` 建立 Streamable HTTP 连接
-- [ ] 新协议：DELETE `/mcp` 成功终止会话
-- [ ] 旧协议：GET `/mcp/sse` 发送 endpoint 事件
-- [ ] 旧协议：POST `/mcp/messages?sessionId=xxx` 正常工作
+- [x] 新协议：POST `/mcp` initialize 返回 `Mcp-Session-Id`（`application/json`）
+- [x] 新协议：POST `/mcp` 工具调用返回 `text/event-stream` SSE 流
+- [x] 新协议：GET `/mcp` 建立 SSE 保活连接
+- [x] 新协议：DELETE `/mcp` 成功终止会话
+- [x] 采样（Sampling）：服务端通过 POST 响应 SSE 流发起采样请求，客户端 POST 回采样结果
+- [x] POST/GET 请求缺少 `Mcp-Session-Id` 时返回 400（而非 404）
+- [x] HTTP 客户端 GET/DELETE 请求均携带 `MCP-Protocol-Version` 头
+- [x] Streamable HTTP 协议版本低于 `2025-03-26` 时 POST 返回 400
 - [ ] 路径大小写不敏感
 - [ ] 会话不存在时 DELETE 返回 200 OK（幂等性）
 

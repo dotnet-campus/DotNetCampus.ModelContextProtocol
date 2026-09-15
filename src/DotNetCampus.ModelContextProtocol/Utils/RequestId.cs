@@ -22,7 +22,7 @@ public readonly record struct RequestId(long Id)
     /// </summary>
     public JsonElement ToJsonElement()
     {
-        return JsonSerializer.SerializeToElement(Id, CompiledSchemaJsonContext.Default.Int64);
+        return JsonSerializer.SerializeToElement(Id, McpInternalJsonContext.Default.Int64);
     }
 
     /// <summary>

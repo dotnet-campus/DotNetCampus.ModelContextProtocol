@@ -47,12 +47,7 @@ public class MyTools
 
 ### 1.2 参数与返回值类型
 
-详见 [快速使用文档](../quickstart/README.md#mcp-工具方法声明)，包括：
-
-- 支持的参数类型（普通参数、InputObject、Injected、Context、CancellationToken、JsonElement）
-- 支持的返回值类型（string、void、可序列化对象、CallToolResult、CallToolResult<T>）
-- 同步与异步方法
-- 类型多态支持
+用户侧 API 的完整说明见 [Tools 文档](../zh-hans/Tools.md)，包括参数类型、返回值类型、同步/异步方法和错误报告。源生成器根据这些 API 在编译期分析返回类型，自动选择对应的 `CallToolResult` 工厂方法生成桥接代码（详见第三节）。
 
 ---
 
@@ -136,7 +131,10 @@ public sealed class PolymorphicTool_TestPolymorphicParameter_Bridge(global::Syst
             [ "param" ] = new global::DotNetCampus.ModelContextProtocol.CompilerServices.CompiledJsonSchema
             {
                 Type = global::System.Text.Json.JsonSerializer.SerializeToElement("object", jsonContext.String),
-                Description = "多态参数 (Polymorphic type discriminated by: 'type'. Values: 'a', 'b', 'c')",
+                Description = """
+                多态参数
+                Polymorphic type discriminated by: 'type'. Values: 'a', 'b', 'c'
+                """,
                 Required = [ "type" ],
                 AnyOf = 
                 [
@@ -178,6 +176,9 @@ public sealed class PolymorphicTool_TestPolymorphicParameter_Bridge(global::Syst
                             },
                             [ "baz" ] = new global::DotNetCampus.ModelContextProtocol.CompilerServices.CompiledJsonSchema
                             {
+                                Properties = new global::System.Collections.Generic.Dictionary<string, global::DotNetCampus.ModelContextProtocol.CompilerServices.CompiledJsonSchema>
+                                {
+                                },
                             },
                         },
                     },
@@ -196,7 +197,7 @@ public sealed class PolymorphicTool_TestPolymorphicParameter_Bridge(global::Syst
             ? context.EnsureDeserialize<global::DotNetCampus.SampleMcpServer.McpTools.PolymorphicBase>(paramProperty, "PolymorphicBase", "DotNetCampus.SampleMcpServer.McpTools.PolymorphicBase", "type", ["a", "b", "c"])
             : throw new global::DotNetCampus.ModelContextProtocol.Exceptions.McpToolMissingRequiredArgumentException("param");
         var result = Target.TestPolymorphicParameter(param!);
-        return global::System.Threading.Tasks.ValueTask.FromResult(global::DotNetCampus.ModelContextProtocol.Protocol.Messages.CallToolResult.FromResult(result).Structure(jsonSerializerContext));
+        return global::System.Threading.Tasks.ValueTask.FromResult(global::DotNetCampus.ModelContextProtocol.Protocol.Messages.CallToolResult.FromResult(result));
     }
 }
 ```
@@ -239,12 +240,15 @@ public sealed class PolymorphicTool_TestPolymorphicParameter_Bridge(global::Syst
 
 ## 六、核心文件清单
 
-| 文件路径                                                                                                 | 职责                     |
-| -------------------------------------------------------------------------------------------------------- | ------------------------ |
-| `src/DotNetCampus.ModelContextProtocol.Analyzer/Generators/McpServerToolGenerator.cs`                    | 主源生成器               |
-| `src/DotNetCampus.ModelContextProtocol.Analyzer/Generators/SourceBuilders/McpServerToolSourceBuilder.cs` | 源代码构建器（核心逻辑） |
-| `src/DotNetCampus.ModelContextProtocol.Analyzer/Generators/InterceptorGenerator.cs`                      | 拦截器生成器             |
-| `src/DotNetCampus.ModelContextProtocol.Analyzer/Generators/Models/McpServerToolGeneratingModel.cs`       | 工具方法模型             |
-| `src/DotNetCampus.ModelContextProtocol.Analyzer/Generators/Models/JsonPropertySchemaInfo.cs`             | JSON Schema 生成辅助     |
-| `src/DotNetCampus.ModelContextProtocol/CompilerServices/McpServerToolAttribute.cs`                       | 用户标记特性             |
-| `src/DotNetCampus.ModelContextProtocol/Servers/IMcpServerTool.cs`                                        | 桥接类接口               |
+| 文件路径                                                                                                 | 职责                         |
+| -------------------------------------------------------------------------------------------------------- | ---------------------------- |
+| `src/DotNetCampus.ModelContextProtocol.Analyzer/Generators/McpServerToolGenerator.cs`                    | 主源生成器                   |
+| `src/DotNetCampus.ModelContextProtocol.Analyzer/Generators/SourceBuilders/McpServerToolSourceBuilder.cs` | 源代码构建器（核心逻辑）     |
+| `src/DotNetCampus.ModelContextProtocol.Analyzer/Generators/InterceptorGenerator.cs`                      | 拦截器生成器                 |
+| `src/DotNetCampus.ModelContextProtocol.Analyzer/Generators/Models/McpServerToolGeneratingModel.cs`       | 工具方法模型（含返回值分类） |
+| `src/DotNetCampus.ModelContextProtocol.Analyzer/Generators/Models/CollectionReturnKind.cs`               | 集合返回值的分类枚举         |
+| `src/DotNetCampus.ModelContextProtocol.Analyzer/Generators/Models/JsonPropertySchemaInfo.cs`             | JSON Schema 生成辅助         |
+| `src/DotNetCampus.ModelContextProtocol.Analyzer/Diagnostics.cs`                                          | 编译诊断（DM0101~DM0103）    |
+| `src/DotNetCampus.ModelContextProtocol/CompilerServices/McpServerToolAttribute.cs`                       | 用户标记特性                 |
+| `src/DotNetCampus.ModelContextProtocol/Protocol/Messages/CallToolResult.cs`                              | 返回值工厂方法（被生成代码调用） |
+| `src/DotNetCampus.ModelContextProtocol/Servers/IMcpServerTool.cs`                                        | 桥接类接口                   |

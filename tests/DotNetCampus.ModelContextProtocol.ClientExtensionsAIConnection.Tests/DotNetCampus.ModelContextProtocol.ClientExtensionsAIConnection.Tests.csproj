@@ -1,0 +1,26 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Agents.AI" />
+    <PackageReference Include="MSTest" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\DotNetCampus.ModelContextProtocol.ClientExtensionsAIConnection\DotNetCampus.ModelContextProtocol.ClientExtensionsAIConnection.csproj" />
+    <ProjectReference Include="..\..\src\DotNetCampus.ModelContextProtocol.Analyzer\DotNetCampus.ModelContextProtocol.Analyzer.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="..\..\src\DotNetCampus.ModelContextProtocol\DotNetCampus.ModelContextProtocol.csproj" />
+    <ProjectReference Include="..\DotNetCampus.ModelContextProtocol.Tests\DotNetCampus.ModelContextProtocol.Tests.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Microsoft.VisualStudio.TestTools.UnitTesting" />
+  </ItemGroup>
+
+</Project>

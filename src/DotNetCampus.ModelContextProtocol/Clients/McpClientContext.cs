@@ -30,6 +30,19 @@ internal record McpClientContext : IClientTransportContext
     }
 
     /// <summary>
+    /// 处理 MCP 客户端发出的所有请求的方法调用。
+    /// </summary>
+    public McpClientRequestHandlers Handlers
+    {
+        get => field ?? throw new InvalidOperationException("Handlers 未被设置。");
+        internal set => field = field switch
+        {
+            null => value,
+            _ => throw new InvalidOperationException("Handlers 已经被设置，不能重复设置。"),
+        };
+    }
+
+    /// <summary>
     /// 指示是否启用调试模式。<br/>
     /// 启用后会记录或报告更多调试信息。
     /// </summary>

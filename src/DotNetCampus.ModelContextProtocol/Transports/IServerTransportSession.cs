@@ -1,4 +1,6 @@
-﻿using DotNetCampus.ModelContextProtocol.Protocol.Messages.JsonRpc;
+﻿using DotNetCampus.ModelContextProtocol.Protocol;
+using DotNetCampus.ModelContextProtocol.Protocol.Messages;
+using DotNetCampus.ModelContextProtocol.Protocol.Messages.JsonRpc;
 
 namespace DotNetCampus.ModelContextProtocol.Transports;
 
@@ -15,7 +17,27 @@ public interface IServerTransportSession : IAsyncDisposable
     string? SessionId { get; }
 
     /// <summary>
-    /// 将消息发送给其他端。
+    /// 连接的客户端所声明的客户端能力。在 Initialize 握手完成后设置。
     /// </summary>
-    Task SendMessageAsync(JsonRpcMessage message, CancellationToken cancellationToken = default);
+    ClientCapabilities? ConnectedClientCapabilities { get; set; }
+
+    /// <summary>
+    /// 当前会话协商出的协议版本。在 Initialize 握手完成后设置。
+    /// </summary>
+    ProtocolVersion? NegotiatedProtocolVersion { get; set; }
+
+    /// <summary>
+    /// 连接的客户端在 Initialize 握手时提供的客户端信息（名称、版本等）。在 Initialize 握手完成后设置。
+    /// </summary>
+    Implementation? ConnectedClientInfo { get; set; }
+
+    /// <summary>
+    /// 向客户端发送 JSON-RPC 请求并等待响应。用于服务器主动发起的请求（如 sampling/createMessage）。
+    /// </summary>
+    Task<JsonRpcResponse> SendRequestAsync(JsonRpcRequest request, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 处理从客户端收到的 JSON-RPC 响应（对服务器发起的请求的回复）。
+    /// </summary>
+    void HandleResponseAsync(JsonRpcResponse response);
 }

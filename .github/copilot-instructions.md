@@ -42,7 +42,7 @@ src/DotNetCampus.ModelContextProtocol/
   - 代码主要以最新版本协议进行编写
   - 遇到需要兼容旧协议的部分，用 `Legacy` 命名相关代码并尽量减少代码量
 - **协议消息类型规范**：详见 [/docs/knowledge/protocol-messages-guide.md](../docs/knowledge/protocol-messages-guide.md)
-  - 所有 Protocol 消息类型必须添加中英双语注释
+  - **仅** `Protocol/` 文件夹下的消息类型必须添加中英双语注释；其他所有代码（接口、实现类、传输层等）一律使用**纯中文注释**（注：当前存在一些遗留非协议代码仍使用双语注释，如果改到了相关代码，请顺手改为纯中文注释）
   - 英文注释必须使用 MCP 官方 Schema 原文
   - 当前使用协议版本：**2025-11-25**
   - Schema 文件：[schema.ts](https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/schema/2025-11-25/schema.ts)
@@ -75,8 +75,9 @@ src/DotNetCampus.ModelContextProtocol/
 
 ## 参考资源
 
-- [MCP 官方规范 (2025-06-18)](https://modelcontextprotocol.io/specification/2025-06-18/basic/transports) - **当前使用版本**
-- [MCP Schema (2025-06-18)](https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/schema/2025-06-18/schema.ts) - **官方消息类型定义**
+- [MCP 官方规范 (2025-11-25)](https://modelcontextprotocol.io/specification/2025-11-25/basic/transports) - **当前使用版本**
+- [MCP Schema (2025-11-25)](https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/schema/2025-11-25/schema.ts) - **官方消息类型定义**
+- [MCP 官方规范 (2025-06-18)](https://modelcontextprotocol.io/specification/2025-06-18/basic/transports) - 旧版本（兼容支持）
 - [MCP 官方规范 (2024-11-05)](https://modelcontextprotocol.io/specification/2024-11-05/basic/transports) - 旧版本（兼容支持）
 - [JSON-RPC 2.0 规范](https://www.jsonrpc.org/specification)
 - [SSE 标准](https://html.spec.whatwg.org/multipage/server-sent-events.html)

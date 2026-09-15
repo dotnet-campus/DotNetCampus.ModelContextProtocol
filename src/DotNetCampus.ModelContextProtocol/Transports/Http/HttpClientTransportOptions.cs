@@ -14,4 +14,5 @@ public class HttpClientTransportOptions
     /// 获取或设置自定义的 HttpClient 实例。如果未设置，将创建新的 <see cref="HttpClient"/>。
     /// </summary>
     public HttpClient? HttpClient { get; init; }
+
 }

@@ -55,6 +55,11 @@ public record JsonPropertySchemaInfo(ITypeSymbol PropertyType)
     public PolymorphicTypeInfo? PolymorphicInfo { get; init; }
 
     /// <summary>
+    /// 提供运行时属性名，以便能将编译时 Schema 映射到包含 System.Text.Json 元数据信息的 Json 属性。
+    /// </summary>
+    public string? RuntimePropertyName { get; init; }
+
+    /// <summary>
     /// 获取属性类型的所有公共属性的 Schema 信息。
     /// </summary>
     public IReadOnlyList<JsonPropertySchemaInfo> GetProperties()
@@ -92,6 +97,11 @@ public record JsonPropertySchemaInfo(ITypeSymbol PropertyType)
         {
             if (member is IPropertySymbol { DeclaredAccessibility: Accessibility.Public, IsStatic: false } property)
             {
+                if (property.IsJsonIgnored())
+                {
+                    continue;
+                }
+
                 properties.Add(From(property));
                 addedMemberNames.Add(property.Name);
             }
@@ -124,8 +134,8 @@ public record JsonPropertySchemaInfo(ITypeSymbol PropertyType)
     public string? GetJsonSchemaTypeExpression() => (PropertyType.IsAnyJsonElementType(), IsNullableType) switch
     {
         (true, _) => null,
-        (_, true) => $"{G.JsonSerializer}.SerializeToElement(new[] {{ \"{JsonSchemaType}\", \"null\" }}, jsonContext.StringArray)",
-        (_, false) => $"{G.JsonSerializer}.SerializeToElement(\"{JsonSchemaType}\", jsonContext.String)",
+        (_, true) => $"{G.JsonSerializer}.SerializeToElement(new[] {{ \"{JsonSchemaType}\", \"null\" }}, {G.CompiledSchemaJsonContext}.Default.StringArray)",
+        (_, false) => $"{G.JsonSerializer}.SerializeToElement(\"{JsonSchemaType}\", {G.CompiledSchemaJsonContext}.Default.String)",
     };
 
     /// <summary>
@@ -142,7 +152,7 @@ public record JsonPropertySchemaInfo(ITypeSymbol PropertyType)
         var enums = EnumJsonValueInfo.FromEnumSymbol(PropertyType).ToList();
         return enums.Count is 0
             ? null
-            : $"[ {string.Join(", ", enums.Select(ev => $"\"{ev.Name}\""))} ]";
+            : $"[ {string.Join(", ", enums.Select(ev => $"\"{ev.JsonName}\""))} ]";
     }
 
     /// <summary>
@@ -160,6 +170,22 @@ public record JsonPropertySchemaInfo(ITypeSymbol PropertyType)
         return itemType is null
             ? null
             : From(itemType, JsonPropertyName);
+    }
+
+    /// <summary>
+    /// 如果属性类型是 string key 字典，则获取其 value 类型的 Schema 信息；否则返回 <see langword="null"/>。
+    /// </summary>
+    public JsonPropertySchemaInfo? GetDictionaryValueSchemaOrDefault()
+    {
+        if (Properties is not null)
+        {
+            return null;
+        }
+
+        var valueType = PropertyType.ToJsonSchemaTypeInfo().AsDictionaryValueSymbol();
+        return valueType is null
+            ? null
+            : From(valueType, JsonPropertyName);
     }
 
     /// <summary>
@@ -198,8 +224,8 @@ public record JsonPropertySchemaInfo(ITypeSymbol PropertyType)
         {
             var enumDescriptions = enumValues
                 .Select(ev => ev.Description is not null
-                    ? $"{ev.Name}: {ev.Description}"
-                    : ev.Name)
+                    ? $"{ev.JsonName}: {ev.Description}"
+                    : ev.JsonName)
                 .ToList();
 
             var enumHint = string.Join("\n", enumDescriptions);
@@ -278,9 +304,10 @@ public record JsonPropertySchemaInfo(ITypeSymbol PropertyType)
             JsonSchemaType = property.Type.ToJsonSchemaTypeString(),
             IsNullableType = property.Type.IsNullableType,
             Description = property.GetSummaryFromSymbol(),
-            IsRequired = property.IsRequired && !isNullable, // 可空类型不是必需的
+            IsRequired = property.IsRequired || property.IsJsonRequired(),
             DefaultValueJsonElement = null, // 暂时不知道如何获取属性的默认值。
             PolymorphicInfo = PolymorphicTypeInfo.FromTypeSymbol(property.Type),
+            RuntimePropertyName = property.Name,
         };
     }
 
@@ -298,6 +325,7 @@ public record JsonPropertySchemaInfo(ITypeSymbol PropertyType)
             IsRequired = !parameter.HasExplicitDefaultValue,
             DefaultValueJsonElement = GetJsonSchemaDefaultValueExpression(parameter),
             PolymorphicInfo = PolymorphicTypeInfo.FromTypeSymbol(parameter.Type),
+            RuntimePropertyName = parameter.Name,
         };
     }
 
@@ -327,15 +355,57 @@ public record JsonPropertySchemaInfo(ITypeSymbol PropertyType)
         {
             return null;
         }
+
+        if (defaultValue is not null && info.SpecialKind is JsonSpecialType.Enum)
+        {
+            var enumValue = EnumJsonValueInfo.FromEnumSymbol(parameter.Type)
+                .FirstOrDefault(x => EqualsByString(x.ConstantValue, defaultValue));
+            return enumValue.JsonName is null
+                ? null
+                : $"{G.JsonSerializer}.SerializeToElement(\"{enumValue.JsonName}\", {G.CompiledSchemaJsonContext}.Default.String)";
+        }
+
         return (defaultValue, info.SchemaKind) switch
         {
             (null, _) => $"{G.JsonDocument}.Parse(\"null\").RootElement",
-            (_, JsonType.Boolean) => $"{G.JsonSerializer}.SerializeToElement({defaultValue.ToString().ToLowerInvariant()}, jsonContext.Boolean)",
-            (_, JsonType.Integer) => $"{G.JsonSerializer}.SerializeToElement((long){defaultValue}, jsonContext.Int64)",
-            (_, JsonType.Number) => $"{G.JsonSerializer}.SerializeToElement((decimal){defaultValue}, jsonContext.Decimal)",
-            (_, JsonType.String) => $"{G.JsonSerializer}.SerializeToElement(\"{defaultValue}\", jsonContext.String)",
+            (_, JsonType.Boolean) => $"{G.JsonSerializer}.SerializeToElement({defaultValue.ToString().ToLowerInvariant()}, {G.CompiledSchemaJsonContext}.Default.Boolean)",
+            (_, JsonType.Integer) => $"{G.JsonSerializer}.SerializeToElement((long){defaultValue}, {G.CompiledSchemaJsonContext}.Default.Int64)",
+            (_, JsonType.Number) => $"{G.JsonSerializer}.SerializeToElement((decimal){defaultValue}, {G.CompiledSchemaJsonContext}.Default.Decimal)",
+            (_, JsonType.String) => $"{G.JsonSerializer}.SerializeToElement(\"{defaultValue}\", {G.CompiledSchemaJsonContext}.Default.String)",
             // 其他情况，C# 语法中写不出来默认值。
             _ => null,
         };
+        
+        static bool EqualsByString(object? left, object right)
+        {
+            return left?.ToString() == right.ToString();
+        }
+    }
+}
+
+file static class JsonPropertySymbolExtensions
+{
+    public static bool IsJsonIgnored(this IPropertySymbol property)
+    {
+        var attribute = property.GetAttributes()
+            .FirstOrDefault(a => a.AttributeClass?.ToDisplayString() == "System.Text.Json.Serialization.JsonIgnoreAttribute");
+
+        if (attribute is null)
+        {
+            return false;
+        }
+
+        var condition = attribute.NamedArguments
+            .FirstOrDefault(x => x.Key == "Condition")
+            .Value.Value;
+
+        // JsonIgnoreAttribute without Condition uses Always. Never explicitly keeps the property in the contract.
+        return condition is null || condition is 1;
+    }
+
+    public static bool IsJsonRequired(this IPropertySymbol property)
+    {
+        return property.GetAttributes()
+            .Any(a => a.AttributeClass?.ToDisplayString() == "System.Text.Json.Serialization.JsonRequiredAttribute");
     }
 }

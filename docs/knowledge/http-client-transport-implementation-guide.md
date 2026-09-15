@@ -23,7 +23,7 @@
 - **生命周期**: 长生命周期，在握手成功后启动，直到传输层 Dispose。
 - **职责**:
   1. 维持一个对 `/mcp` 端点的长连接。
-  2. 设置 header `Mcp-Session-Id` 以标识身份。
+  2. 设置 headers：`Mcp-Session-Id`、`Accept: text/event-stream`、`MCP-Protocol-Version`（协商后必须携带，参考官方规范 §2.7）。
   3. 持续解析 SSE 事件 (`message`, `endpoint` 等) 并分发给 Manager。
   4. 处理网络异常和自动重连策略。
 

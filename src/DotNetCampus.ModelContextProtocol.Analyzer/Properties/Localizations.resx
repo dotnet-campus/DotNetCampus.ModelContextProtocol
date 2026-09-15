@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 
 <root>
   <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema"
@@ -30,12 +30,30 @@
     <value>An unknown error occurred. {0}</value>
   </data>
   <data name="DM0101" xml:space="preserve">
-    <value>MCP tool does not support collection return type</value>
+    <value>MCP tool structured content not allowed for this return type</value>
   </data>
   <data name="DM0101_Message" xml:space="preserve">
-    <value>Method '{0}' returns '{1}', which is a collection type not supported by the MCP protocol. Use a wrapper object or return CallToolResult directly.</value>
+    <value>Method '{0}' returns '{1}', which cannot produce structured content. Remove 'Structured = true' from the McpServerTool attribute.</value>
   </data>
   <data name="DM0101_Description" xml:space="preserve">
-    <value>The MCP protocol specification requires Tool's outputSchema to be of type object and CallToolResult.StructuredContent to be an object (not an array). Wrap the collection in an object, or use CallToolResult to build the content manually.</value>
+    <value>The return type cannot generate a valid outputSchema (must be type 'object'). Structured = true is only valid for non-nullable object types that can be serialized as JSON objects.</value>
+  </data>
+  <data name="DM0102" xml:space="preserve">
+    <value>MCP tool requires explicit Structured setting for nullable or collection return types</value>
+  </data>
+  <data name="DM0102_Message" xml:space="preserve">
+    <value>Method '{0}' returns '{1}', which is a nullable object or object collection type. You must explicitly set 'Structured = false' on the McpServerTool attribute.</value>
+  </data>
+  <data name="DM0102_Description" xml:space="preserve">
+    <value>Nullable object types (Foo?) and object collection types (Foo[]) cannot guarantee structuredContent compliance at runtime. Set Structured = false to acknowledge this limitation.</value>
+  </data>
+  <data name="DM0103" xml:space="preserve">
+    <value>MCP tool structured content not allowed for nullable or collection return types</value>
+  </data>
+  <data name="DM0103_Message" xml:space="preserve">
+    <value>Method '{0}' returns '{1}', which cannot guarantee structuredContent compliance. Change 'Structured = true' to 'Structured = false' on the McpServerTool attribute.</value>
+  </data>
+  <data name="DM0103_Description" xml:space="preserve">
+    <value>Nullable object types (Foo?) may return null at runtime, and object collection types (Foo[]) serialize as JSON arrays — neither can satisfy the MCP requirement that structuredContent must be a JSON object.</value>
   </data>
 </root>

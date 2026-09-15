@@ -1,4 +1,4 @@
-﻿using DotNetCampus.ModelContextProtocol.Properties;
+using DotNetCampus.ModelContextProtocol.Properties;
 using Microsoft.CodeAnalysis;
 using static DotNetCampus.ModelContextProtocol.Properties.Localizations;
 
@@ -19,14 +19,43 @@ public class Diagnostics
         DiagnosticSeverity.Error,
         true);
 
-    public static DiagnosticDescriptor DM0101_McpToolCollectionReturnTypeNotSupported { get; } = new(
+    /// <summary>
+    /// DM0101: Structured = true 用于不可结构化的返回类型（void/基本类型/枚举/string/基本类型集合/CallToolResult/JsonElement）。
+    /// </summary>
+    public static DiagnosticDescriptor DM0101_McpToolStructuredNotAllowed { get; } = new(
         nameof(DM0101),
         Localize(nameof(DM0101)),
         Localize(nameof(DM0101_Message)),
-        Categories.RuntimeException,
+        Categories.Compiler,
         DiagnosticSeverity.Error,
         true,
         description: Localize(nameof(DM0101_Description)),
+        customTags: WellKnownDiagnosticTags.NotConfigurable);
+
+    /// <summary>
+    /// DM0102: Foo? 或 Foo[] 未显式设置 Structured。
+    /// </summary>
+    public static DiagnosticDescriptor DM0102_McpToolRequiresStructured { get; } = new(
+        nameof(DM0102),
+        Localize(nameof(DM0102)),
+        Localize(nameof(DM0102_Message)),
+        Categories.Compiler,
+        DiagnosticSeverity.Error,
+        true,
+        description: Localize(nameof(DM0102_Description)),
+        customTags: WellKnownDiagnosticTags.NotConfigurable);
+
+    /// <summary>
+    /// DM0103: Foo? 或 Foo[] 设了 Structured = true。
+    /// </summary>
+    public static DiagnosticDescriptor DM0103_McpToolNullableOrCollectionStructuredTrue { get; } = new(
+        nameof(DM0103),
+        Localize(nameof(DM0103)),
+        Localize(nameof(DM0103_Message)),
+        Categories.Compiler,
+        DiagnosticSeverity.Error,
+        true,
+        description: Localize(nameof(DM0103_Description)),
         customTags: WellKnownDiagnosticTags.NotConfigurable);
 
     private static class Categories

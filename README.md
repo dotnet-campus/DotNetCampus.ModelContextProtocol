@@ -1,12 +1,13 @@
 # DotNetCampus.ModelContextProtocol
 
-[![.NET Build and Test](https://github.com/dotnet-campus/DotNetCampus.ModelContextProtocol/actions/workflows/dotnet-build.yml/badge.svg)](https://github.com/dotnet-campus/DotNetCampus.ModelContextProtocol/actions/workflows/dotnet-build.yml) [![NuGet](https://img.shields.io/nuget/v/DotNetCampus.ModelContextProtocol.svg?label=DotNetCampus.ModelContextProtocol)](https://www.nuget.org/packages/DotNetCampus.ModelContextProtocol)
+[![.NET Build and Test](https://github.com/dotnet-campus/DotNetCampus.ModelContextProtocol/actions/workflows/dotnet-build.yml/badge.svg)](https://github.com/dotnet-campus/DotNetCampus.ModelContextProtocol/actions/workflows/dotnet-build.yml) [![NuGet](https://img.shields.io/nuget/v/DotNetCampus.ModelContextProtocol.svg?label=DotNetCampus.ModelContextProtocol)](https://www.nuget.org/packages/DotNetCampus.ModelContextProtocol) [![NuGet](https://img.shields.io/nuget/v/DotNetCampus.ModelContextProtocol.Ipc.svg?label=DotNetCampus.ModelContextProtocol.Ipc)](https://www.nuget.org/packages/DotNetCampus.ModelContextProtocol.Ipc) [![NuGet](https://img.shields.io/nuget/v/DotNetCampus.ModelContextProtocol.TouchSocket.Http.svg?label=DotNetCampus.ModelContextProtocol.TouchSocket.Http)](https://www.nuget.org/packages/DotNetCampus.ModelContextProtocol.TouchSocket.Http)
 
-| [English][en] | [简体中文][zh-hans] |
-| ------------- | ------------------- |
+| [English][en] | [简体中文][zh-hans] | [繁體中文][zh-hant] |
+| ------------- | ------------------- | ------------------- |
 
-[en]: /docs/en/QuickStart.md
-[zh-hans]: /docs/zh-hans/QuickStart.md
+[en]: /docs/en/README.md
+[zh-hans]: /docs/zh-hans/README.md
+[zh-hant]: /docs/zh-hant/README.md
 
 A lightweight, zero-dependency yet full-featured MCP protocol implementation built with .NET. It can be easily integrated into your application, regardless of its architecture.
 
@@ -25,87 +26,56 @@ A lightweight, zero-dependency yet full-featured MCP protocol implementation bui
 dotnet add package DotNetCampus.ModelContextProtocol
 ```
 
-### Quick Start
+## Quick Start
 
-A typical MCP server program looks like this:
-
-```csharp
-internal class Program
-{
-    private static async Task Main(string[] args)
-    {
-        // The server name and version will be sent to clients via the MCP protocol
-        var mcpServer = new McpServerBuilder("Sample Server", "1.0.0")
-            // If your MCP tool parameters and return values use custom types, you need to provide a JSON serialization context
-            .WithJsonSerializer(McpToolJsonContext.Default)
-            .WithTools(t => t
-                // Register various MCP tools
-                .WithTool(() => new SampleTools())
-                .WithTool(() => new SampleTools2())
-            )
-            // Use Streamable HTTP transport, listening on http://localhost:5943/mcp
-            // Also compatible with SSE, listening on http://localhost:5943/mcp/sse
-            .WithLocalHostHttp(5943, "mcp")
-            // You can also use stdio (standard input/output) transport, which is recommended by the MCP protocol for all MCP servers
-            // However, it's generally not recommended to enable both http and stdio simultaneously,
-            // as the former typically requires singleton execution while the latter must support multiple instances
-            // .WithStdio()
-            .Build();
-#if DEBUG
-        // Enable debug mode so that when the MCP server encounters exceptions, it returns exception information to clients for easier debugging
-        // It's generally not recommended to enable this mode in production, as it would expose internal implementation details of the server
-        mcpServer.EnableDebugMode();
-#endif
-        // Run the MCP server
-        await mcpServer.RunAsync();
-    }
-}
-
-[JsonSerializable(typeof(Foo))]
-[JsonSerializable(typeof(Bar))]
-[JsonSourceGenerationOptions(
-    // Recommended: Most MCP protocol implementations use camelCase naming
-    PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,
-    // Recommended: Most MCP protocol implementations use string enums
-    UseStringEnumConverter = true,
-    // Recommended: Cannot guarantee AI will always put metadata properties first
-    AllowOutOfOrderMetadataProperties = true
-    // If you plan to use less capable models, you can also enable the following options
-    // PropertyNameCaseInsensitive = true,
-    // NumberHandling = JsonNumberHandling.AllowReadingFromString
-    )]
-internal partial class McpToolJsonContext : JsonSerializerContext;
-```
-
-### Declaring MCP Tool Methods
+### Server
 
 ```csharp
+var mcpServer = new McpServerBuilder("Sample Mcp Server", "1.0.0")
+    .WithTools(tools => tools.WithTool(() => new SampleTools()))
+    .WithLocalHostHttp(5943, "mcp")
+    .Build();
+
+await mcpServer.RunAsync();
+
 public class SampleTools
 {
     /// <summary>
-    /// A tool for AI debugging that echoes back information as-is
+    /// 原样返回输入文本。
     /// </summary>
-    /// <param name="text">The string to echo back</param>
-    /// <returns>The echoed string</returns>
+    /// <param name="text">要原样返回的字符串</param>
     [McpServerTool(ReadOnly = true)]
-    public string Echo(string text)
+    public string EchoTool(string text)
     {
         return text;
     }
 }
 ```
 
-### Advanced Usage
+### Client
 
-For advanced usage including supported types for parameters and return values, type polymorphism, and more, please refer to the [Quick Start Guide](docs/quickstart/README.md)
+```csharp
+var client = new McpClientBuilder("Sample Mcp Client", "1.0.0")
+    .WithHttp("http://localhost:5943/mcp")
+    .Build();
+
+var arguments = JsonSerializer.SerializeToElement(new { text = "Hello, MCP!" });
+var result = await client.CallToolAsync("echo_tool", arguments);
+
+Console.WriteLine(result.Content);
+```
+
+## Documentation
+
+See [docs/en/README.md](docs/en/README.md) for the full documentation index.
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+Contributions are welcome. Please feel free to submit a pull request.
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.
 
 ## About dotnet-campus
 

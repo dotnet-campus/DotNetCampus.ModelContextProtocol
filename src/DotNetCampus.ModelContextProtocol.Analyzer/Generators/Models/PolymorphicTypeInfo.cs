@@ -1,4 +1,5 @@
 using Microsoft.CodeAnalysis;
+using G = DotNetCampus.ModelContextProtocol.GlobalTypeNames;
 
 namespace DotNetCampus.ModelContextProtocol.Generators.Models;
 
@@ -64,40 +65,72 @@ public sealed class PolymorphicTypeInfo(
                 continue;
             }
 
-            // 第二个构造函数参数（如果有）是 typeDiscriminator
-            string? discriminator = null;
-            if (attr.ConstructorArguments.Length >= 2)
+            // 第二个构造函数参数（如果有）是 typeDiscriminator。没有显式 discriminator 时，System.Text.Json 不会使用派生类型名作为 wire value。
+            if (attr.ConstructorArguments.Length < 2)
             {
-                discriminator = attr.ConstructorArguments[1].Value switch
-                {
-                    string s => s,
-                    int i => i.ToString(),
-                    _ => null,
-                };
+                continue;
             }
 
-            // 如果没有指定 discriminator，使用类型名称
-            discriminator ??= derivedType.Name;
+            var discriminator = attr.ConstructorArguments[1].Value switch
+            {
+                string s => new DerivedTypeDiscriminator(s),
+                int i => new DerivedTypeDiscriminator(i),
+                _ => null,
+            };
+
+            if (discriminator is null)
+            {
+                continue;
+            }
 
             derivedTypes.Add(new DerivedTypeInfo(derivedType, discriminator));
         }
 
-        return new PolymorphicTypeInfo(typeSymbol, discriminatorPropertyName, derivedTypes);
+        return derivedTypes.Count == 0
+            ? null
+            : new PolymorphicTypeInfo(typeSymbol, discriminatorPropertyName, derivedTypes);
     }
 }
 
 /// <summary>
 /// 派生类型的信息。
 /// </summary>
-public sealed class DerivedTypeInfo(ITypeSymbol type, string discriminatorValue)
+public sealed class DerivedTypeInfo(ITypeSymbol type, DerivedTypeDiscriminator discriminator)
 {
     /// <summary>
     /// 派生类型。
     /// </summary>
     public ITypeSymbol Type { get; } = type;
 
+    public DerivedTypeDiscriminator Discriminator { get; } = discriminator;
+
     /// <summary>
-    /// 类型鉴别器的值。
+    /// 类型鉴别器的显示值。
     /// </summary>
-    public string DiscriminatorValue { get; } = discriminatorValue;
+    public string DiscriminatorValue => Discriminator.DisplayValue;
+}
+
+public sealed class DerivedTypeDiscriminator
+{
+    public DerivedTypeDiscriminator(string value)
+    {
+        StringValue = value;
+        DisplayValue = value;
+    }
+
+    public DerivedTypeDiscriminator(int value)
+    {
+        Int32Value = value;
+        DisplayValue = value.ToString();
+    }
+
+    public string? StringValue { get; }
+
+    public int? Int32Value { get; }
+
+    public string DisplayValue { get; }
+
+    public string ToJsonElementExpression() => StringValue is { } stringValue
+        ? $"{G.JsonSerializer}.SerializeToElement(\"{stringValue}\", {G.CompiledSchemaJsonContext}.Default.String)"
+        : $"{G.JsonSerializer}.SerializeToElement({Int32Value!.Value}, {G.CompiledSchemaJsonContext}.Default.Int32)";
 }
